@@ -1,5 +1,3 @@
-"use client";
-
 interface RequirementMatch {
   requirement: string;
   status: "STRONG MATCH" | "PARTIAL MATCH" | "GAP";

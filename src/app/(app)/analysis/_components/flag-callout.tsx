@@ -1,5 +1,3 @@
-"use client";
-
 interface FlagItem {
   rating: "green" | "orange" | "red";
   note: string;

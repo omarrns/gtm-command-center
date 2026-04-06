@@ -126,7 +126,36 @@ export function AnalysisDetail({
         </div>
       )}
 
-      {result && (
+      {/* Imported markdown fallback */}
+      {result &&
+        (result as Record<string, unknown>).imported === true &&
+        typeof (result as Record<string, unknown>).raw_markdown ===
+          "string" && (
+          <div className="space-y-6">
+            {(result as Record<string, unknown>).score ||
+            (result as Record<string, unknown>).verdict ? (
+              <div className="flex items-center gap-3">
+                {(result as Record<string, unknown>).score ? (
+                  <span className="badge">
+                    Score: {String((result as Record<string, unknown>).score)}
+                  </span>
+                ) : null}
+                {(result as Record<string, unknown>).verdict ? (
+                  <span className="badge">
+                    {String((result as Record<string, unknown>).verdict)}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="surface p-6">
+              <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)]">
+                {String((result as Record<string, unknown>).raw_markdown)}
+              </pre>
+            </div>
+          </div>
+        )}
+
+      {result && (result as Record<string, unknown>).imported !== true && (
         <div className="space-y-6">
           {/* Bottom line */}
           {(bottomLine || (result.bottom_line as string)) && (

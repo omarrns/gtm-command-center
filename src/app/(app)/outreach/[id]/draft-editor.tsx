@@ -15,7 +15,7 @@ export function DraftEditor({
   activeDraftId: string;
 }) {
   const [activeIdx, setActiveIdx] = useState(
-    drafts.findIndex((d) => d.id === activeDraftId) || 0,
+    () => drafts.findIndex((d) => d.id === activeDraftId) || 0,
   );
   const draft = drafts[activeIdx];
   const [subject, setSubject] = useState(draft.subject ?? "");

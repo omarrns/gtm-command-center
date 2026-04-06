@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/supabase/server";
 import { SidebarNav } from "@/components/sidebar-nav";
-import { CommandPalette } from "@/components/command-palette";
 import { TopBar } from "@/components/top-bar";
+import { LazyCommandPalette } from "@/components/lazy-command-palette";
 
 export default async function AppLayout({
   children,
@@ -19,7 +19,7 @@ export default async function AppLayout({
           <div className="mx-auto max-w-6xl px-8 py-10">{children}</div>
         </main>
       </div>
-      <CommandPalette />
+      <LazyCommandPalette />
     </div>
   );
 }

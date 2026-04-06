@@ -4,7 +4,10 @@ import { requireUser, createSupabaseServerClient } from "@/lib/supabase/server";
 import { enqueueJob } from "@/lib/jobs/enqueue";
 
 export async function enqueueResearchJobAction(formData: FormData) {
-  const user = await requireUser();
+  const [user, supabase] = await Promise.all([
+    requireUser(),
+    createSupabaseServerClient(),
+  ]);
   const companyName = String(formData.get("company_name") ?? "").trim();
   const roleTitle = String(formData.get("role_title") ?? "").trim();
   const researchType = String(
@@ -13,8 +16,6 @@ export async function enqueueResearchJobAction(formData: FormData) {
 
   if (!companyName) return { error: "Company name is required." };
   if (!roleTitle) return { error: "Role title is required." };
-
-  const supabase = await createSupabaseServerClient();
 
   const { data: report, error: rErr } = await supabase
     .from("research_reports")

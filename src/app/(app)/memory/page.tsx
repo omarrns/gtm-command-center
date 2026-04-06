@@ -5,8 +5,10 @@ import { formatRelativeTime } from "@/lib/utils";
 export const metadata = { title: "Memory · GTM Command Center" };
 
 export default async function MemoryPage() {
-  const user = await requireUser();
-  const supabase = await createSupabaseServerClient();
+  const [user, supabase] = await Promise.all([
+    requireUser(),
+    createSupabaseServerClient(),
+  ]);
   const { data: docs } = await supabase
     .from("memory_documents")
     .select("id, document_key, title, origin, updated_at")

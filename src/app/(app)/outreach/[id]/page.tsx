@@ -7,9 +7,11 @@ export const metadata = { title: "Draft · GTM Command Center" };
 type Props = { params: Promise<{ id: string }> };
 
 export default async function DraftDetailPage({ params }: Props) {
-  const { id } = await params;
-  const user = await requireUser();
-  const supabase = await createSupabaseServerClient();
+  const [{ id }, user, supabase] = await Promise.all([
+    params,
+    requireUser(),
+    createSupabaseServerClient(),
+  ]);
 
   // Load this draft and any sibling variants (same company + recipient + type + created within 60s)
   const { data: draft } = await supabase
