@@ -7,9 +7,11 @@ export const metadata = { title: "Research Report · GTM Command Center" };
 type Props = { params: Promise<{ id: string }> };
 
 export default async function ResearchReportPage({ params }: Props) {
-  const { id } = await params;
-  const user = await requireUser();
-  const supabase = await createSupabaseServerClient();
+  const [{ id }, user, supabase] = await Promise.all([
+    params,
+    requireUser(),
+    createSupabaseServerClient(),
+  ]);
 
   const { data: report } = await supabase
     .from("research_reports")

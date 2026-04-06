@@ -33,8 +33,10 @@ export async function generateEmailDraftAction(formData: FormData) {
   if (!companyName) return { error: "Company name is required." };
   if (!recipientName) return { error: "Recipient name is required." };
 
-  const ctx = await loadMemoryContext(user.id);
-  const supabase = await createSupabaseServerClient();
+  const [ctx, supabase] = await Promise.all([
+    loadMemoryContext(user.id),
+    createSupabaseServerClient(),
+  ]);
 
   // Load linked analysis context if provided
   let analysisContext: string | undefined;
@@ -76,30 +78,33 @@ export async function generateEmailDraftAction(formData: FormData) {
     maxTokens: 4096,
   });
 
-  // Save each variant as a draft row
-  const draftIds: string[] = [];
-  for (let i = 0; i < result.variants.length; i++) {
-    const v = result.variants[i];
-    const { data, error } = await supabase
-      .from("email_drafts")
-      .insert({
-        user_id: user.id,
-        draft_type: draftType,
-        company_name: companyName,
-        recipient_name: recipientName,
-        recipient_title: recipientTitle,
-        context: { role_title: roleTitle, reasoning: v.reasoning },
-        subject: v.subject,
-        body: v.body,
-        variant_index: i,
-        status: "draft",
-        source_analysis_id: analysisId,
-      })
-      .select("id")
-      .single();
-    if (data) draftIds.push(data.id);
-    if (error) return { error: error.message };
-  }
+  // Save all variants in parallel
+  const insertResults = await Promise.all(
+    result.variants.map((v, i) =>
+      supabase
+        .from("email_drafts")
+        .insert({
+          user_id: user.id,
+          draft_type: draftType,
+          company_name: companyName,
+          recipient_name: recipientName,
+          recipient_title: recipientTitle,
+          context: { role_title: roleTitle, reasoning: v.reasoning },
+          subject: v.subject,
+          body: v.body,
+          variant_index: i,
+          status: "draft",
+          source_analysis_id: analysisId,
+        })
+        .select("id")
+        .single(),
+    ),
+  );
+
+  const firstError = insertResults.find((r) => r.error);
+  if (firstError?.error) return { error: firstError.error.message };
+
+  const draftIds = insertResults.filter((r) => r.data).map((r) => r.data!.id);
 
   return { draftIds, recommendedVariant: result.recommended_variant };
 }

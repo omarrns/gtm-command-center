@@ -90,7 +90,20 @@ export function ResearchDetail({
         </div>
       )}
 
-      {result && (
+      {/* Imported markdown fallback */}
+      {result &&
+        result.imported === true &&
+        typeof result.raw_markdown === "string" && (
+          <div className="space-y-6">
+            <div className="surface p-6">
+              <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)]">
+                {String(result.raw_markdown)}
+              </pre>
+            </div>
+          </div>
+        )}
+
+      {result && result.imported !== true && (
         <div className="space-y-6">
           {/* Bottom line */}
           {typeof result.bottom_line === "string" ? (

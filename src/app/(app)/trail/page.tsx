@@ -3,25 +3,27 @@ import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 export const metadata = { title: "Trail · GTM Command Center" };
 
 export default async function TrailPage() {
-  const user = await requireUser();
-  const supabase = await createSupabaseServerClient();
+  const [user, supabase] = await Promise.all([
+    requireUser(),
+    createSupabaseServerClient(),
+  ]);
 
-  // Load TRAIL document
-  const { data: trailDoc } = await supabase
-    .from("memory_documents")
-    .select("content, updated_at")
-    .eq("user_id", user.id)
-    .eq("document_key", "TRAIL")
-    .single();
-
-  // Also load coaching session trail entries as timeline
-  const { data: sessions } = await supabase
-    .from("coaching_sessions")
-    .select("id, trail_entry, summary, created_at")
-    .eq("user_id", user.id)
-    .eq("status", "complete")
-    .order("created_at", { ascending: false })
-    .limit(20);
+  // Load TRAIL document and coaching sessions in parallel
+  const [{ data: trailDoc }, { data: sessions }] = await Promise.all([
+    supabase
+      .from("memory_documents")
+      .select("content, updated_at")
+      .eq("user_id", user.id)
+      .eq("document_key", "TRAIL")
+      .single(),
+    supabase
+      .from("coaching_sessions")
+      .select("id, trail_entry, summary, created_at")
+      .eq("user_id", user.id)
+      .eq("status", "complete")
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
 
   const hasTrail = !!trailDoc?.content;
   const hasSessions = !!sessions?.length;

@@ -4,12 +4,13 @@ import { requireUser, createSupabaseServerClient } from "@/lib/supabase/server";
 import { enqueueJob } from "@/lib/jobs/enqueue";
 
 export async function startCoachingSessionAction(formData: FormData) {
-  const user = await requireUser();
+  const [user, supabase] = await Promise.all([
+    requireUser(),
+    createSupabaseServerClient(),
+  ]);
   const transcript = String(formData.get("transcript") ?? "").trim();
 
   if (!transcript) return { error: "Session transcript is required." };
-
-  const supabase = await createSupabaseServerClient();
 
   const { data: session, error: sErr } = await supabase
     .from("coaching_sessions")

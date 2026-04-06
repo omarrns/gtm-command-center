@@ -7,9 +7,11 @@ export const metadata = { title: "Memory Document · GTM Command Center" };
 type Props = { params: Promise<{ documentKey: string }> };
 
 export default async function MemoryDocumentPage({ params }: Props) {
-  const { documentKey } = await params;
-  const user = await requireUser();
-  const supabase = await createSupabaseServerClient();
+  const [{ documentKey }, user, supabase] = await Promise.all([
+    params,
+    requireUser(),
+    createSupabaseServerClient(),
+  ]);
 
   const { data: doc } = await supabase
     .from("memory_documents")

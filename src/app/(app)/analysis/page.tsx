@@ -6,8 +6,10 @@ import { formatRelativeTime } from "@/lib/utils";
 export const metadata = { title: "Analysis · GTM Command Center" };
 
 export default async function AnalysisPage() {
-  const user = await requireUser();
-  const supabase = await createSupabaseServerClient();
+  const [user, supabase] = await Promise.all([
+    requireUser(),
+    createSupabaseServerClient(),
+  ]);
   const { data: analyses } = await supabase
     .from("analyses")
     .select(

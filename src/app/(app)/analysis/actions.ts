@@ -22,7 +22,10 @@ export async function runJdRubricAction(formData: FormData) {
 
   if (!jobDescription) return { error: "Job description is required." };
 
-  const ctx = await loadMemoryContext(user.id);
+  const [ctx, supabase] = await Promise.all([
+    loadMemoryContext(user.id),
+    createSupabaseServerClient(),
+  ]);
   const memory = formatMemoryForPrompt(ctx);
 
   const result = await runClaudeJson({
@@ -37,7 +40,6 @@ export async function runJdRubricAction(formData: FormData) {
   });
 
   // Save analysis record
-  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("analyses")
     .insert({
