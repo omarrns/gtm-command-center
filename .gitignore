@@ -1,0 +1,24 @@
+# deps
+node_modules
+.pnp
+.pnp.js
+
+# next
+.next
+out
+next-env.d.ts
+
+# env
+.env
+.env.local
+.env*.local
+
+# vercel
+.vercel
+
+# supabase
+supabase/.temp/
+
+# misc
+.DS_Store
+*.tsbuildinfo
