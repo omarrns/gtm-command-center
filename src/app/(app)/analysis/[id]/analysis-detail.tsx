@@ -2,17 +2,18 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Mail, RefreshCw } from "lucide-react";
+import { Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { ScorecardPanel } from "../_components/scorecard-panel";
 import { RequirementTable } from "../_components/requirement-table";
 import { FlagCallout } from "../_components/flag-callout";
 import { formatRelativeTime } from "@/lib/utils";
+import { DetailHeader } from "@/components/detail-header";
+import { StatusBanner } from "@/components/status-banner";
 import type { AnalysisRow } from "@/lib/supabase/types";
 import type { ReactNode } from "react";
 
-// Helper to render a conditional section without hitting unknown-in-JSX errors
 function renderIf(condition: unknown, node: ReactNode): ReactNode {
   return condition ? node : null;
 }
@@ -37,7 +38,6 @@ export function AnalysisDetail({
   const isRunning = initial.status === "running";
   const isFailed = initial.status === "failed";
 
-  // JD rubric result shape
   const jdScorecard = result?.scorecard as
     | Record<string, { score: number; justification: string }>
     | undefined;
@@ -54,7 +54,6 @@ export function AnalysisDetail({
   const positioning = (result?.positioning_recommendations as string[]) ?? null;
   const bottomLine = (result?.bottom_line as string) ?? null;
 
-  // Full analysis shape — cast to concrete types to avoid unknown-in-JSX errors
   type Obj = Record<string, unknown>;
   const jdFit: Obj | null =
     result?.jd_fit && typeof result.jd_fit === "object"
@@ -75,55 +74,41 @@ export function AnalysisDetail({
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/analysis" className="btn-ghost p-1.5 rounded-md">
-          <ArrowLeft size={16} />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-semibold truncate">
-            {initial.company_name ?? "Analysis"}{" "}
-            {initial.role_title ? `— ${initial.role_title}` : ""}
-          </h2>
-          <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] mt-0.5">
-            <span className="badge">{initial.skill_slug}</span>
-            <span>{formatRelativeTime(initial.created_at)}</span>
-          </div>
-        </div>
+      <DetailHeader
+        backHref="/analysis"
+        backLabel="Back to analyses"
+        title={`${initial.company_name ?? "Analysis"} ${initial.role_title ? `— ${initial.role_title}` : ""}`}
+        subtitle={
+          <>
+            <span className="badge">{initial.skill_slug}</span>{" "}
+            {formatRelativeTime(initial.created_at)}
+          </>
+        }
+      >
         {initial.status === "complete" && (
           <Link
             href={`/outreach/new?analysis=${initial.id}`}
             className="btn-ghost border border-[var(--color-border)] flex items-center gap-1.5 text-xs"
           >
-            <Mail size={13} /> Draft Outreach
+            <Mail size={14} /> Draft Outreach
           </Link>
         )}
-      </div>
+      </DetailHeader>
 
       {isRunning && (
-        <div className="surface-muted flex items-center gap-3 p-5 mb-6">
-          <RefreshCw
-            size={16}
-            className="animate-spin text-[var(--color-accent)]"
-          />
-          <div>
-            <div className="text-sm font-medium">Analysis running…</div>
-            <div className="text-xs text-[var(--color-text-muted)]">
-              Researching company and synthesizing results. This usually takes
-              60–90 seconds.
-            </div>
-          </div>
-        </div>
+        <StatusBanner
+          status="running"
+          title="Analysis running…"
+          detail="Researching company and synthesizing results. This usually takes 60–90 seconds."
+        />
       )}
 
       {isFailed && (
-        <div className="surface p-5 mb-6 border-[var(--color-danger)]">
-          <div className="text-sm font-medium text-[var(--color-danger)]">
-            Analysis failed
-          </div>
-          <div className="text-xs text-[var(--color-text-muted)] mt-1">
-            {job?.error ?? "Unknown error. Check logs."}
-          </div>
-        </div>
+        <StatusBanner
+          status="failed"
+          title="Analysis failed"
+          detail={job?.error ?? "Unknown error. Check logs."}
+        />
       )}
 
       {/* Imported markdown fallback */}
@@ -157,19 +142,17 @@ export function AnalysisDetail({
 
       {result && (result as Record<string, unknown>).imported !== true && (
         <div className="space-y-6">
-          {/* Bottom line */}
           {(bottomLine || (result.bottom_line as string)) && (
-            <div className="surface-muted p-5">
-              <div className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
+            <div className="surface-muted p-5 border-l-3 border-[var(--color-blue)]">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5">
                 Bottom Line
               </div>
-              <div className="text-sm leading-relaxed">
+              <div className="text-sm leading-relaxed max-w-prose">
                 {bottomLine ?? (result.bottom_line as string)}
               </div>
             </div>
           )}
 
-          {/* JD Scorecard */}
           {jdScorecard && jdTotal !== null && jdVerdict && (
             <ScorecardPanel
               scorecard={jdScorecard}
@@ -179,7 +162,6 @@ export function AnalysisDetail({
             />
           )}
 
-          {/* Full analysis: JD fit section */}
           {renderIf(
             jdFit,
             jdFit && (
@@ -197,7 +179,6 @@ export function AnalysisDetail({
             ),
           )}
 
-          {/* Full analysis: Strategic fit section */}
           {renderIf(
             strategicFit,
             strategicFit && (
@@ -215,7 +196,6 @@ export function AnalysisDetail({
             ),
           )}
 
-          {/* Requirement matches */}
           {requirementMatches && requirementMatches.length > 0 && (
             <RequirementTable matches={requirementMatches} />
           )}
@@ -233,7 +213,6 @@ export function AnalysisDetail({
             />,
           )}
 
-          {/* Flags */}
           {renderIf(
             flags,
             flags && (
@@ -249,7 +228,6 @@ export function AnalysisDetail({
             ),
           )}
 
-          {/* Company overview (full analysis) */}
           {renderIf(
             companyOverview,
             companyOverview && (
@@ -273,7 +251,6 @@ export function AnalysisDetail({
             ),
           )}
 
-          {/* Outreach angle (full analysis) */}
           {renderIf(
             outreachAngle,
             outreachAngle && (
@@ -295,7 +272,6 @@ export function AnalysisDetail({
             ),
           )}
 
-          {/* Positioning */}
           {positioning && positioning.length > 0 && (
             <div className="surface p-5">
               <h3 className="text-sm font-semibold mb-3">
@@ -307,7 +283,7 @@ export function AnalysisDetail({
                     key={i}
                     className="text-xs leading-relaxed text-[var(--color-text-muted)] flex items-start gap-2"
                   >
-                    <span className="text-[var(--color-accent)] font-bold mt-px">
+                    <span className="text-[var(--color-blue)] font-bold mt-px">
                       {i + 1}.
                     </span>
                     {rec}

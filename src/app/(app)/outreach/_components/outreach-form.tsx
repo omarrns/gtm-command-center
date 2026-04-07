@@ -52,11 +52,11 @@ export function OutreachForm({ prefill }: { prefill: Prefill }) {
         <legend className="text-xs font-medium text-[var(--color-text-muted)] mb-2">
           Email type
         </legend>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {DRAFT_TYPES.map((t) => (
             <label
               key={t.value}
-              className="surface px-4 py-3 cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-[var(--color-accent)] transition-shadow"
+              className="surface px-4 py-3 cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-[var(--color-blue)] transition-shadow"
             >
               <input
                 type="radio"
@@ -74,7 +74,7 @@ export function OutreachForm({ prefill }: { prefill: Prefill }) {
         </div>
       </fieldset>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="block">
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5 block">
             Recipient name
@@ -94,7 +94,7 @@ export function OutreachForm({ prefill }: { prefill: Prefill }) {
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="block">
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5 block">
             Company

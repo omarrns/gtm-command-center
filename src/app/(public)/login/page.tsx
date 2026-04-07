@@ -25,7 +25,7 @@ export default async function LoginPage({
           <div className="text-xs uppercase tracking-[0.18em] text-[var(--color-text-subtle)] mb-2">
             GTM Command Center
           </div>
-          <h1 className="text-2xl font-semibold leading-tight">
+          <h1 className="text-3xl font-bold tracking-tight leading-tight">
             Sign in to continue
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">

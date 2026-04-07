@@ -1,4 +1,6 @@
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
 
 export const metadata = { title: "Trail · GTM Command Center" };
 
@@ -8,7 +10,6 @@ export default async function TrailPage() {
     createSupabaseServerClient(),
   ]);
 
-  // Load TRAIL document and coaching sessions in parallel
   const [{ data: trailDoc }, { data: sessions }] = await Promise.all([
     supabase
       .from("memory_documents")
@@ -30,35 +31,26 @@ export default async function TrailPage() {
 
   return (
     <div className="max-w-4xl">
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold">Trail</h2>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Career journal built from coaching sessions. Each session auto-appends
-          a dated entry.
-        </p>
-      </div>
+      <PageHeader
+        title="Trail"
+        description="Career journal built from coaching sessions. Each session auto-appends a dated entry."
+      />
 
       {!hasTrail && !hasSessions ? (
-        <div className="surface-muted flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm text-[var(--color-text-muted)] mb-2">
-            No trail entries yet.
-          </p>
-          <p className="text-xs text-[var(--color-text-subtle)]">
-            Complete your first coaching session to create the first entry.
-          </p>
-        </div>
+        <EmptyState
+          message="No trail entries yet."
+          hint="Complete your first coaching session to create the first entry."
+        />
       ) : (
         <div className="space-y-6">
-          {/* Raw TRAIL document */}
           {hasTrail && (
             <div className="surface p-6">
-              <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)]">
+              <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)] max-w-prose">
                 {trailDoc.content}
               </pre>
             </div>
           )}
 
-          {/* Session timeline */}
           {hasSessions && (
             <div>
               <h3 className="text-sm font-semibold mb-4">Session History</h3>
@@ -71,12 +63,12 @@ export default async function TrailPage() {
                         <div className="text-sm font-medium">
                           {(summary?.session_title as string) ?? "Session"}
                         </div>
-                        <span className="text-[11px] text-[var(--color-text-subtle)]">
+                        <span className="text-xs text-[var(--color-text-subtle)]">
                           {new Date(s.created_at).toLocaleDateString()}
                         </span>
                       </div>
                       {s.trail_entry && (
-                        <pre className="text-xs font-mono whitespace-pre-wrap text-[var(--color-text-muted)] leading-relaxed">
+                        <pre className="text-xs font-mono whitespace-pre-wrap text-[var(--color-text-muted)] leading-relaxed max-w-prose">
                           {s.trail_entry}
                         </pre>
                       )}

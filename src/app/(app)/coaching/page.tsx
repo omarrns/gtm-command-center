@@ -72,7 +72,7 @@ export default function CoachingPage() {
               disabled={isPending || !!jobId}
             >
               {isPending
-                ? "Submitting…"
+                ? "Starting session…"
                 : jobId
                   ? "Processing…"
                   : "Run Coaching Session"}
@@ -88,7 +88,8 @@ export default function CoachingPage() {
           )}
           {isFailed && (
             <p className="text-sm text-[var(--color-danger)]">
-              Session failed. Try again.
+              The coaching session didn&apos;t complete. This is usually
+              temporary — try submitting again.
             </p>
           )}
         </form>
@@ -96,7 +97,7 @@ export default function CoachingPage() {
         <div className="space-y-6">
           {/* Session title */}
           <div className="surface p-5">
-            <h3 className="text-lg font-semibold">
+            <h3 className="text-xl font-semibold tracking-tight">
               {sessionResult.session_title}
             </h3>
           </div>
@@ -104,14 +105,16 @@ export default function CoachingPage() {
           {/* Key insights */}
           {sessionResult.key_insights.length > 0 && (
             <div className="surface p-5">
-              <h4 className="text-sm font-semibold mb-3">Key Insights</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
+                Key Insights
+              </h4>
               <ul className="space-y-2">
                 {sessionResult.key_insights.map((ins, i) => (
                   <li
                     key={i}
                     className="text-xs text-[var(--color-text-muted)] leading-relaxed flex items-start gap-2"
                   >
-                    <span className="text-[var(--color-accent)] font-bold">
+                    <span className="text-[var(--color-blue)] font-bold">
                       {i + 1}.
                     </span>{" "}
                     {ins}
@@ -124,7 +127,9 @@ export default function CoachingPage() {
           {/* Next steps */}
           {sessionResult.next_steps.length > 0 && (
             <div className="surface p-5">
-              <h4 className="text-sm font-semibold mb-3">Next Steps</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
+                Next Steps
+              </h4>
               <div className="space-y-2">
                 {sessionResult.next_steps.map((s, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs">

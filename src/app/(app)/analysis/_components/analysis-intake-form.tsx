@@ -94,7 +94,7 @@ export function AnalysisIntakeForm({ mode }: { mode: Mode }) {
       )}
 
       {mode === "jd-rubric" && (
-        <p className="text-[11px] text-[var(--color-text-subtle)]">
+        <p className="text-xs text-[var(--color-text-subtle)]">
           Tip: If you also enter a company name, this automatically runs a full
           analysis (company research + JD scoring) instead of a quick rubric.
         </p>

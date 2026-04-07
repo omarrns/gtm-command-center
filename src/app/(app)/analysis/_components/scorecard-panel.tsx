@@ -52,9 +52,13 @@ export function ScorecardPanel({
   return (
     <div className="surface p-6">
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-sm font-semibold">Scorecard</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+          Scorecard
+        </h3>
         <div className="flex items-center gap-3">
-          <span className="text-2xl font-bold tabular-nums">
+          <span
+            className={`text-2xl font-bold tabular-nums ${scoreColor(Math.round((totalScore / maxScore) * 5))}`}
+          >
             {totalScore}
             <span className="text-sm font-normal text-[var(--color-text-muted)]">
               /{maxScore}
