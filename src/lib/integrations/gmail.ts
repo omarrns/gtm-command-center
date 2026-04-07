@@ -205,9 +205,21 @@ export async function revokeToken(userId: string): Promise<void> {
   }
 
   // Always delete credentials + clear display email, even if revoke failed
-  await svc.from("gmail_credentials").delete().eq("user_id", userId);
-  await svc
+  const { error: deleteError } = await svc
+    .from("gmail_credentials")
+    .delete()
+    .eq("user_id", userId);
+  if (deleteError) {
+    throw new Error(
+      `Failed to remove stored credentials: ${deleteError.message}`,
+    );
+  }
+
+  const { error: clearError } = await svc
     .from("pipeline_config")
     .update({ gmail_send_address: null })
     .eq("user_id", userId);
+  if (clearError) {
+    throw new Error(`Failed to clear Gmail address: ${clearError.message}`);
+  }
 }

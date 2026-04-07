@@ -12,7 +12,9 @@ export default async function SettingsPage(props: {
   // Load pipeline config
   const { data: config } = await svc
     .from("pipeline_config")
-    .select("score_threshold, daily_send_cap, gmail_send_address")
+    .select(
+      "score_threshold, daily_send_cap, gmail_send_address, search_queries, search_locations",
+    )
     .eq("user_id", user.id)
     .single();
 
@@ -45,6 +47,18 @@ export default async function SettingsPage(props: {
         gmailError={gmailError}
         scoreThreshold={config?.score_threshold ?? 70}
         dailySendCap={config?.daily_send_cap ?? 10}
+        searchQueries={
+          (config?.search_queries as string[]) ?? [
+            "GTM Engineer",
+            "Growth Engineer",
+          ]
+        }
+        searchLocations={
+          (config?.search_locations as string[]) ?? [
+            "San Francisco",
+            "New York",
+          ]
+        }
       />
     </div>
   );
