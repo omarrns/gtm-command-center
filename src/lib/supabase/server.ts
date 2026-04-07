@@ -1,3 +1,4 @@
+import type { User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
@@ -48,7 +49,13 @@ export async function requireUser() {
   const user = await getCurrentUser();
 
   if (process.env.NODE_ENV === "development") {
-    return user ?? ({ id: "dev", email: "dev@localhost" } as any);
+    return (
+      user ??
+      ({
+        id: "00000000-0000-0000-0000-000000000000",
+        email: "dev@localhost",
+      } as User)
+    );
   }
 
   if (!user) {

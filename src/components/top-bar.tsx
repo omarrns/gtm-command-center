@@ -5,13 +5,10 @@ import { useTheme } from "next-themes";
 import { Command, Menu, Sun, Moon } from "lucide-react";
 
 const TITLES: Record<string, string> = {
-  "/analysis": "Analysis",
-  "/outreach": "Outreach",
-  "/research": "Research",
-  "/coaching": "Coaching",
-  "/memory": "Memory",
-  "/trail": "Trail",
-  "/workspace-tools": "Workspace Tools",
+  "/": "Today",
+  "/history": "History",
+  "/watchlist": "Watchlist",
+  "/settings": "Settings",
 };
 
 interface TopBarProps {
@@ -21,8 +18,10 @@ interface TopBarProps {
 export function TopBar({ onMenuClick }: TopBarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const key = Object.keys(TITLES).find(
-    (k) => pathname === k || pathname.startsWith(`${k}/`),
+  const key = Object.keys(TITLES).find((k) =>
+    k === "/"
+      ? pathname === "/"
+      : pathname === k || pathname.startsWith(`${k}/`),
   );
   const title = key ? TITLES[key] : "GTM Command Center";
 

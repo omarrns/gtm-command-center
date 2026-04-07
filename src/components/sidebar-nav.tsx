@@ -2,28 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Compass,
-  Mail,
-  Search,
-  Sparkles,
-  BookOpen,
-  Wrench,
-  ClipboardList,
-  LogOut,
-} from "lucide-react";
+import { CalendarCheck, Clock, Eye, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/app/(public)/login/actions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 const NAV = [
-  { href: "/analysis", label: "Analysis", icon: Compass },
-  { href: "/outreach", label: "Outreach", icon: Mail },
-  { href: "/research", label: "Research", icon: Search },
-  { href: "/coaching", label: "Coaching", icon: Sparkles },
-  { href: "/memory", label: "Memory", icon: BookOpen },
-  { href: "/trail", label: "Trail", icon: ClipboardList },
-  { href: "/workspace-tools", label: "Workspace", icon: Wrench },
+  { href: "/", label: "Today", icon: CalendarCheck },
+  { href: "/history", label: "History", icon: Clock },
+  { href: "/watchlist", label: "Watchlist", icon: Eye },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 interface SidebarNavProps {
@@ -54,7 +42,9 @@ function SidebarContent({
       <nav aria-label="Main navigation" className="px-3 flex-1 space-y-0.5">
         {NAV.map((item) => {
           const active =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+            item.href === "/"
+              ? pathname === "/"
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
             <Link

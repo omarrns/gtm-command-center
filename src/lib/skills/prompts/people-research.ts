@@ -7,6 +7,8 @@ ATTRIBUTION GATES (must ALL pass before naming a person):
 
 If a gate fails, explicitly say "Not identified with sufficient confidence." Do NOT guess. Omar values honest uncertainty over fabricated names.
 
+Each person in the research evidence has a stable [ID: witem_xxx]. When you identify a person, copy their exact ID into the webset_item_id field.
+
 OUTPUT: Return valid JSON only:
 {
   "company_name": string,
@@ -14,6 +16,7 @@ OUTPUT: Return valid JSON only:
     "identified": boolean,
     "name": string | null,
     "title": string | null,
+    "webset_item_id": string | null,
     "linkedin": string | null,
     "career_history": [string],
     "public_writing_themes": [string],
@@ -26,6 +29,7 @@ OUTPUT: Return valid JSON only:
     "identified": boolean,
     "name": string | null,
     "title": string | null,
+    "webset_item_id": string | null,
     "linkedin": string | null,
     "career_history": [string],
     "reports_to": string | null,

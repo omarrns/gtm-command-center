@@ -52,6 +52,7 @@ export interface EmailDraftRow {
   variant_index: number;
   status: "draft" | "saved" | "archived";
   source_analysis_id: string | null;
+  opportunity_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -106,4 +107,106 @@ export interface WorkspaceArtifactRow {
   job_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline V2 types
+// ---------------------------------------------------------------------------
+
+export type OpportunityStage =
+  | "discovered"
+  | "scored"
+  | "filtered"
+  | "researched"
+  | "needs_contact"
+  | "enriched"
+  | "drafted"
+  | "queued"
+  | "sending"
+  | "sent"
+  | "replied"
+  | "skipped";
+
+export type OpportunitySource = "jsearch" | "exa" | "manual";
+
+export interface PipelineConfigRow {
+  id: string;
+  user_id: string;
+  score_threshold: number;
+  search_queries: string[];
+  search_locations: string[];
+  daily_send_cap: number;
+  gmail_send_address: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GmailCredentialsRow {
+  id: string;
+  user_id: string;
+  encrypted_refresh_token: string;
+  token_expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OpportunityRow {
+  id: string;
+  user_id: string;
+  source: OpportunitySource;
+  external_id: string;
+  company_name: string;
+  role_title: string;
+  job_url: string | null;
+  job_description: string | null;
+  stage: OpportunityStage;
+  score: number | null;
+  score_components: Record<string, unknown> | null;
+  analysis_id: string | null;
+  research_id: string | null;
+  selected_draft_id: string | null;
+  recipient_name: string | null;
+  recipient_title: string | null;
+  recipient_email: string | null;
+  recipient_webset_id: string | null;
+  recipient_webset_item_id: string | null;
+  gmail_thread_id: string | null;
+  gmail_message_id: string | null;
+  sent_at: string | null;
+  enrichment_attempts: number;
+  max_enrichment_attempts: number;
+  processing_started_at: string | null;
+  attempt_count: number;
+  last_error: string | null;
+  discovered_at: string;
+  updated_at: string;
+}
+
+export interface WatchlistRow {
+  id: string;
+  user_id: string;
+  company_name: string;
+  source: "auto" | "manual";
+  webset_id: string | null;
+  last_alert_at: string | null;
+  created_at: string;
+}
+
+export type WatchlistAlertType =
+  | "funding"
+  | "hire"
+  | "launch"
+  | "press"
+  | "job_posting"
+  | "leadership_change";
+
+export interface WatchlistAlertRow {
+  id: string;
+  watchlist_id: string;
+  alert_type: WatchlistAlertType;
+  title: string;
+  summary: string | null;
+  source_url: string | null;
+  source_item_id: string;
+  detected_at: string;
 }

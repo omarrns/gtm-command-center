@@ -141,3 +141,68 @@ npm run import:outreach
 npm run import:coaching
 npm run seed             # Run all imports
 ```
+
+---
+
+## Code Standards
+
+These rules optimize for one thing: Omar being able to read and modify his own code later without AI help. Clean code = code that's easy to change later.
+
+### Before writing code
+
+- Read existing files in the relevant directory first. Match their patterns.
+- If a similar function already exists, extend it. Do not create parallel implementations.
+- Before adding a dependency, check if the same thing can be done with what's already installed.
+
+### Safety
+
+- Do not remove or replace existing working code unless explicitly asked.
+- If you're unsure what something does, ask before modifying it.
+- Never overwrite a file without reading it first.
+
+### Naming
+
+- Functions: verbs (`fetchUser`, `parseTranscript`). Variables: nouns.
+- No abbreviations except industry-standard (`id`, `url`, `db`).
+- Boolean variables start with `is`, `has`, or `should`.
+- If you need a comment to explain a variable, rename it instead.
+
+### Structure
+
+- If a file has multiple unrelated concerns, split it. Line count alone isn't the trigger.
+- No callbacks more than 2 levels deep.
+- One clear purpose per function. When a function does three things, changing one breaks the other two.
+
+### Comments
+
+- Comments explain WHY, never WHAT. The code shows what.
+- Delete commented-out code. Git remembers it.
+- Every non-obvious business rule gets a comment with context.
+
+### Errors
+
+- Never swallow errors with empty catch blocks.
+- Throw early, catch at the boundary (API route, CLI entry, etc.).
+- Log errors with context: what was being attempted, what inputs.
+
+### Environment
+
+- Never hardcode API keys, URLs, or secrets. Use env vars.
+- Add every new env var to `.env.example` with a placeholder value.
+
+### Database
+
+- Never modify existing columns in production tables. Add new columns instead.
+- Every schema change gets its own migration file with a descriptive name.
+
+### DRY — but carefully
+
+- Wait until you see a pattern 3 times before extracting it.
+- If two pieces of code look similar but serve different business purposes, duplication is fine. Don't abstract across domain boundaries.
+
+### Changes
+
+- For changes touching >3 files, explain what you're changing and why before writing code.
+- Do not refactor unrelated code in the same change.
+- Do not delete tests to make things pass.
+- After changes, run the linter and tests if available. Report results.
