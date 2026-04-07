@@ -34,6 +34,23 @@ async function main() {
     return;
   }
 
+  // Load existing imported evaluations to avoid duplicates
+  const { data: existing } = await supabase
+    .from("analyses")
+    .select("id, input")
+    .eq("user_id", userId);
+
+  const existingFiles = new Set(
+    (existing ?? [])
+      .filter(
+        (r) =>
+          r.input &&
+          typeof r.input === "object" &&
+          (r.input as Record<string, unknown>).source === "imported",
+      )
+      .map((r) => (r.input as Record<string, unknown>).file as string),
+  );
+
   const companies = fs
     .readdirSync(EVALUATIONS_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory());
@@ -45,6 +62,12 @@ async function main() {
     const mdFiles = fs.readdirSync(companyDir).filter((f) => f.endsWith(".md"));
 
     for (const file of mdFiles) {
+      const inputFile = `evaluations/${company.name}/${file}`;
+      if (existingFiles.has(inputFile)) {
+        console.log(`  SKIP ${company.name}/${file} (already imported)`);
+        continue;
+      }
+
       const content = fs.readFileSync(path.join(companyDir, file), "utf8");
 
       // Parse frontmatter
