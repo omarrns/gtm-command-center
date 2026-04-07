@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -6,6 +7,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * Reads memory_documents rows that were seeded from ~/.claude/CLAUDE.md and
  * the ~/.claude/projects/.../memory/*.md files. This replaces the file-reading
  * steps from the original skills (which used absolute local paths).
+ *
+ * Accepts an optional SupabaseClient for use in workers/pipeline where the
+ * cookie-scoped server client is not available. When omitted, falls back to
+ * the server client (for Server Components / Actions).
  */
 export interface MemoryContext {
   profile: string;
@@ -17,8 +22,9 @@ export interface MemoryContext {
 
 export async function loadMemoryContext(
   userId: string,
+  client?: SupabaseClient,
 ): Promise<MemoryContext> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = client ?? (await createSupabaseServerClient());
   const { data, error } = await supabase
     .from("memory_documents")
     .select("document_key, title, content")

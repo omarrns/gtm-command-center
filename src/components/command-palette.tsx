@@ -3,91 +3,35 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
-import {
-  Compass,
-  Mail,
-  Search,
-  Sparkles,
-  BookOpen,
-  Wrench,
-  ClipboardList,
-  Plus,
-} from "lucide-react";
+import { CalendarCheck, Clock, Eye, Settings } from "lucide-react";
 
 const COMMANDS = [
   {
     group: "Navigate",
     items: [
       {
-        id: "nav:analysis",
-        label: "Go to Analysis",
-        href: "/analysis",
-        icon: Compass,
+        id: "nav:today",
+        label: "Go to Today",
+        href: "/",
+        icon: CalendarCheck,
       },
       {
-        id: "nav:outreach",
-        label: "Go to Outreach",
-        href: "/outreach",
-        icon: Mail,
+        id: "nav:history",
+        label: "Go to History",
+        href: "/history",
+        icon: Clock,
       },
       {
-        id: "nav:research",
-        label: "Go to Research",
-        href: "/research",
-        icon: Search,
+        id: "nav:watchlist",
+        label: "Go to Watchlist",
+        href: "/watchlist",
+        icon: Eye,
       },
       {
-        id: "nav:coaching",
-        label: "Go to Coaching",
-        href: "/coaching",
-        icon: Sparkles,
-      },
-      {
-        id: "nav:memory",
-        label: "Go to Memory",
-        href: "/memory",
-        icon: BookOpen,
-      },
-      {
-        id: "nav:trail",
-        label: "Go to Trail",
-        href: "/trail",
-        icon: ClipboardList,
-      },
-      {
-        id: "nav:tools",
-        label: "Go to Workspace Tools",
-        href: "/workspace-tools",
-        icon: Wrench,
-      },
-    ],
-  },
-  {
-    group: "New",
-    items: [
-      {
-        id: "new:jd",
-        label: "New JD rubric",
-        href: "/analysis/job",
-        icon: Plus,
-      },
-      {
-        id: "new:company",
-        label: "New company analysis",
-        href: "/analysis/company",
-        icon: Plus,
-      },
-      {
-        id: "new:outreach",
-        label: "New outreach draft",
-        href: "/outreach/new",
-        icon: Plus,
-      },
-      {
-        id: "new:research",
-        label: "New research run",
-        href: "/research/new",
-        icon: Plus,
+        id: "nav:settings",
+        label: "Go to Settings",
+        href: "/settings",
+        icon: Settings,
       },
     ],
   },

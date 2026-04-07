@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
-import { Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { ScorecardPanel } from "../_components/scorecard-panel";
@@ -75,8 +73,8 @@ export function AnalysisDetail({
   return (
     <div className="max-w-4xl">
       <DetailHeader
-        backHref="/analysis"
-        backLabel="Back to analyses"
+        backHref="/"
+        backLabel="Back to Today"
         title={`${initial.company_name ?? "Analysis"} ${initial.role_title ? `— ${initial.role_title}` : ""}`}
         subtitle={
           <>
@@ -84,16 +82,7 @@ export function AnalysisDetail({
             {formatRelativeTime(initial.created_at)}
           </>
         }
-      >
-        {initial.status === "complete" && (
-          <Link
-            href={`/outreach/new?analysis=${initial.id}`}
-            className="btn-ghost border border-[var(--color-border)] flex items-center gap-1.5 text-xs"
-          >
-            <Mail size={14} /> Draft Outreach
-          </Link>
-        )}
-      </DetailHeader>
+      />
 
       {isRunning && (
         <StatusBanner

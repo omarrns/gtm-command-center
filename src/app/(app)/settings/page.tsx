@@ -1,0 +1,51 @@
+import { requireUser } from "@/lib/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { SettingsClient } from "./_components/settings-client";
+
+export default async function SettingsPage(props: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
+  const searchParams = await props.searchParams;
+
+  // Load pipeline config
+  const { data: config } = await svc
+    .from("pipeline_config")
+    .select("score_threshold, daily_send_cap, gmail_send_address")
+    .eq("user_id", user.id)
+    .single();
+
+  // Check Gmail connection status
+  const { data: gmailCreds } = await svc
+    .from("gmail_credentials")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const gmailConnected =
+    searchParams.gmail_connected === "true" || !!gmailCreds;
+  const gmailError =
+    typeof searchParams.gmail_error === "string"
+      ? searchParams.gmail_error
+      : undefined;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-8 p-6">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight">Settings</h1>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1">
+          Pipeline configuration and integrations.
+        </p>
+      </div>
+
+      <SettingsClient
+        gmailConnected={gmailConnected}
+        gmailAddress={config?.gmail_send_address ?? null}
+        gmailError={gmailError}
+        scoreThreshold={config?.score_threshold ?? 70}
+        dailySendCap={config?.daily_send_cap ?? 10}
+      />
+    </div>
+  );
+}

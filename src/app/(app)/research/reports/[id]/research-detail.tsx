@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
-import { ExternalLink, Mail } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { formatRelativeTime } from "@/lib/utils";
@@ -46,8 +45,8 @@ export function ResearchDetail({
   return (
     <div className="max-w-4xl">
       <DetailHeader
-        backHref="/research"
-        backLabel="Back to research"
+        backHref="/"
+        backLabel="Back to Today"
         title={`${initial.company_name} — ${initial.role_title}`}
         subtitle={
           <>
@@ -55,16 +54,7 @@ export function ResearchDetail({
             {formatRelativeTime(initial.created_at)}
           </>
         }
-      >
-        {initial.status === "complete" && (
-          <Link
-            href="/outreach/new"
-            className="btn-ghost border border-[var(--color-border)] flex items-center gap-1.5 text-xs"
-          >
-            <Mail size={14} /> Draft Outreach
-          </Link>
-        )}
-      </DetailHeader>
+      />
 
       {needsPolling && (
         <StatusBanner
