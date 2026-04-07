@@ -9,7 +9,7 @@ export function RequirementTable({ matches }: { matches: RequirementMatch[] }) {
   return (
     <div className="surface overflow-hidden">
       <div className="px-5 py-3 border-b border-[var(--color-border)]">
-        <h3 className="text-sm font-semibold">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           Requirement Matches ({matches.length})
         </h3>
       </div>

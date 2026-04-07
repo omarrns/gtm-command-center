@@ -20,7 +20,9 @@ const FLAG_LABELS: Record<string, string> = {
 export function FlagCallout({ flags }: { flags: Flags }) {
   return (
     <div className="surface p-5">
-      <h3 className="text-sm font-semibold mb-3">Flags</h3>
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
+        Flags
+      </h3>
       <div className="space-y-2.5">
         {Object.entries(flags).map(([key, value]) => {
           // Array flags (green/red/orange lists)

@@ -9,6 +9,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { generatePromptAction, generateSkillAction } from "./actions";
+import { cn } from "@/lib/utils";
 
 export default function WorkspaceToolsPage() {
   return (
@@ -20,7 +21,7 @@ export default function WorkspaceToolsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <PromptCreatorCard />
         <SkillCreatorCard />
         <ToolCard
@@ -62,7 +63,7 @@ function PromptCreatorCard() {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 w-full text-left"
       >
-        <FileText size={16} className="text-[var(--color-accent)]" />
+        <FileText size={16} className="text-[var(--color-blue)]" />
         <div>
           <div className="text-sm font-medium">Create Prompt</div>
           <div className="text-xs text-[var(--color-text-muted)]">
@@ -70,37 +71,46 @@ function PromptCreatorCard() {
           </div>
         </div>
       </button>
-      {open && (
-        <form action={onSubmit} className="mt-4 space-y-3">
-          {["role", "task", "context", "output_format"].map((field) => (
-            <label key={field} className="block">
-              <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block capitalize">
-                {field.replace("_", " ")}
-              </span>
-              <input
-                className="input"
-                name={field}
-                placeholder={`Describe the ${field.replace("_", " ")}…`}
-              />
-            </label>
-          ))}
-          <button
-            type="submit"
-            className="btn-primary text-xs"
-            disabled={isPending}
-          >
-            {isPending ? "Generating…" : "Generate Prompt"}
-          </button>
-          {result && (
-            <div className="surface-muted p-4 mt-3">
-              <div className="text-xs font-medium mb-2">{result.title}</div>
-              <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)]">
-                {result.markdown}
-              </pre>
-            </div>
-          )}
-        </form>
-      )}
+      <div
+        className={cn(
+          "grid transition-all duration-200 ease-out",
+          open
+            ? "grid-rows-[1fr] opacity-100 mt-4"
+            : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
+          <form action={onSubmit} className="space-y-3">
+            {["role", "task", "context", "output_format"].map((field) => (
+              <label key={field} className="block">
+                <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block capitalize">
+                  {field.replace("_", " ")}
+                </span>
+                <input
+                  className="input"
+                  name={field}
+                  placeholder={`Describe the ${field.replace("_", " ")}…`}
+                />
+              </label>
+            ))}
+            <button
+              type="submit"
+              className="btn-primary text-xs"
+              disabled={isPending}
+            >
+              {isPending ? "Generating…" : "Generate Prompt"}
+            </button>
+            {result && (
+              <div className="surface-muted p-4 mt-3">
+                <div className="text-xs font-medium mb-2">{result.title}</div>
+                <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)]">
+                  {result.markdown}
+                </pre>
+              </div>
+            )}
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
@@ -127,7 +137,7 @@ function SkillCreatorCard() {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 w-full text-left"
       >
-        <Wrench size={16} className="text-[var(--color-accent)]" />
+        <Wrench size={16} className="text-[var(--color-blue)]" />
         <div>
           <div className="text-sm font-medium">Create Skill</div>
           <div className="text-xs text-[var(--color-text-muted)]">
@@ -135,39 +145,48 @@ function SkillCreatorCard() {
           </div>
         </div>
       </button>
-      {open && (
-        <form action={onSubmit} className="mt-4 space-y-3">
-          {["name", "trigger", "tools", "instructions", "output_format"].map(
-            (field) => (
-              <label key={field} className="block">
-                <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block capitalize">
-                  {field.replace("_", " ")}
-                </span>
-                <input
-                  className="input"
-                  name={field}
-                  placeholder={`Describe ${field.replace("_", " ")}…`}
-                />
-              </label>
-            ),
-          )}
-          <button
-            type="submit"
-            className="btn-primary text-xs"
-            disabled={isPending}
-          >
-            {isPending ? "Generating…" : "Generate Skill"}
-          </button>
-          {result && (
-            <div className="surface-muted p-4 mt-3">
-              <div className="text-xs font-medium mb-2">{result.title}</div>
-              <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)]">
-                {result.markdown}
-              </pre>
-            </div>
-          )}
-        </form>
-      )}
+      <div
+        className={cn(
+          "grid transition-all duration-200 ease-out",
+          open
+            ? "grid-rows-[1fr] opacity-100 mt-4"
+            : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
+          <form action={onSubmit} className="space-y-3">
+            {["name", "trigger", "tools", "instructions", "output_format"].map(
+              (field) => (
+                <label key={field} className="block">
+                  <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block capitalize">
+                    {field.replace("_", " ")}
+                  </span>
+                  <input
+                    className="input"
+                    name={field}
+                    placeholder={`Describe ${field.replace("_", " ")}…`}
+                  />
+                </label>
+              ),
+            )}
+            <button
+              type="submit"
+              className="btn-primary text-xs"
+              disabled={isPending}
+            >
+              {isPending ? "Generating…" : "Generate Skill"}
+            </button>
+            {result && (
+              <div className="surface-muted p-4 mt-3">
+                <div className="text-xs font-medium mb-2">{result.title}</div>
+                <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)]">
+                  {result.markdown}
+                </pre>
+              </div>
+            )}
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
@@ -184,7 +203,7 @@ function ToolCard({
   status: "requires-sync" | "desktop-only";
 }) {
   return (
-    <div className="surface p-5 opacity-60">
+    <div className="surface p-5 grayscale-[30%] opacity-70">
       <div className="flex items-center gap-2 mb-2">
         <Icon size={16} className="text-[var(--color-text-muted)]" />
         <div className="text-sm font-medium">{title}</div>
@@ -192,7 +211,7 @@ function ToolCard({
       <div className="text-xs text-[var(--color-text-muted)] mb-3">
         {description}
       </div>
-      <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-warning)]">
+      <div className="flex items-center gap-1.5 text-xs text-[var(--color-warning)]">
         <AlertCircle size={12} />
         {status === "desktop-only"
           ? "Desktop sync bridge required"

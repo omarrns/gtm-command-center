@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
-import { ArrowLeft, Copy, Check } from "lucide-react";
+import { Copy, Check } from "lucide-react";
+import { toast } from "sonner";
 import { saveEmailDraftAction } from "../actions";
 import { cn } from "@/lib/utils";
+import { DetailHeader } from "@/components/detail-header";
 import type { EmailDraftRow } from "@/lib/supabase/types";
 
 export function DraftEditor({
@@ -39,7 +40,11 @@ export function DraftEditor({
     fd.set("body", body);
     startTransition(async () => {
       const result = await saveEmailDraftAction(fd);
-      if (!result.error) setSaved(true);
+      if (!result.error) {
+        setSaved(true);
+        toast.success("Draft saved");
+      }
+      if (result.error) toast.error("Failed to save draft");
     });
   }
 
@@ -47,26 +52,22 @@ export function DraftEditor({
     const text = `Subject: ${subject}\n\n${body}`;
     await navigator.clipboard.writeText(text);
     setCopied(true);
+    toast.success("Copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
   }
 
   return (
     <div className="max-w-3xl">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/outreach" className="btn-ghost p-1.5 rounded-md">
-          <ArrowLeft size={16} />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-semibold truncate">
-            {draft.recipient_name} @ {draft.company_name}
-          </h2>
-          <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
-            <span className="badge">
-              {draft.draft_type.replace("email-", "")}
-            </span>
-          </div>
-        </div>
-      </div>
+      <DetailHeader
+        backHref="/outreach"
+        backLabel="Back to outreach"
+        title={`${draft.recipient_name} @ ${draft.company_name}`}
+        subtitle={
+          <span className="badge">
+            {draft.draft_type.replace("email-", "")}
+          </span>
+        }
+      />
 
       {/* Variant tabs */}
       {drafts.length > 1 ? (
@@ -93,7 +94,7 @@ export function DraftEditor({
       {String((draft.context as Record<string, unknown>)?.reasoning ?? "") !==
         "" && (
         <div className="surface-muted p-4 mb-5">
-          <div className="text-[11px] font-medium text-[var(--color-text-subtle)] mb-1">
+          <div className="text-xs font-medium text-[var(--color-text-subtle)] mb-1">
             Why this variant
           </div>
           <div className="text-xs text-[var(--color-text-muted)] leading-relaxed">
@@ -145,8 +146,9 @@ export function DraftEditor({
           type="button"
           onClick={onCopy}
           className="btn-ghost border border-[var(--color-border)] flex items-center gap-1.5 text-xs"
+          aria-label="Copy to clipboard"
         >
-          {copied ? <Check size={13} /> : <Copy size={13} />}
+          {copied ? <Check size={14} /> : <Copy size={14} />}
           {copied ? "Copied" : "Copy to clipboard"}
         </button>
       </div>

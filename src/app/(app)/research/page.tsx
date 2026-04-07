@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { formatRelativeTime } from "@/lib/utils";
+import { PageHeader } from "@/components/page-header";
+import { ListItem } from "@/components/list-item";
+import { EmptyState } from "@/components/empty-state";
 
 export const metadata = { title: "Research · GTM Command Center" };
 
@@ -19,61 +22,53 @@ export default async function ResearchPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-xl font-semibold">Research</h2>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Exa-backed people and company research with source-aware profiles.
-          </p>
-        </div>
+      <PageHeader
+        title="Research"
+        description="Exa-backed people and company research with source-aware profiles."
+      >
         <Link
           href="/research/new"
           className="btn-primary flex items-center gap-1.5 text-xs"
         >
-          <Plus size={13} /> New Research
+          <Plus size={14} /> New Research
         </Link>
-      </div>
+      </PageHeader>
 
       {!reports?.length ? (
-        <div className="surface-muted flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm text-[var(--color-text-muted)] mb-4">
-            No research runs yet.
-          </p>
+        <EmptyState message="Start your first research run to build a source-aware profile.">
           <Link href="/research/new" className="btn-primary text-xs">
             Start Research
           </Link>
-        </div>
+        </EmptyState>
       ) : (
         <div className="space-y-2">
           {reports.map((r) => (
-            <Link
+            <ListItem
               key={r.id}
               href={`/research/reports/${r.id}`}
-              className="surface flex items-center justify-between px-5 py-4 hover:bg-[var(--color-surface-muted)] transition-colors"
-            >
-              <div className="min-w-0">
-                <div className="font-medium text-sm truncate">
-                  {r.company_name} — {r.role_title}
-                </div>
-                <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              title={`${r.company_name} — ${r.role_title}`}
+              subtitle={
+                <>
                   <span className="badge">{r.research_type}</span>{" "}
                   {formatRelativeTime(r.created_at)}
-                </div>
-              </div>
-              <span
-                className={`badge ${
-                  r.status === "complete"
-                    ? "badge-success"
-                    : r.status === "failed"
-                      ? "badge-danger"
-                      : r.status === "running"
-                        ? "badge-accent"
-                        : ""
-                }`}
-              >
-                {r.status}
-              </span>
-            </Link>
+                </>
+              }
+              meta={
+                <span
+                  className={`badge ${
+                    r.status === "complete"
+                      ? "badge-success"
+                      : r.status === "failed"
+                        ? "badge-danger"
+                        : r.status === "running"
+                          ? "badge-accent"
+                          : ""
+                  }`}
+                >
+                  {r.status}
+                </span>
+              }
+            />
           ))}
         </div>
       )}

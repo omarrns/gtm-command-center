@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { formatRelativeTime } from "@/lib/utils";
+import { PageHeader } from "@/components/page-header";
+import { ListItem } from "@/components/list-item";
+import { EmptyState } from "@/components/empty-state";
 
 export const metadata = { title: "Analysis · GTM Command Center" };
 
@@ -21,46 +24,36 @@ export default async function AnalysisPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-xl font-semibold">Analyses</h2>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            JD rubrics, company fit assessments, and full opportunity analyses.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href="/analysis/job"
-            className="btn-ghost border border-[var(--color-border)] flex items-center gap-1.5 text-xs"
-          >
-            <Plus size={13} /> JD Rubric
+      <PageHeader
+        title="Analyses"
+        description="JD rubrics, company fit assessments, and full opportunity analyses."
+      >
+        <Link
+          href="/analysis/job"
+          className="btn-ghost border border-[var(--color-border)] flex items-center gap-1.5 text-xs"
+        >
+          <Plus size={14} /> JD Rubric
+        </Link>
+        <Link
+          href="/analysis/company"
+          className="btn-ghost border border-[var(--color-border)] flex items-center gap-1.5 text-xs"
+        >
+          <Plus size={14} /> Company
+        </Link>
+      </PageHeader>
+
+      {!analyses?.length ? (
+        <EmptyState message="Paste a job description or enter a company name to get started.">
+          <Link href="/analysis/job" className="btn-primary text-xs">
+            New JD Rubric
           </Link>
           <Link
             href="/analysis/company"
-            className="btn-ghost border border-[var(--color-border)] flex items-center gap-1.5 text-xs"
+            className="btn-ghost border border-[var(--color-border)] text-xs"
           >
-            <Plus size={13} /> Company
+            Company Analysis
           </Link>
-        </div>
-      </div>
-
-      {!analyses?.length ? (
-        <div className="surface-muted flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm text-[var(--color-text-muted)] mb-4">
-            No analyses yet. Start by pasting a JD or entering a company name.
-          </p>
-          <div className="flex gap-2">
-            <Link href="/analysis/job" className="btn-primary text-xs">
-              New JD Rubric
-            </Link>
-            <Link
-              href="/analysis/company"
-              className="btn-ghost border border-[var(--color-border)] text-xs"
-            >
-              Company Analysis
-            </Link>
-          </div>
-        </div>
+        </EmptyState>
       ) : (
         <div className="space-y-2">
           {analyses.map((a) => {
@@ -69,48 +62,45 @@ export default async function AnalysisPage() {
             const score = r?.total_score ?? jdFitSub?.total_score ?? null;
             const verdict = r?.verdict ?? jdFitSub?.verdict ?? null;
             return (
-              <Link
+              <ListItem
                 key={a.id}
                 href={`/analysis/${a.id}`}
-                className="surface flex items-center justify-between px-5 py-4 hover:bg-[var(--color-surface-muted)] transition-colors"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium text-sm truncate">
-                    {a.company_name ?? "Unknown"}{" "}
-                    {a.role_title ? `— ${a.role_title}` : ""}
-                  </div>
-                  <div className="text-xs text-[var(--color-text-muted)] mt-0.5 flex items-center gap-2">
-                    <span className="badge">{a.skill_slug}</span>
-                    <span>{formatRelativeTime(a.created_at)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  {score !== null && (
-                    <span className="text-sm font-semibold">
-                      {String(score)}
-                    </span>
-                  )}
-                  {verdict && (
-                    <span
-                      className={`badge ${
-                        verdict === "Strong match" || verdict === "Pursue"
-                          ? "badge-success"
-                          : verdict === "Stretch" || verdict === "Skip"
-                            ? "badge-danger"
-                            : "badge-warning"
-                      }`}
-                    >
-                      {String(verdict)}
-                    </span>
-                  )}
-                  {a.status === "running" && (
-                    <span className="badge badge-accent">Running…</span>
-                  )}
-                  {a.status === "failed" && (
-                    <span className="badge badge-danger">Failed</span>
-                  )}
-                </div>
-              </Link>
+                title={`${a.company_name ?? "Unknown"} ${a.role_title ? `— ${a.role_title}` : ""}`}
+                subtitle={
+                  <>
+                    <span className="badge">{a.skill_slug}</span>{" "}
+                    {formatRelativeTime(a.created_at)}
+                  </>
+                }
+                meta={
+                  <>
+                    {score !== null && (
+                      <span className="text-sm font-semibold">
+                        {String(score)}
+                      </span>
+                    )}
+                    {verdict && (
+                      <span
+                        className={`badge ${
+                          verdict === "Strong match" || verdict === "Pursue"
+                            ? "badge-success"
+                            : verdict === "Stretch" || verdict === "Skip"
+                              ? "badge-danger"
+                              : "badge-warning"
+                        }`}
+                      >
+                        {String(verdict)}
+                      </span>
+                    )}
+                    {a.status === "running" && (
+                      <span className="badge badge-accent">Running…</span>
+                    )}
+                    {a.status === "failed" && (
+                      <span className="badge badge-danger">Failed</span>
+                    )}
+                  </>
+                }
+              />
             );
           })}
         </div>

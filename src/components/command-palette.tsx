@@ -120,11 +120,11 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[18vh] bg-black/20 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[18vh] bg-black/20 backdrop-blur-[2px] animate-in fade-in duration-150"
       onClick={() => setOpen(false)}
     >
       <div
-        className="w-full max-w-lg surface shadow-2xl overflow-hidden"
+        className="w-full max-w-lg surface shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <Command label="Command palette">
@@ -140,7 +140,7 @@ export function CommandPalette() {
               <Command.Group
                 key={group.group}
                 heading={group.group}
-                className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)] px-2 pt-2 pb-1"
+                className="text-xs uppercase tracking-[0.14em] text-[var(--color-text-subtle)] px-2 pt-2 pb-1"
               >
                 {group.items.map((item) => {
                   const Icon = item.icon;
