@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { advanceStage } from "@/lib/pipeline/opportunities";
+import { addToWatchlist } from "@/lib/pipeline/watchlist";
 import { getGmailClient, sendEmail } from "@/lib/integrations/gmail";
 import type { OpportunityStage } from "@/lib/supabase/types";
 
@@ -344,20 +345,17 @@ export async function flagCompanyAction(
     return { ok: false, error: "Opportunity not found" };
   }
 
-  // Add to watchlist (idempotent via UNIQUE constraint)
-  const { error: watchlistError } = await svc.from("watchlist").upsert(
-    {
-      user_id: user.id,
-      company_name: opp.company_name,
-      source: "manual",
-    },
-    { onConflict: "user_id,company_name", ignoreDuplicates: true },
+  // Add to watchlist — fail before skipping if the write itself failed
+  const watchlistResult = await addToWatchlist(
+    svc,
+    user.id,
+    opp.company_name,
+    "manual",
   );
-
-  if (watchlistError) {
+  if (watchlistResult.status === "error") {
     return {
       ok: false,
-      error: `Failed to add to watchlist: ${watchlistError.message}`,
+      error: `Failed to add to watchlist: ${watchlistResult.message}`,
     };
   }
 

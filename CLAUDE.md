@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Omar's browser-based operating system for job search — analysis, outreach, research, coaching, memory, and trail. Single-user tool, not a product for others.
+Omar's browser-based autonomous job-search agent. It discovers roles, scores them, researches contacts, enriches emails, drafts outreach, queues opportunities for approval, sends approved emails through Gmail, and tracks replies. Single-user tool, not a product for others.
 
 ## Tech Stack
 
@@ -22,13 +22,18 @@ src/
 │   ├── globals.css         # All design tokens, component classes, light/dark theme
 │   └── (app)/
 │       ├── layout.tsx      # Auth gate → AppShell wrapper
-│       ├── analysis/       # JD rubrics, company fit, full analysis
-│       ├── outreach/       # Cold email drafts (CEO voice, growth leader frame)
-│       ├── research/       # Exa-backed people/company research
-│       ├── coaching/       # Session transcript → structured summary
-│       ├── memory/         # Imported .claude/ memory docs, editable in-browser
-│       ├── trail/          # Career journal from coaching sessions
-│       └── workspace-tools/# Prompt creator, skill creator
+│       ├── page.tsx        # Today queue: review, approve/send, skip, flag
+│       ├── history/        # Sent/replied/skipped/filterable historical view
+│       ├── settings/       # Pipeline config + Gmail connect/disconnect
+│       ├── actions.ts      # Today actions: trigger pipeline, approve, skip, flag
+│       ├── analysis/       # Kept detail pages; legacy list/intake routes redirect
+│       ├── research/       # Kept report detail pages; legacy list/new routes redirect
+│       └── _components/    # OpportunityCard, TodayClient, EmailVariantPicker
+│   └── api/
+│       ├── auth/gmail/     # Gmail OAuth start + callback
+│       ├── cron/pipeline/  # Daily autonomous pipeline cron
+│       ├── cron/replies/   # Reply tracking cron
+│       └── pipeline/run/   # Authenticated manual pipeline trigger
 ├── components/
 │   ├── app-shell.tsx       # Client wrapper — manages sidebar state
 │   ├── sidebar-nav.tsx     # Responsive: desktop aside + mobile Sheet
@@ -46,8 +51,106 @@ src/
 └── lib/
     ├── utils.ts            # cn(), formatRelativeTime(), assertEnv()
     ├── supabase/           # Server client, types, auth helpers
-    └── jobs/               # useJobPoll hook for async background jobs
+    ├── pipeline/           # JSearch, scoring, people search, opportunity helpers
+    │   └── steps/          # discover → score → research → enrich → draft
+    ├── integrations/       # Gmail client + token crypto
+    └── jobs/               # Legacy async job handlers reused by pipeline
 ```
+
+## Implementation Notes — 2026-04-07
+
+### Phase 0 — Integration Validation
+
+- Exa Websets people search and enrichment drove the current pipeline design: research stores Webset person IDs, and enrichment runs against Webset enrichment endpoints.
+- Gmail feasibility is reflected in the Phase 4 OAuth implementation using `gmail.send` and `gmail.metadata` scopes with PKCE and encrypted refresh-token storage.
+- Throwaway spike artifacts are not part of the current product surface; treat the retained implementation files as the source of truth.
+
+### Phase 1 — Schema, Config, and Security Foundation
+
+- Pipeline tables and security foundation live in `supabase/migrations/20260407000001_pipeline_v2.sql`.
+- Helper migrations:
+  - `20260407000002_pipeline_v2_helpers.sql`
+  - `20260407000003_atomic_claim_opportunity.sql`
+  - `20260407000004_add_recipient_webset_id.sql`
+  - `20260407000005_reserve_send_slot.sql`
+- Core tables: `pipeline_config`, `gmail_credentials`, `opportunities`, `watchlist`, and `watchlist_alerts`.
+- Important constraints and controls:
+  - `opportunities.stage` is constrained to the pipeline stages from `discovered` through `replied`/`skipped`.
+  - `opportunities` dedupes by `(user_id, source, external_id)`.
+  - Cross-table ownership trigger validates linked analysis, research, and selected draft ownership.
+  - `gmail_credentials` has no client RLS policies; access is service-role only.
+  - Pipeline config is client-readable but updated through server-side actions.
+- TypeScript row types are maintained in `src/lib/supabase/types.ts`.
+- JSearch was ported to `src/lib/pipeline/jsearch.ts`.
+- Opportunity helpers, atomic claiming, stale-claim recovery, and stage precondition transitions live in `src/lib/pipeline/opportunities.ts`.
+
+### Phase 2 — Autonomous Pipeline
+
+- Pipeline runner: `src/lib/pipeline/runner.ts`.
+- Pipeline steps:
+  - `steps/discover.ts`: JSearch discovery with insert cap and dedup.
+  - `steps/score.ts`: full-analysis scoring, threshold routing, auto-watchlist at high score.
+  - `steps/research.ts`: Exa Websets people search, stores `recipient_webset_id` and `recipient_webset_item_id`, routes missing contacts to `needs_contact`.
+  - `steps/enrich.ts`: Exa Websets email enrichment, retry cutoff, cleanup, and `needs_contact` routing on terminal failure.
+  - `steps/draft.ts`: CEO vs growth-leader prompt selection, exactly two variants, selected draft assignment, and `queued` transition.
+- Cron endpoint: `src/app/api/cron/pipeline/route.ts`.
+  - `GET`, bearer `CRON_SECRET`, fail-closed if missing/mismatched.
+  - Iterates all `pipeline_config` rows.
+  - `maxDuration = 300`.
+- Manual trigger endpoint: `src/app/api/pipeline/run/route.ts`.
+  - `POST`, authenticated with `requireUser()`.
+  - Single-user scoped.
+  - `maxDuration = 300`.
+- Vercel cron:
+  - `/api/cron/pipeline` at `0 10 * * *`.
+
+### Phase 3 — Today, History, and Settings UI
+
+- Home route is `src/app/(app)/page.tsx`; root `src/app/page.tsx` was removed to avoid a duplicate `/` route.
+- Today queue actions are in `src/app/(app)/actions.ts`:
+  - `triggerPipelineAction()` calls `/api/pipeline/run` and forwards cookies.
+  - `approveOpportunityAction()` reserves a send slot and sends through Gmail in Phase 4.
+  - `skipOpportunityAction()` uses stage preconditions.
+  - `flagCompanyAction()` validates watchlist upsert and skip transition results.
+  - `updateSelectedDraftAction()` validates the draft belongs to the same user and opportunity.
+- Shared Today UI components:
+  - `src/app/(app)/_components/opportunity-card.tsx`
+  - `src/app/(app)/_components/email-variant-picker.tsx`
+  - `src/app/(app)/_components/today-client.tsx`
+- History:
+  - `src/app/(app)/history/page.tsx`
+  - `src/app/(app)/history/history-client.tsx`
+  - `src/app/(app)/history/actions.ts`
+  - Supports status, company search, and min/max score filters.
+  - History cards are read-only for draft variants.
+- Settings:
+  - `src/app/(app)/settings/page.tsx`
+  - `src/app/(app)/settings/actions.ts`
+  - `src/app/(app)/settings/_components/settings-client.tsx`
+  - Handles pipeline configuration and Gmail connect/disconnect controls.
+- Legacy v1 routes that are not part of v2 redirect instead of remaining active product surfaces.
+
+### Phase 4 — Gmail Send and Reply Tracking
+
+- OAuth routes:
+  - `src/app/api/auth/gmail/route.ts`: starts Google OAuth with PKCE, signed state, nonce cookies, and `gmail.send`/`gmail.metadata` scopes.
+  - `src/app/api/auth/gmail/callback/route.ts`: validates signed state, nonce, and user binding before token exchange.
+- Gmail integration:
+  - `src/lib/integrations/gmail.ts`: authenticated Gmail client, send email, reply checks, token revocation.
+  - `src/lib/integrations/crypto.ts`: AES-256-GCM encryption for stored refresh tokens.
+  - Dependencies: `googleapis` and `google-auth-library`.
+- Send flow in `approveOpportunityAction()`:
+  - Uses `reserve_send_slot` to atomically move `queued -> sending` under the daily send cap.
+  - Sends with Gmail API and stores `gmail_thread_id`, `gmail_message_id`, and `sent_at`.
+  - After Gmail returns IDs, never reverts to `queued`; post-send DB failures return a controlled reconciliation error to avoid duplicate sends.
+  - Header values are sanitized and the subject is MIME-encoded before Gmail send.
+- Reply tracking:
+  - `src/app/api/cron/replies/route.ts`.
+  - `GET`, bearer `CRON_SECRET`, fail-closed if missing/mismatched.
+  - Uses Gmail metadata/minimal thread reads only; does not read message bodies.
+  - Advances `sent -> replied` only when the stage transition succeeds.
+- Vercel cron:
+  - `/api/cron/replies` at `*/30 * * * *`.
 
 ## Design System
 

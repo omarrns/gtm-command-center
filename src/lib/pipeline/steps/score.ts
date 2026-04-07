@@ -15,6 +15,7 @@ import {
   advanceStage,
   getOpportunitiesByStage,
 } from "@/lib/pipeline/opportunities";
+import { addToWatchlist } from "@/lib/pipeline/watchlist";
 
 const MAX_SCORES_PER_RUN = 5;
 
@@ -140,13 +141,8 @@ async function processOneScore(
     );
   }
 
-  // Auto-add to watchlist if score >= 80
+  // Auto-add to watchlist (with Exa monitoring) if score >= 80
   if (scoring.normalizedScore >= 80) {
-    await svc
-      .from("watchlist")
-      .upsert(
-        { user_id: userId, company_name: opp.company_name, source: "auto" },
-        { onConflict: "user_id,company_name", ignoreDuplicates: true },
-      );
+    await addToWatchlist(svc, userId, opp.company_name, "auto");
   }
 }

@@ -52,7 +52,7 @@ export async function requireUser() {
     return (
       user ??
       ({
-        id: "00000000-0000-0000-0000-000000000000",
+        id: "3583ae5c-f2db-4eae-a79f-bd7c5ec2fce8",
         email: "dev@localhost",
       } as User)
     );
