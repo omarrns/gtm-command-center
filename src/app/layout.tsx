@@ -12,7 +12,7 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 export const metadata: Metadata = {
   title: "GTM Command Center",
   description:
-    "Omar's browser-based operating system for job analysis, outreach, research, and coaching.",
+    "Autonomous job search agent — discover, score, research, draft, and send.",
 };
 
 export default function RootLayout({

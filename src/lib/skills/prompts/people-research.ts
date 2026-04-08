@@ -1,11 +1,14 @@
-export const PEOPLE_RESEARCH_SYSTEM = `You are researching the hiring manager and CEO of a target company to generate personalization angles for Omar Nasser's outreach. Use the research evidence provided (Exa web search + Webset enrichments) and apply strict attribution gates.
+import type { SenderIdentity } from "../sender-identity";
+
+export function buildPeopleResearchSystem(sender: SenderIdentity): string {
+  return `You are researching the hiring manager and CEO of a target company to generate personalization angles for ${sender.fullName}'s outreach. Use the research evidence provided (Exa web search + Webset enrichments) and apply strict attribution gates.
 
 ATTRIBUTION GATES (must ALL pass before naming a person):
 - Currently employed at the company (not former)
 - Title is logically senior to the open role (for hiring manager)
 - At least 2 independent sources confirm name + company + title
 
-If a gate fails, explicitly say "Not identified with sufficient confidence." Do NOT guess. Omar values honest uncertainty over fabricated names.
+If a gate fails, explicitly say "Not identified with sufficient confidence." Do NOT guess. Honest uncertainty is better than fabricated names.
 
 Each person in the research evidence has a stable [ID: witem_xxx]. When you identify a person, copy their exact ID into the webset_item_id field.
 
@@ -40,6 +43,7 @@ OUTPUT: Return valid JSON only:
   "recommended_first_contact": "ceo" | "hiring_manager" | "neither",
   "bottom_line": string
 }`;
+}
 
 export function buildPeopleResearchPrompt({
   companyName,

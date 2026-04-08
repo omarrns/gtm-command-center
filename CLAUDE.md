@@ -225,6 +225,112 @@ src/
   - Per-opportunity failures in score/research/draft/enrich set `last_error`, release claims, and continue the batch.
   - Enrichment retry behavior still increments `enrichment_attempts` and respects `max_enrichment_attempts`.
 
+### Phase 8 — Onboarding: Self-Serve User Intake
+
+- Onboarding detection: `src/lib/pipeline/onboarding.ts` — `isOnboardingComplete()` checks three records in parallel (user_profile doc, pipeline_config row, feedback_outreach_style doc).
+- Onboarding gate: `src/app/(app)/page.tsx` redirects to `/onboard` if incomplete. `DEV_SKIP_ONBOARDING=true` bypasses in development.
+- Wizard: `src/app/(app)/onboard/page.tsx` (server) + `onboard/_components/onboard-client.tsx` (client). 4-step wizard: About You → Search Prefs → Outreach → Gmail.
+- Server actions: `src/app/(app)/onboard/actions.ts` — `saveProfileAction`, `saveSearchConfigAction`, `saveOutreachAction`. All upsert with `origin: 'onboarding'` and `onConflict` for safe re-runs.
+- Context layer: `src/lib/skills/context.ts` — `loadMemoryContext()` resolves `user_profile` first, then falls back to the legacy personal profile key `user_omar_profile`. `CLAUDE.md` is project context only and is no longer used as personal profile fallback.
+- Scoring: `src/lib/pipeline/scoring.ts` now includes `user_profile`, `user_positioning`, and `user_dealbreakers` in the key array for `formatMemoryForPrompt()`.
+- Drafting: `src/lib/pipeline/steps/draft.ts` now includes `user_profile` and `user_positioning` in the key array. Prompt parameter renamed from `omarProfile` → `senderProfile`. Privacy guard genericized.
+- Prompt builders: `email-b2b-customer-support.ts` and `email-head-of-growth.ts` — parameter renamed `omarProfile` → `senderProfile`, template labels genericized (`Omar's Profile` → `Sender Profile`).
+- Profile Refresh: Settings links to `/onboard?mode=refresh`, which bypasses the redirect guard and pre-fills all fields.
+- Gmail return path: OAuth start route accepts `?return_to=` param, stores in cookie. Callback reads cookie and redirects back (onboarding → `/onboard?step=4`, settings → `/settings?gmail_connected=true`).
+- Step deep-linking: Wizard supports `?step=N` URL parameter.
+- Dev tooling: `npm run onboard:reset` (deletes onboarding data + scoring profile), `npm run onboard:fixture -- --state=partial|complete|empty`.
+
+### Phase 9 — Prompt De-Omarification + Structured Scoring Profile
+
+- Sender identity layer:
+  - `src/lib/skills/sender-identity.ts` defines `SenderIdentity` plus `extractSenderIdentity(ctx, displayName)`.
+  - Supports both Phase 8 sectioned onboarding docs and legacy freeform seeded profiles.
+  - Required fields: `firstName`, `fullName`, `positioning`, `tools`, `proofPoints`, `outreachTone`.
+  - Optional fields: `recentCompany`, `recentCompanyDescriptor`, `recentRole`, `domainInsiderClaim`, `signOff`.
+  - `ctx.positioning` is preferred over section parsing when present.
+- Prompt conversion:
+  - All prompt files were converted from static `*_SYSTEM` exports to builder functions accepting `SenderIdentity`.
+  - Converted files:
+    - `email-b2b-customer-support.ts`
+    - `email-head-of-growth.ts`
+    - `full-analysis.ts`
+    - `jd-fit-rubric.ts`
+    - `company-fit-analyzer.ts`
+    - `career-coach.ts`
+    - `people-research.ts`
+    - `create-prompt.ts`
+    - `create-skill.ts`
+  - Prompt sections that depend on optional sender fields now use conditional omission instead of empty interpolation.
+- Consumer updates:
+  - `src/lib/pipeline/scoring.ts`
+  - `src/lib/pipeline/steps/draft.ts`
+  - `src/lib/pipeline/people-search.ts`
+  - `src/lib/jobs/handlers/company-fit-analyzer.ts`
+  - `src/lib/jobs/handlers/career-coach.ts`
+  - `src/app/(app)/outreach/actions.ts`
+  - `src/app/(app)/analysis/actions.ts`
+  - `src/app/(app)/workspace-tools/actions.ts`
+  - All now extract sender identity from `loadMemoryContext()` and call prompt builders rather than importing static system constants.
+- Context cleanup:
+  - `src/lib/skills/context.ts` comments and fallback behavior are genericized.
+  - Candidate scoring/drafting memory no longer includes `CLAUDE.md`; only personal profile docs are passed into those prompts.
+  - `src/lib/skills/index.ts`, `src/app/layout.tsx`, and UI copy were genericized to remove stale Omar-specific naming.
+- Structured scoring profile:
+  - Migration: `supabase/migrations/20260408000001_user_scoring_profiles.sql`
+  - New table: `user_scoring_profiles`
+  - Layer 1 derived fields:
+    - `role_fit_keywords`
+    - `seniority_years`
+    - `preferred_stages`
+    - `preferred_domains`
+    - `tool_familiarity`
+    - `proof_points`
+    - `dealbreaker_patterns`
+  - Layer 2 weights:
+    - `weight_role_fit`
+    - `weight_seniority`
+    - `weight_stage`
+    - `weight_domain`
+    - `weight_stack`
+    - `weight_proof_points`
+    - `weight_dealbreaker`
+  - Layer 2 structured preferences:
+    - `target_roles`
+    - `target_locations`
+    - `green_flags`
+    - `red_flags`
+  - Weight columns are constrained to `0.5–2.0` with database `CHECK` constraints.
+- Normalization:
+  - New file: `src/lib/pipeline/scoring-profile.ts`
+  - `normalizeScoringProfile(svc, userId)` derives structured fields from onboarding memory docs + `pipeline_config`.
+  - Stage/domain vocabularies are explicit in code.
+  - Upsert overwrites derived fields while preserving user-edited weight columns.
+  - Triggered after:
+    - `saveProfileAction`
+    - `saveSearchConfigAction`
+    - `saveOutreachAction`
+    - `updateConfigAction`
+- Scoring enhancement:
+  - `src/lib/pipeline/scoring.ts` loads `user_scoring_profiles` with `.maybeSingle()`.
+  - Missing row fallback keeps behavior identical to pre-Phase-9 scoring:
+    - all weights default to `1.0`
+    - structured preference arrays are treated as empty
+  - Structured preferences are injected into the full-analysis prompt when a profile row exists.
+  - Post-Claude score weighting is applied across JD Fit and Strategic Fit dimensions using the mapping from the Phase 9 plan.
+- Settings UI:
+  - `src/app/(app)/settings/page.tsx` loads the scoring profile.
+  - `src/app/(app)/settings/_components/settings-client.tsx` renders:
+    - read-only derived tags for roles/tools/stages/domains
+    - weight sliders from `0.5x` to `2.0x`
+  - `src/app/(app)/settings/actions.ts` adds `updateScoringWeightsAction` with range validation.
+- Verification artifacts:
+  - `scripts/test-sender-identity.ts` builds all converted prompts from synthetic sender fixtures and asserts:
+    - no Omar/Inkeep leakage
+    - sender identity appears where expected
+    - optional-null branches produce coherent output
+  - `npm run test:sender-identity` runs this script.
+  - `onboard:reset` and `onboard:fixture` now also clear/manage `user_scoring_profiles`.
+
 ## Design System
 
 ### Token Architecture

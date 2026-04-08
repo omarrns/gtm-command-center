@@ -1,23 +1,43 @@
-export const EMAIL_HEAD_OF_GROWTH_SYSTEM = `You are drafting a cold email from Omar Nasser to a Head of Growth, VP Growth, or growth leader at a company where Omar does NOT have domain insider status. Use a stage-matched builder framing instead of domain credibility.
+import type { SenderIdentity } from "../sender-identity";
 
-VOICE: Casual, direct, internet-native. Confident without performing confidence. No corporate speak.
+export function buildEmailHeadOfGrowthSystem(sender: SenderIdentity): string {
+  const companyDescriptor = sender.recentCompany
+    ? `${sender.recentCompany}${sender.recentCompanyDescriptor ? ` — ${sender.recentCompanyDescriptor}` : ""}`
+    : null;
 
-KEY DIFFERENCE FROM CEO EMAIL: A Head of Growth needs to know Omar can execute. Bullets are more proof-heavy — include specifics about what was built and outcomes.
+  const opening = companyDescriptor
+    ? `Describe the recent company by its STAGE, not its name. "I just left ${companyDescriptor}, ${sender.recentRole ? sender.recentRole.toLowerCase() : "built the growth infrastructure from zero"}."`
+    : `Lead with positioning: "${sender.positioning.split(".")[0]}."`;
+
+  const toolList =
+    sender.tools.length > 0
+      ? sender.tools.join(", ")
+      : "relevant tools from their profile";
+
+  const subjectLine = sender.recentCompany
+    ? `If recipient might recognize ${sender.recentCompany}: "${sender.recentCompany} to {Company}?". Otherwise stage-matched alternatives: "Just built this from scratch at a startup" or "{Role} — just did this at ${sender.recentCompanyDescriptor ?? "a startup"}".`
+    : `Use a stage-matched subject line: "Just built this from scratch" or "{Role} — builder looking for the next one".`;
+
+  return `You are drafting a cold email from ${sender.fullName} to a Head of Growth, VP Growth, or growth leader at a company where ${sender.firstName} does NOT have domain insider status. Use a stage-matched builder framing instead of domain credibility.
+
+VOICE: ${sender.outreachTone === "formal" ? "Professional, structured, polished." : sender.outreachTone === "direct" ? "Direct, concise, no fluff." : "Casual, direct, internet-native. Confident without performing confidence."} No corporate speak.
+
+KEY DIFFERENCE FROM CEO EMAIL: A Head of Growth needs to know ${sender.firstName} can execute. Bullets are more proof-heavy — include specifics about what was built and outcomes.
 
 STRUCTURE:
-1. Opening: Describe Inkeep by its STAGE, not its name. "I just left Inkeep — enterprise AI startup, ~40 people, built the entire growth infrastructure from zero."
+1. Opening: ${opening}
 2. Context bullets (4 bullets):
-   - One stack bullet naming the tools Omar wired together (HubSpot, Apollo, Salesforce, PostHog, Gong, Sendgrid…) — growth leaders scan for tool familiarity.
-   - One automation/AI bullet with specific outcome (Claude SDK + n8n + Exa + Firecrawl → 2+ enterprise demos/week).
-   - One personality bullet ("AI-pilled (like a lot) — I build production systems, not configure tools off the shelf.").
-   - One revenue-lens bullet ("Former AE, so I think about ops from the 'does this actually help close a deal' side.").
+   - One stack bullet naming tools wired together (${toolList}) — growth leaders scan for tool familiarity.
+   - One automation/AI bullet with specific outcome from the sender's proof points.
+   - One personality bullet showing technical depth.
+   - One revenue-lens bullet showing business acumen.
 3. Bridge (1 sentence): Explicit stage match — "{Company} is at the exact stage I just came from — building foundational growth systems for the first time. That's where I'm strongest."
 4. Ask (1-2 sentences, SINGLE CTA): "If this is relevant for the {role} role, I'd love to chat."
-5. Sign-off: "Best," + "Omar"
+5. Sign-off: "${sender.signOff}"
 
-ADAPT: Match stack bullet to the JD's named tools when possible. Match the bridge to their specific stage. If a genuine thematic connection to Omar's thesis exists, add it — but not forced.
+ADAPT: Match stack bullet to the JD's named tools when possible. Match the bridge to their specific stage. If a genuine thematic connection to the sender's thesis exists, add it — but not forced.
 
-SUBJECT LINE: If recipient might recognize Inkeep (AI/tech/devtools): "Inkeep to {Company}?". Otherwise stage-matched alternatives: "Just built this from scratch at an AI startup" or "{Role} — just did this at {Inkeep descriptor}".
+SUBJECT LINE: ${subjectLine}
 
 OUTPUT: Return valid JSON with 2 variants:
 {
@@ -26,6 +46,7 @@ OUTPUT: Return valid JSON with 2 variants:
   ],
   "recommended_variant": 0 | 1
 }`;
+}
 
 export function buildEmailHeadOfGrowthPrompt({
   companyName,
@@ -33,7 +54,7 @@ export function buildEmailHeadOfGrowthPrompt({
   recipientTitle,
   roleTitle,
   analysisContext,
-  omarProfile,
+  senderProfile,
   outreachStyle,
 }: {
   companyName: string;
@@ -41,14 +62,14 @@ export function buildEmailHeadOfGrowthPrompt({
   recipientTitle: string;
   roleTitle?: string;
   analysisContext?: string;
-  omarProfile: string;
+  senderProfile: string;
   outreachStyle: string;
 }) {
-  return `## Omar's Profile
+  return `## Sender Profile
 
-${omarProfile}
+${senderProfile}
 
-## Omar's Outreach Style
+## Sender Outreach Style
 
 ${outreachStyle}
 
@@ -59,7 +80,7 @@ ${analysisContext ? `## Prior Analysis of ${companyName}\n\n${analysisContext}\n
 Name: ${recipientName}
 Title: ${recipientTitle}
 Company: ${companyName}
-Role Omar is reaching out about: ${roleTitle ?? "(general growth/ops roles)"}
+Role being pursued: ${roleTitle ?? "(general growth/ops roles)"}
 
 ---
 

@@ -1,14 +1,20 @@
-export const FULL_ANALYSIS_SYSTEM = `You are running a complete job opportunity analysis for Omar Nasser. This combines:
+import type { SenderIdentity } from "../sender-identity";
+
+export function buildFullAnalysisSystem(sender: SenderIdentity): string {
+  const recentExp = sender.recentCompany
+    ? ` Weight recent ${sender.recentCompany} experience heavily.`
+    : "";
+
+  return `You are running a complete job opportunity analysis for ${sender.fullName}. This combines:
 1. Company & founder research (strategic fit, market positioning, outreach angles)
 2. JD-to-resume fit scoring (requirement-by-requirement qualification match)
 
-Omar should walk away knowing: (1) is this company worth pursuing, (2) am I actually qualified, (3) how should I position myself, (4) what outreach angle to use.
+${sender.firstName !== "there" ? sender.firstName : "The candidate"} should walk away knowing: (1) is this company worth pursuing, (2) am I actually qualified, (3) how should I position myself, (4) what outreach angle to use.
 
 PRINCIPLES:
-- Be honest about qualification gaps. Partial match ≠ gap.
-- Ground company claims in the research evidence provided.
-- Weight recent Inkeep experience heavily.
-- Check Omar's dealbreaker flags.
+- Be honest about qualification gaps. Partial match \u2260 gap.
+- Ground company claims in the research evidence provided.${recentExp}
+- Check the candidate's dealbreaker flags.
 
 OUTPUT: Return valid JSON only:
 {
@@ -32,6 +38,7 @@ OUTPUT: Return valid JSON only:
   "positioning_recommendations": [string],
   "bottom_line": string
 }`;
+}
 
 export function buildFullAnalysisPrompt({
   companyName,
@@ -46,7 +53,7 @@ export function buildFullAnalysisPrompt({
   research: string;
   memory: string;
 }) {
-  return `## Omar's Memory Context
+  return `## Candidate Memory Context
 
 ${memory}
 

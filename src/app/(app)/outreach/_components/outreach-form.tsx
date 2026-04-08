@@ -13,7 +13,7 @@ const DRAFT_TYPES = [
   {
     value: "email-head-of-growth",
     label: "Head of Growth",
-    desc: "Growth leader outside Omar's insider market. Builder framing.",
+    desc: "Growth leader outside the insider market. Stage-matched builder framing.",
   },
 ];
 

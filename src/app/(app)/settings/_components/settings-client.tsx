@@ -1,9 +1,59 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Mail, MailX, ExternalLink, X, Plus, Clock, Save } from "lucide-react";
+import Link from "next/link";
+import {
+  Mail,
+  MailX,
+  ExternalLink,
+  X,
+  Plus,
+  Clock,
+  Save,
+  UserPen,
+  SlidersHorizontal,
+} from "lucide-react";
 import { toast } from "sonner";
-import { disconnectGmailAction, updateConfigAction } from "../actions";
+import {
+  disconnectGmailAction,
+  updateConfigAction,
+  updateScoringWeightsAction,
+} from "../actions";
+import type { UserScoringProfileRow } from "@/lib/supabase/types";
+
+// ── Weight dimension labels ──
+
+const WEIGHT_DIMENSIONS = [
+  {
+    key: "weight_role_fit",
+    label: "Role Fit",
+    desc: "Core responsibilities match",
+  },
+  { key: "weight_seniority", label: "Seniority", desc: "Years of experience" },
+  {
+    key: "weight_stage",
+    label: "Company Stage",
+    desc: "Stage preference match",
+  },
+  {
+    key: "weight_domain",
+    label: "Domain",
+    desc: "Industry/market familiarity",
+  },
+  { key: "weight_stack", label: "Tech Stack", desc: "Technical requirements" },
+  {
+    key: "weight_proof_points",
+    label: "Proof Points",
+    desc: "Outcome evidence",
+  },
+  {
+    key: "weight_dealbreaker",
+    label: "Dealbreakers",
+    desc: "Gap risk assessment",
+  },
+] as const;
+
+type WeightKey = (typeof WEIGHT_DIMENSIONS)[number]["key"];
 
 interface SettingsClientProps {
   gmailConnected: boolean;
@@ -13,6 +63,7 @@ interface SettingsClientProps {
   dailySendCap: number;
   searchQueries: string[];
   searchLocations: string[];
+  scoringProfile: UserScoringProfileRow | null;
 }
 
 export function SettingsClient({
@@ -23,9 +74,11 @@ export function SettingsClient({
   dailySendCap: initialCap,
   searchQueries: initialQueries,
   searchLocations: initialLocations,
+  scoringProfile,
 }: SettingsClientProps) {
   const [isPending, startTransition] = useTransition();
   const [isSaving, startSaving] = useTransition();
+  const [isSavingWeights, startSavingWeights] = useTransition();
 
   // Editable state
   const [scoreThreshold, setScoreThreshold] = useState(initialThreshold);
@@ -36,6 +89,30 @@ export function SettingsClient({
   // Tag input state
   const [queryInput, setQueryInput] = useState("");
   const [locationInput, setLocationInput] = useState("");
+
+  // Weight state (only when profile exists)
+  const [weights, setWeights] = useState<Record<WeightKey, number>>(() => {
+    if (!scoringProfile) {
+      return Object.fromEntries(
+        WEIGHT_DIMENSIONS.map((d) => [d.key, 1.0]),
+      ) as Record<WeightKey, number>;
+    }
+    return Object.fromEntries(
+      WEIGHT_DIMENSIONS.map((d) => [d.key, scoringProfile[d.key]]),
+    ) as Record<WeightKey, number>;
+  });
+
+  const initialWeights = scoringProfile
+    ? Object.fromEntries(
+        WEIGHT_DIMENSIONS.map((d) => [d.key, scoringProfile[d.key]]),
+      )
+    : null;
+
+  const isWeightsDirty =
+    initialWeights &&
+    WEIGHT_DIMENSIONS.some(
+      (d) => weights[d.key] !== initialWeights[d.key as WeightKey],
+    );
 
   // Dirty tracking
   const isDirty =
@@ -127,6 +204,17 @@ export function SettingsClient({
     });
   }
 
+  function handleSaveWeights() {
+    startSavingWeights(async () => {
+      const result = await updateScoringWeightsAction(weights);
+      if (result.ok) {
+        toast.success("Scoring weights saved");
+      } else {
+        toast.error(result.error ?? "Failed to save weights");
+      }
+    });
+  }
+
   return (
     <div className="space-y-6">
       {/* Gmail error banner */}
@@ -135,6 +223,25 @@ export function SettingsClient({
           Gmail connection failed: {gmailError.replace(/_/g, " ")}
         </div>
       )}
+
+      {/* Profile Refresh */}
+      <section className="surface p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <UserPen size={16} />
+          <h2 className="text-sm font-semibold">Profile &amp; Outreach</h2>
+        </div>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          Update your profile, positioning, and outreach preferences. Changes
+          take effect on the next pipeline run.
+        </p>
+        <Link
+          href="/onboard?mode=refresh"
+          className="btn-ghost inline-flex items-center gap-1.5 text-sm"
+        >
+          <ExternalLink size={13} />
+          Edit Profile
+        </Link>
+      </section>
 
       {/* Gmail Integration */}
       <section className="surface p-5 space-y-4">
@@ -189,7 +296,7 @@ export function SettingsClient({
             Score Threshold
           </label>
           <p className="text-xs text-[var(--color-text-subtle)]">
-            Minimum score for opportunities to pass scoring (0–100)
+            Minimum score for opportunities to pass scoring (0-100)
           </p>
           <input
             id="score-threshold"
@@ -212,7 +319,7 @@ export function SettingsClient({
             Daily Send Cap
           </label>
           <p className="text-xs text-[var(--color-text-subtle)]">
-            Maximum emails sent per day (0–50)
+            Maximum emails sent per day (0-50)
           </p>
           <input
             id="daily-send-cap"
@@ -353,6 +460,106 @@ export function SettingsClient({
           {isSaving ? "Saving..." : "Save Changes"}
         </button>
       </section>
+
+      {/* Scoring Profile — only renders when profile exists */}
+      {scoringProfile && (
+        <section className="surface p-5 space-y-5">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal size={16} />
+            <h2 className="text-sm font-semibold">Scoring Profile</h2>
+          </div>
+          <p className="text-xs text-[var(--color-text-subtle)]">
+            Derived from your profile. Adjust weights to prioritize what matters
+            most in opportunity scoring (0.5x to 2.0x).
+          </p>
+
+          {/* Read-only derived tags */}
+          <div className="space-y-3">
+            {scoringProfile.target_roles.length > 0 && (
+              <TagRow
+                label="Target Roles"
+                items={scoringProfile.target_roles}
+              />
+            )}
+            {scoringProfile.tool_familiarity.length > 0 && (
+              <TagRow label="Tools" items={scoringProfile.tool_familiarity} />
+            )}
+            {scoringProfile.preferred_stages.length > 0 && (
+              <TagRow
+                label="Preferred Stages"
+                items={scoringProfile.preferred_stages}
+              />
+            )}
+            {scoringProfile.preferred_domains.length > 0 && (
+              <TagRow
+                label="Preferred Domains"
+                items={scoringProfile.preferred_domains}
+              />
+            )}
+          </div>
+
+          {/* Weight sliders */}
+          <div className="space-y-4 pt-2">
+            {WEIGHT_DIMENSIONS.map((dim) => (
+              <div key={dim.key} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label htmlFor={dim.key} className="text-sm font-medium">
+                    {dim.label}
+                  </label>
+                  <span className="text-xs font-mono text-[var(--color-text-muted)] tabular-nums w-10 text-right">
+                    {weights[dim.key].toFixed(1)}x
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--color-text-subtle)]">
+                  {dim.desc}
+                </p>
+                <input
+                  id={dim.key}
+                  type="range"
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  value={weights[dim.key]}
+                  onChange={(e) =>
+                    setWeights((prev) => ({
+                      ...prev,
+                      [dim.key]: parseFloat(e.target.value),
+                    }))
+                  }
+                  className="w-full accent-[var(--color-blue)]"
+                />
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSaveWeights}
+            disabled={!isWeightsDirty || isSavingWeights}
+            className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2"
+          >
+            <Save size={14} />
+            {isSavingWeights ? "Saving..." : "Save Weights"}
+          </button>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function TagRow({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className="space-y-1">
+      <div className="text-xs font-medium text-[var(--color-text-muted)]">
+        {label}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((item) => (
+          <span key={item} className="badge text-xs">
+            {item}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

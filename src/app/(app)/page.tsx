@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { isOnboardingComplete } from "@/lib/pipeline/onboarding";
 import { getOpportunitiesByDate } from "@/lib/pipeline/opportunities";
 import type {
   OpportunityRow,
@@ -39,6 +41,17 @@ const FUNNEL_STAGES: OpportunityStage[] = [
 export default async function TodayPage() {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+
+  // Onboarding gate — redirect to wizard if profile/config/outreach missing
+  const skipOnboarding =
+    process.env.DEV_SKIP_ONBOARDING === "true" &&
+    process.env.NODE_ENV === "development";
+  if (!skipOnboarding) {
+    const onboarding = await isOnboardingComplete(svc, user.id);
+    if (!onboarding.complete) {
+      redirect("/onboard");
+    }
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const opportunities = await getOpportunitiesByDate(svc, user.id, today);

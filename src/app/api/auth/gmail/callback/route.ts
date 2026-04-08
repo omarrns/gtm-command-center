@@ -150,5 +150,13 @@ export async function GET(request: NextRequest) {
     .update({ gmail_send_address: gmailAddress })
     .eq("user_id", user.id);
 
-  return NextResponse.redirect(`${appUrl}/settings?gmail_connected=true`);
+  // Redirect back to the page that initiated OAuth (onboarding or settings)
+  const returnTo = cookieStore.get("gmail_oauth_return_to")?.value;
+  cookieStore.delete("gmail_oauth_return_to");
+
+  const redirectUrl = returnTo
+    ? `${appUrl}${returnTo}`
+    : `${appUrl}/settings?gmail_connected=true`;
+
+  return NextResponse.redirect(redirectUrl);
 }

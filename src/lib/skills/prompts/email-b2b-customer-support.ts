@@ -1,22 +1,35 @@
-export const EMAIL_B2B_CUSTOMER_SUPPORT_SYSTEM = `You are drafting a cold email from Omar Nasser to a CEO/founder at a B2B customer support or customer operations company. Omar's edge is domain insider credibility — he just left Inkeep (enterprise AI for customer operations, same market).
+import type { SenderIdentity } from "../sender-identity";
 
-VOICE: Casual, direct, internet-native. Confident without performing confidence. Human ("Hope to hear back"). No "I hope this email finds you well", no clever bold headers, no mirror-backs of the CEO's own stats.
+export function buildEmailB2bCustomerSupportSystem(
+  sender: SenderIdentity,
+): string {
+  const companyTransition = sender.recentCompany
+    ? `Lead with domain insider claim. "{Name}, I just left ${sender.recentCompany}, so I've been ${sender.domainInsiderClaim}."`
+    : `Lead with positioning: "${sender.positioning.split(".")[0]}."`;
+
+  const subjectLine = sender.recentCompany
+    ? `Prefer "${sender.recentCompany} to {Company}?" format (proven reply-rate driver in CEO outreach).`
+    : `Use a positioning-led subject line that signals relevance to the recipient's market.`;
+
+  return `You are drafting a cold email from ${sender.fullName} to a CEO/founder at a B2B customer support or customer operations company.${sender.recentCompany ? ` ${sender.firstName}'s edge is domain insider credibility — recently at ${sender.recentCompany}${sender.recentCompanyDescriptor ? ` (${sender.recentCompanyDescriptor})` : ""}, same market.` : ""}
+
+VOICE: ${sender.outreachTone === "formal" ? "Professional, structured, polished." : sender.outreachTone === "direct" ? "Direct, concise, no fluff." : "Casual, direct, internet-native. Confident without performing confidence. Human."} No "I hope this email finds you well", no clever bold headers, no mirror-backs of the CEO's own stats.
 
 DO NOT:
 - Mirror the CEO's own stats/quotes at them (reads as tryhard)
 - Give a menu of options in the ask
 - Use bold headers on every bullet
-- Over-explain — parentheticals like "(current employer)" are enough
+- Over-explain — parentheticals are enough
 - Exceed ~120 words in the body
 
 STRUCTURE:
-1. Opening (1-2 sentences): Lead with domain insider claim. "{Name}, I just left Inkeep, so I've been selling to the same buyer in the same market."
-2. Quick context bullets (3-4 bullets, 1-2 sentences each): content engine, AI-pilled depth, sales acumen, buyer familiarity. Not a resume.
-3. Bridge (1 sentence): connect Omar's background to the role.
+1. Opening (1-2 sentences): ${companyTransition}
+2. Quick context bullets (3-4 bullets, 1-2 sentences each): highlight proof points, technical depth, sales acumen, buyer familiarity. Not a resume.
+3. Bridge (1 sentence): connect ${sender.firstName}'s background to the role.
 4. Ask (1-2 sentences, SINGLE CTA): one ask only, no hedging.
-5. Sign-off: "Best," + "Omar" OR "Hope to hear back."
+5. Sign-off: "${sender.signOff}"
 
-SUBJECT LINE: Prefer "Inkeep to {Company}?" format (20% reply rate in CEO outreach).
+SUBJECT LINE: ${subjectLine}
 
 OUTPUT: Return valid JSON with 2 variants:
 {
@@ -30,6 +43,7 @@ OUTPUT: Return valid JSON with 2 variants:
   ],
   "recommended_variant": 0 | 1
 }`;
+}
 
 export function buildEmailB2bCustomerSupportPrompt({
   companyName,
@@ -37,7 +51,7 @@ export function buildEmailB2bCustomerSupportPrompt({
   recipientTitle,
   roleTitle,
   analysisContext,
-  omarProfile,
+  senderProfile,
   outreachStyle,
 }: {
   companyName: string;
@@ -45,14 +59,14 @@ export function buildEmailB2bCustomerSupportPrompt({
   recipientTitle: string;
   roleTitle?: string;
   analysisContext?: string;
-  omarProfile: string;
+  senderProfile: string;
   outreachStyle: string;
 }) {
-  return `## Omar's Profile
+  return `## Sender Profile
 
-${omarProfile}
+${senderProfile}
 
-## Omar's Outreach Style
+## Sender Outreach Style
 
 ${outreachStyle}
 
@@ -63,7 +77,7 @@ ${analysisContext ? `## Prior Analysis of ${companyName}\n\n${analysisContext}\n
 Name: ${recipientName}
 Title: ${recipientTitle}
 Company: ${companyName}
-Role Omar is reaching out about: ${roleTitle ?? "(general GTM/growth roles)"}
+Role being pursued: ${roleTitle ?? "(general GTM/growth roles)"}
 
 ---
 

@@ -3,11 +3,14 @@
  * Uses Exa Websets (person entity) to find CEO + hiring manager with stable item IDs.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { runClaudeJson } from "@/lib/ai/anthropic";
 import {
-  PEOPLE_RESEARCH_SYSTEM,
+  buildPeopleResearchSystem,
   buildPeopleResearchPrompt,
 } from "@/lib/skills/prompts/people-research";
+import { loadMemoryContext } from "@/lib/skills/context";
+import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import { assertEnv } from "@/lib/utils";
 
 const WEBSETS_BASE = "https://api.exa.ai/websets/v0";
@@ -100,8 +103,8 @@ export interface PeopleSearchResult {
 export async function researchPeople(
   companyName: string,
   roleTitle: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _userId: string,
+  userId: string,
+  client?: SupabaseClient,
 ): Promise<PeopleSearchResult> {
   const apiKey = assertEnv("EXA_API_KEY");
 
@@ -125,8 +128,11 @@ export async function researchPeople(
 
   const researchText = formatItemsForPrompt(items, companyName);
 
+  const memoryCtx = await loadMemoryContext(userId, client);
+  const sender = extractSenderIdentity(memoryCtx, memoryCtx.displayName);
+
   const result = await runClaudeJson<PeopleResearchOutput>({
-    system: PEOPLE_RESEARCH_SYSTEM,
+    system: buildPeopleResearchSystem(sender),
     prompt: buildPeopleResearchPrompt({
       companyName,
       roleTitle,

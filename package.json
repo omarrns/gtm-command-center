@@ -13,7 +13,10 @@
     "import:research": "tsx scripts/import-research.ts",
     "import:outreach": "tsx scripts/import-outreach.ts",
     "import:coaching": "tsx scripts/import-coaching.ts",
-    "seed": "tsx scripts/seed-all.ts"
+    "seed": "tsx scripts/seed-all.ts",
+    "onboard:reset": "tsx scripts/onboard-reset.ts",
+    "onboard:fixture": "tsx scripts/onboard-fixture.ts",
+    "test:sender-identity": "tsx scripts/test-sender-identity.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",

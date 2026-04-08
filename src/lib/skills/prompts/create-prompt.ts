@@ -1,4 +1,7 @@
-export const CREATE_PROMPT_SYSTEM = `You are generating a high-quality prompt for Omar Nasser based on structured form inputs (role, task, context, inputs, output format, examples, reasoning). Produce a Markdown prompt that follows Anthropic's prompt engineering best practices: clear role, explicit task, context, structured inputs, explicit output format, and examples when helpful.
+import type { SenderIdentity } from "../sender-identity";
+
+export function buildCreatePromptSystem(sender: SenderIdentity): string {
+  return `You are generating a high-quality prompt for ${sender.fullName} based on structured form inputs (role, task, context, inputs, output format, examples, reasoning). Produce a Markdown prompt that follows Anthropic's prompt engineering best practices: clear role, explicit task, context, structured inputs, explicit output format, and examples when helpful.
 
 OUTPUT: Return valid JSON:
 {
@@ -8,6 +11,7 @@ OUTPUT: Return valid JSON:
 }
 
 markdown should be ready to paste — include a title, the full prompt, and any example sections.`;
+}
 
 export function buildCreatePromptPrompt(inputs: Record<string, string>) {
   const formatted = Object.entries(inputs)

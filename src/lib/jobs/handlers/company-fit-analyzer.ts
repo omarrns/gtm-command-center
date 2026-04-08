@@ -3,9 +3,11 @@ import type { JobRow } from "@/lib/supabase/types";
 import { runClaudeJson } from "@/lib/ai/anthropic";
 import { exaFindCompany, formatExaResults } from "@/lib/ai/exa";
 import {
-  COMPANY_FIT_ANALYZER_SYSTEM,
+  buildCompanyFitAnalyzerSystem,
   buildCompanyFitAnalyzerPrompt,
 } from "@/lib/skills/prompts/company-fit-analyzer";
+import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
+import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 
 export async function runCompanyFitAnalyzerJob(
   job: JobRow,
@@ -24,19 +26,14 @@ export async function runCompanyFitAnalyzerJob(
     formatExaResults(rawResearch.news, "Recent News"),
   ].join("\n\n");
 
-  // 2. Load Omar's memory context via service-role
-  const { data: memDocs } = await svc
-    .from("memory_documents")
-    .select("document_key, title, content")
-    .eq("user_id", job.user_id);
-
-  const memory = (memDocs ?? [])
-    .map((d) => `## ${d.title}\n\n${d.content}`)
-    .join("\n\n---\n\n");
+  // 2. Load user's memory context via service-role
+  const memoryCtx = await loadMemoryContext(job.user_id, svc);
+  const memory = formatMemoryForPrompt(memoryCtx);
+  const sender = extractSenderIdentity(memoryCtx, memoryCtx.displayName);
 
   // 3. Synthesize via Claude
   const result = await runClaudeJson({
-    system: COMPANY_FIT_ANALYZER_SYSTEM,
+    system: buildCompanyFitAnalyzerSystem(sender),
     prompt: buildCompanyFitAnalyzerPrompt({
       companyName: company_name,
       research,
