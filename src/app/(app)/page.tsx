@@ -6,7 +6,7 @@ import type {
   OpportunityStage,
   EmailDraftRow,
 } from "@/lib/supabase/types";
-import { TodayClient } from "./_components/today-client";
+import { TodayClient, type DashboardMetrics } from "./_components/today-client";
 
 // Group order for displaying pipeline cards
 const STAGE_ORDER: OpportunityStage[] = [
@@ -22,6 +22,18 @@ const STAGE_ORDER: OpportunityStage[] = [
   "replied",
   "skipped",
   "filtered",
+];
+
+// Stages shown in the pipeline funnel visualization
+const FUNNEL_STAGES: OpportunityStage[] = [
+  "discovered",
+  "scored",
+  "researched",
+  "enriched",
+  "drafted",
+  "queued",
+  "sent",
+  "replied",
 ];
 
 export default async function TodayPage() {
@@ -102,15 +114,119 @@ export default async function TodayPage() {
     }
   }
 
-  // Build summary stats
-  const found = opportunities.length;
-  const scoredHigh = opportunities.filter(
-    (o) => o.score != null && o.score >= 70,
-  ).length;
-  const queued = opportunities.filter((o) => o.stage === "queued").length;
-  const sent = opportunities.filter(
-    (o) => o.stage === "sent" || o.stage === "replied",
-  ).length;
+  // ── Dashboard metrics (all-time + today) ──
+  // All metric queries are independent — run in parallel to avoid waterfall.
+
+  const todayStart = `${today}T00:00:00.000Z`;
+  const todayEnd = `${today}T23:59:59.999Z`;
+
+  // Week bounds: Monday 00:00 UTC – next Monday 00:00 UTC (exclusive)
+  const now = new Date();
+  const dayOfWeek = now.getUTCDay(); // 0=Sun, 1=Mon…
+  const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() - mondayOffset);
+  monday.setUTCHours(0, 0, 0, 0);
+  const weekStart = monday.toISOString();
+  const nextMonday = new Date(monday);
+  nextMonday.setUTCDate(monday.getUTCDate() + 7);
+  const weekEnd = nextMonday.toISOString();
+
+  const [
+    sentAndRepliedRes,
+    repliedRes,
+    sentTodayRes,
+    configRes,
+    sentWeekRes,
+    avgScoreRes,
+    funnelRes,
+  ] = await Promise.all([
+    svc
+      .from("opportunities")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .in("stage", ["sent", "replied"]),
+    svc
+      .from("opportunities")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("stage", "replied"),
+    svc
+      .from("opportunities")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .in("stage", ["sent", "replied"])
+      .gte("sent_at", todayStart)
+      .lte("sent_at", todayEnd),
+    svc
+      .from("pipeline_config")
+      .select("daily_send_cap")
+      .eq("user_id", user.id)
+      .single(),
+    svc
+      .from("opportunities")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .in("stage", ["sent", "replied"])
+      .gte("sent_at", weekStart)
+      .lt("sent_at", weekEnd),
+    // Avg score — no raw SQL AVG in Supabase client, so fetch scores and compute in JS.
+    // Only the score column is selected to minimize transfer.
+    svc
+      .from("opportunities")
+      .select("score")
+      .eq("user_id", user.id)
+      .in("stage", ["sent", "replied"])
+      .not("score", "is", null),
+    // Funnel — no GROUP BY in Supabase client, so fetch stage column and count in JS.
+    // Only the stage column is selected to minimize transfer.
+    svc
+      .from("opportunities")
+      .select("stage")
+      .eq("user_id", user.id)
+      .in("stage", FUNNEL_STAGES),
+  ]);
+
+  // Reply rate
+  const sentAndRepliedCount = sentAndRepliedRes.count ?? 0;
+  const replyRate =
+    sentAndRepliedCount > 0
+      ? Math.round(((repliedRes.count ?? 0) / sentAndRepliedCount) * 100)
+      : null;
+
+  const dailyCap = configRes.data?.daily_send_cap ?? 10;
+
+  // Avg score
+  let avgScore: number | null = null;
+  const avgScoreRows = avgScoreRes.data;
+  if (avgScoreRows && avgScoreRows.length > 0) {
+    const sum = avgScoreRows.reduce(
+      (acc, r) => acc + ((r as { score: number }).score ?? 0),
+      0,
+    );
+    avgScore = Math.round(sum / avgScoreRows.length);
+  }
+
+  // Funnel counts
+  const funnelCounts: Record<string, number> = {};
+  for (const row of funnelRes.data ?? []) {
+    const stage = (row as { stage: string }).stage;
+    funnelCounts[stage] = (funnelCounts[stage] ?? 0) + 1;
+  }
+
+  const funnel = FUNNEL_STAGES.map((stage) => ({
+    stage,
+    count: funnelCounts[stage] ?? 0,
+  })).filter((s) => s.count > 0);
+
+  const metrics: DashboardMetrics = {
+    replyRate,
+    sentToday: sentTodayRes.count ?? 0,
+    dailyCap,
+    sentThisWeek: sentWeekRes.count ?? 0,
+    avgScore,
+    funnel,
+  };
 
   // Sort opportunities by stage order
   const sorted = [...opportunities].sort((a, b) => {
@@ -137,7 +253,7 @@ export default async function TodayPage() {
       draftsMap={draftsMap}
       analysisSummaries={analysisSummaries}
       researchSummaries={researchSummaries}
-      stats={{ found, scoredHigh, queued, sent }}
+      metrics={metrics}
     />
   );
 }
