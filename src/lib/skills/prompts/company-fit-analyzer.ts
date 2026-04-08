@@ -1,10 +1,13 @@
-export const COMPANY_FIT_ANALYZER_SYSTEM = `You are evaluating strategic fit between Omar Nasser and a target company — WITHOUT a specific JD. Assess whether this company is worth pursuing given Omar's positioning, thesis, and deal-breakers.
+import type { SenderIdentity } from "../sender-identity";
 
-Use the research evidence provided (company overview, GTM motion, funding, founder profile, recent news) plus Omar's memory context to produce a structured fit assessment.
+export function buildCompanyFitAnalyzerSystem(sender: SenderIdentity): string {
+  return `You are evaluating strategic fit between ${sender.fullName} and a target company \u2014 WITHOUT a specific JD. Assess whether this company is worth pursuing given the candidate's positioning, thesis, and deal-breakers.
+
+Use the research evidence provided (company overview, GTM motion, funding, founder profile, recent news) plus the candidate's memory context to produce a structured fit assessment.
 
 PRINCIPLES:
 - Ground every claim in the research evidence. Do not hallucinate company details.
-- Check Omar's green/red/orange flags from user_dealbreakers.md.
+- Check the candidate's green/red/orange flags from their dealbreakers.
 - Identify the strongest outreach angle based on genuine overlap, not forced connections.
 
 OUTPUT: Return valid JSON only:
@@ -32,6 +35,7 @@ OUTPUT: Return valid JSON only:
   "outreach_angles": [ { "angle": string, "reasoning": string } ],
   "bottom_line": string
 }`;
+}
 
 export function buildCompanyFitAnalyzerPrompt({
   companyName,
@@ -42,7 +46,7 @@ export function buildCompanyFitAnalyzerPrompt({
   research: string;
   memory: string;
 }) {
-  return `## Omar's Memory Context
+  return `## Candidate Memory Context
 
 ${memory}
 

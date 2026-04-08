@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { revokeToken } from "@/lib/integrations/gmail";
+import { normalizeScoringProfile } from "@/lib/pipeline/scoring-profile";
 
 interface ConfigUpdates {
   scoreThreshold?: number;
@@ -124,10 +125,75 @@ export async function updateConfigAction(
       };
     }
 
+    // Non-critical: derive scoring profile from updated config
+    try {
+      await normalizeScoringProfile(svc, user.id);
+    } catch {
+      /* best-effort */
+    }
+
     revalidatePath("/settings");
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Update failed";
+    return { ok: false, error: msg };
+  }
+}
+
+// ── Scoring Profile Weights ──
+
+const WEIGHT_KEYS = [
+  "weight_role_fit",
+  "weight_seniority",
+  "weight_stage",
+  "weight_domain",
+  "weight_stack",
+  "weight_proof_points",
+  "weight_dealbreaker",
+] as const;
+
+type WeightKey = (typeof WEIGHT_KEYS)[number];
+
+export async function updateScoringWeightsAction(
+  weights: Partial<Record<WeightKey, number>>,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser();
+
+  // Validate all provided weights are in range
+  const payload: Record<string, number> = {};
+  for (const [key, value] of Object.entries(weights)) {
+    if (!WEIGHT_KEYS.includes(key as WeightKey)) {
+      return { ok: false, error: `Invalid weight key: ${key}` };
+    }
+    if (typeof value !== "number" || value < 0.5 || value > 2.0) {
+      return {
+        ok: false,
+        error: `Weight ${key} must be between 0.5 and 2.0`,
+      };
+    }
+    // Round to 1 decimal place to match slider step
+    payload[key] = Math.round(value * 10) / 10;
+  }
+
+  if (Object.keys(payload).length === 0) {
+    return { ok: true };
+  }
+
+  try {
+    const svc = createSupabaseServiceClient();
+    const { error } = await svc
+      .from("user_scoring_profiles")
+      .update(payload)
+      .eq("user_id", user.id);
+
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+
+    revalidatePath("/settings");
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to update weights";
     return { ok: false, error: msg };
   }
 }

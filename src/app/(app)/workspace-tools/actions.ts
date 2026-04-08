@@ -2,17 +2,19 @@
 
 import { requireUser } from "@/lib/supabase/server";
 import { runClaudeJson } from "@/lib/ai/anthropic";
+import { loadMemoryContext } from "@/lib/skills/context";
+import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import {
-  CREATE_PROMPT_SYSTEM,
+  buildCreatePromptSystem,
   buildCreatePromptPrompt,
 } from "@/lib/skills/prompts/create-prompt";
 import {
-  CREATE_SKILL_SYSTEM,
+  buildCreateSkillSystem,
   buildCreateSkillPrompt,
 } from "@/lib/skills/prompts/create-skill";
 
 export async function generatePromptAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
 
   const inputs: Record<string, string> = {};
   for (const [key, value] of formData.entries()) {
@@ -22,12 +24,15 @@ export async function generatePromptAction(formData: FormData) {
 
   if (!inputs.task) return { error: "Task field is required." };
 
+  const ctx = await loadMemoryContext(user.id);
+  const sender = extractSenderIdentity(ctx, ctx.displayName);
+
   const result = await runClaudeJson<{
     title: string;
     markdown: string;
     notes: string;
   }>({
-    system: CREATE_PROMPT_SYSTEM,
+    system: buildCreatePromptSystem(sender),
     prompt: buildCreatePromptPrompt(inputs),
     maxTokens: 4096,
   });
@@ -36,7 +41,7 @@ export async function generatePromptAction(formData: FormData) {
 }
 
 export async function generateSkillAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
 
   const inputs: Record<string, string> = {};
   for (const [key, value] of formData.entries()) {
@@ -46,13 +51,16 @@ export async function generateSkillAction(formData: FormData) {
 
   if (!inputs.name) return { error: "Name field is required." };
 
+  const ctx = await loadMemoryContext(user.id);
+  const sender = extractSenderIdentity(ctx, ctx.displayName);
+
   const result = await runClaudeJson<{
     slug: string;
     title: string;
     markdown: string;
     notes: string;
   }>({
-    system: CREATE_SKILL_SYSTEM,
+    system: buildCreateSkillSystem(sender),
     prompt: buildCreateSkillPrompt(inputs),
     maxTokens: 4096,
   });

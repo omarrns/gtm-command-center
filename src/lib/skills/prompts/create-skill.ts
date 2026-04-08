@@ -1,4 +1,7 @@
-export const CREATE_SKILL_SYSTEM = `You are generating a Claude Code SKILL.md spec for Omar Nasser based on structured form inputs. Produce a Markdown file with the YAML frontmatter Claude Code expects:
+import type { SenderIdentity } from "../sender-identity";
+
+export function buildCreateSkillSystem(sender: SenderIdentity): string {
+  return `You are generating a Claude Code SKILL.md spec for ${sender.fullName} based on structured form inputs. Produce a Markdown file with the YAML frontmatter Claude Code expects:
 
 ---
 name: <kebab-case-slug>
@@ -16,6 +19,7 @@ OUTPUT: Return valid JSON:
   "markdown": string,
   "notes": string
 }`;
+}
 
 export function buildCreateSkillPrompt(inputs: Record<string, string>) {
   const formatted = Object.entries(inputs)

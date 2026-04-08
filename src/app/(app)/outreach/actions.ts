@@ -3,12 +3,13 @@
 import { requireUser, createSupabaseServerClient } from "@/lib/supabase/server";
 import { runClaudeJson } from "@/lib/ai/anthropic";
 import { loadMemoryContext } from "@/lib/skills/context";
+import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import {
-  EMAIL_B2B_CUSTOMER_SUPPORT_SYSTEM,
+  buildEmailB2bCustomerSupportSystem,
   buildEmailB2bCustomerSupportPrompt,
 } from "@/lib/skills/prompts/email-b2b-customer-support";
 import {
-  EMAIL_HEAD_OF_GROWTH_SYSTEM,
+  buildEmailHeadOfGrowthSystem,
   buildEmailHeadOfGrowthPrompt,
 } from "@/lib/skills/prompts/email-head-of-growth";
 
@@ -53,10 +54,11 @@ export async function generateEmailDraftAction(formData: FormData) {
   }
 
   // Choose skill
+  const sender = extractSenderIdentity(ctx, ctx.displayName);
   const isCxCeo = draftType === "email-b2b-customer-support";
   const system = isCxCeo
-    ? EMAIL_B2B_CUSTOMER_SUPPORT_SYSTEM
-    : EMAIL_HEAD_OF_GROWTH_SYSTEM;
+    ? buildEmailB2bCustomerSupportSystem(sender)
+    : buildEmailHeadOfGrowthSystem(sender);
   const promptBuilder = isCxCeo
     ? buildEmailB2bCustomerSupportPrompt
     : buildEmailHeadOfGrowthPrompt;
@@ -72,7 +74,7 @@ export async function generateEmailDraftAction(formData: FormData) {
       recipientTitle,
       roleTitle,
       analysisContext,
-      omarProfile: ctx.profile,
+      senderProfile: ctx.profile,
       outreachStyle: ctx.outreachStyle,
     }),
     maxTokens: 4096,

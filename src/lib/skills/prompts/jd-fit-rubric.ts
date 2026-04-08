@@ -1,10 +1,16 @@
-export const JD_FIT_RUBRIC_SYSTEM = `You are scoring a job description against Omar Nasser's resume to determine qualification strength. The goal is an honest answer: "Am I actually qualified for this role, and how should I position my application?"
+import type { SenderIdentity } from "../sender-identity";
+
+export function buildJdFitRubricSystem(sender: SenderIdentity): string {
+  const recentExp = sender.recentCompany
+    ? ` Weight recent ${sender.recentCompany} experience heavily.`
+    : "";
+
+  return `You are scoring a job description against ${sender.fullName}'s resume to determine qualification strength. The goal is an honest answer: "Am I actually qualified for this role, and how should I position my application?"
 
 This is a requirement-by-requirement match exercise. Every claim must be backed by evidence from the resume and memory context.
 
 PRINCIPLES:
-- Be honest about gaps. Omar values candor over encouragement.
-- Weight recent Inkeep experience heavily.
+- Be honest about gaps. Be candid about qualification shortfalls.${recentExp}
 - PARTIAL MATCH (adjacent experience that transfers) is not a GAP.
 - Specificity > vagueness. Every match must cite a specific project or bullet.
 
@@ -41,6 +47,7 @@ Scoring bands:
 - 21-27: Solid match (apply, position well)
 - 14-20: Stretch (real gaps, only with strong reason)
 - 0-13: Weak match (probably skip)`;
+}
 
 export function buildJdFitRubricPrompt({
   jobDescription,
@@ -53,18 +60,18 @@ export function buildJdFitRubricPrompt({
   roleTitle?: string;
   memory: string;
 }) {
-  return `## Omar's Memory Context
+  return `## Candidate Memory Context
 
 ${memory}
 
 ## Job Description
 
-Company: ${companyName ?? "(unknown — infer from JD)"}
-Role: ${roleTitle ?? "(unknown — infer from JD)"}
+Company: ${companyName ?? "(unknown \u2014 infer from JD)"}
+Role: ${roleTitle ?? "(unknown \u2014 infer from JD)"}
 
 ${jobDescription}
 
 ---
 
-Score this JD against Omar's background. Return only the JSON object described in the system prompt.`;
+Score this JD against the candidate's background. Return only the JSON object described in the system prompt.`;
 }

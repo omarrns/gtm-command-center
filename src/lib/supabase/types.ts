@@ -210,3 +210,39 @@ export interface WatchlistAlertRow {
   source_item_id: string;
   detected_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// Scoring Profile (Phase 9)
+// ---------------------------------------------------------------------------
+
+export interface UserScoringProfileRow {
+  id: string;
+  user_id: string;
+
+  // Layer 1: Stable rubric (derived)
+  role_fit_keywords: string[];
+  seniority_years: number | null;
+  preferred_stages: string[];
+  preferred_domains: string[];
+  tool_familiarity: string[];
+  proof_points: Array<{ text: string }>;
+  dealbreaker_patterns: string[];
+
+  // Layer 2: Dimension weights (0.5–2.0)
+  weight_role_fit: number;
+  weight_seniority: number;
+  weight_stage: number;
+  weight_domain: number;
+  weight_stack: number;
+  weight_proof_points: number;
+  weight_dealbreaker: number;
+
+  // Layer 2: Structured preferences
+  target_roles: string[];
+  target_locations: string[];
+  green_flags: string[];
+  red_flags: string[];
+
+  created_at: string;
+  updated_at: string;
+}

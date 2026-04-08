@@ -9,14 +9,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpportunityRow } from "@/lib/supabase/types";
 import { runClaudeJson } from "@/lib/ai/anthropic";
 import {
-  EMAIL_B2B_CUSTOMER_SUPPORT_SYSTEM,
+  buildEmailB2bCustomerSupportSystem,
   buildEmailB2bCustomerSupportPrompt,
 } from "@/lib/skills/prompts/email-b2b-customer-support";
 import {
-  EMAIL_HEAD_OF_GROWTH_SYSTEM,
+  buildEmailHeadOfGrowthSystem,
   buildEmailHeadOfGrowthPrompt,
 } from "@/lib/skills/prompts/email-head-of-growth";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
+import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import {
   claimOpportunity,
   releaseOpportunity,
@@ -92,6 +93,7 @@ async function processOneDraft(
   opp: OpportunityRow,
 ): Promise<void> {
   const memoryCtx = await loadMemoryContext(userId, svc);
+  const sender = extractSenderIdentity(memoryCtx, memoryCtx.displayName);
 
   // Build analysis context from linked analysis if available
   let analysisContext: string | undefined;
@@ -117,12 +119,12 @@ async function processOneDraft(
 
 PRIVACY CONSTRAINT: The profile and style context below is for YOUR reference only.
 Do NOT quote, paraphrase, or include raw memory content in the email body.
-The email should sound like Omar wrote it naturally — not like it was generated from a document.
+The email should sound like the sender wrote it naturally — not like it was generated from a document.
 Never mention internal scoring, dealbreakers, or strategy notes.`;
 
   const baseSystem = isCeoType
-    ? EMAIL_B2B_CUSTOMER_SUPPORT_SYSTEM
-    : EMAIL_HEAD_OF_GROWTH_SYSTEM;
+    ? buildEmailB2bCustomerSupportSystem(sender)
+    : buildEmailHeadOfGrowthSystem(sender);
 
   const system = baseSystem + PRIVACY_GUARD;
 
@@ -132,9 +134,10 @@ Never mention internal scoring, dealbreakers, or strategy notes.`;
     recipientTitle: opp.recipient_title ?? "Unknown",
     roleTitle: opp.role_title,
     analysisContext,
-    omarProfile: formatMemoryForPrompt(memoryCtx, [
-      "CLAUDE.md",
+    senderProfile: formatMemoryForPrompt(memoryCtx, [
+      "user_profile",
       "user_omar_profile",
+      "user_positioning",
     ]),
     outreachStyle: formatMemoryForPrompt(memoryCtx, [
       "feedback_outreach_style",

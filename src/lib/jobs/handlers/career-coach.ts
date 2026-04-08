@@ -2,9 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { JobRow } from "@/lib/supabase/types";
 import { runClaudeJson } from "@/lib/ai/anthropic";
 import {
-  CAREER_COACH_SYSTEM,
+  buildCareerCoachSystem,
   buildCareerCoachPrompt,
 } from "@/lib/skills/prompts/career-coach";
+import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
+import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 
 export async function runCareerCoachJob(job: JobRow, svc: SupabaseClient) {
   const { session_id, transcript } = job.payload as {
@@ -13,14 +15,9 @@ export async function runCareerCoachJob(job: JobRow, svc: SupabaseClient) {
   };
 
   // 1. Load memory context
-  const { data: memDocs } = await svc
-    .from("memory_documents")
-    .select("document_key, title, content")
-    .eq("user_id", job.user_id);
-
-  const memory = (memDocs ?? [])
-    .map((d) => `## ${d.title}\n\n${d.content}`)
-    .join("\n\n---\n\n");
+  const memoryCtx = await loadMemoryContext(job.user_id, svc);
+  const memory = formatMemoryForPrompt(memoryCtx);
+  const sender = extractSenderIdentity(memoryCtx, memoryCtx.displayName);
 
   // 2. Load recent trail entries
   const { data: recentSessions } = await svc
@@ -38,7 +35,7 @@ export async function runCareerCoachJob(job: JobRow, svc: SupabaseClient) {
 
   // 3. Synthesize
   const result = await runClaudeJson({
-    system: CAREER_COACH_SYSTEM,
+    system: buildCareerCoachSystem(sender),
     prompt: buildCareerCoachPrompt({ transcript, memory, recentTrail }),
     maxTokens: 4096,
   });
@@ -76,7 +73,7 @@ export async function runCareerCoachJob(job: JobRow, svc: SupabaseClient) {
       await svc.from("memory_documents").insert({
         user_id: job.user_id,
         document_key: "TRAIL",
-        title: "TRAIL.md — Career Journal",
+        title: "TRAIL.md \u2014 Career Journal",
         origin: "generated",
         content: `# TRAIL\n\n${typedResult.trail_entry}`,
         metadata: { auto_created: true },

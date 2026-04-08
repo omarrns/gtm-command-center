@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { randomBytes, createHash } from "node:crypto";
 import { SignJWT } from "jose";
@@ -19,8 +19,11 @@ function getJwtSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await requireUser();
+
+  // Preserve return URL so callback redirects back to the right page
+  const returnTo = request.nextUrl.searchParams.get("return_to");
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) {
@@ -55,6 +58,9 @@ export async function GET() {
 
   cookieStore.set("gmail_oauth_nonce", nonce, cookieOptions);
   cookieStore.set("gmail_oauth_verifier", codeVerifier, cookieOptions);
+  if (returnTo) {
+    cookieStore.set("gmail_oauth_return_to", returnTo, cookieOptions);
+  }
 
   const redirectUri = `${getAppUrl()}/api/auth/gmail/callback`;
 

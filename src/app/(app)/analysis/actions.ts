@@ -5,8 +5,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { enqueueJob } from "@/lib/jobs/enqueue";
 import { runClaudeJson } from "@/lib/ai/anthropic";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
+import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import {
-  JD_FIT_RUBRIC_SYSTEM,
+  buildJdFitRubricSystem,
   buildJdFitRubricPrompt,
 } from "@/lib/skills/prompts/jd-fit-rubric";
 
@@ -27,9 +28,10 @@ export async function runJdRubricAction(formData: FormData) {
     createSupabaseServerClient(),
   ]);
   const memory = formatMemoryForPrompt(ctx);
+  const sender = extractSenderIdentity(ctx, ctx.displayName);
 
   const result = await runClaudeJson({
-    system: JD_FIT_RUBRIC_SYSTEM,
+    system: buildJdFitRubricSystem(sender),
     prompt: buildJdFitRubricPrompt({
       jobDescription,
       companyName,

@@ -2,17 +2,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
- * Load Omar's memory context for skill execution.
+ * Load user's memory context for skill execution.
  *
- * Reads memory_documents rows that were seeded from ~/.claude/CLAUDE.md and
- * the ~/.claude/projects/.../memory/*.md files. This replaces the file-reading
- * steps from the original skills (which used absolute local paths).
+ * Reads memory_documents rows populated by onboarding (user_profile,
+ * user_positioning, etc.) or seeded from legacy CLAUDE.md / memory/*.md files.
  *
  * Accepts an optional SupabaseClient for use in workers/pipeline where the
  * cookie-scoped server client is not available. When omitted, falls back to
  * the server client (for Server Components / Actions).
  */
 export interface MemoryContext {
+  displayName: string;
   profile: string;
   positioning: string;
   dealbreakers: string;
@@ -25,10 +25,18 @@ export async function loadMemoryContext(
   client?: SupabaseClient,
 ): Promise<MemoryContext> {
   const supabase = client ?? (await createSupabaseServerClient());
-  const { data, error } = await supabase
-    .from("memory_documents")
-    .select("document_key, title, content")
-    .eq("user_id", userId);
+
+  const [{ data, error }, { data: profile }] = await Promise.all([
+    supabase
+      .from("memory_documents")
+      .select("document_key, title, content")
+      .eq("user_id", userId),
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
 
   if (error) throw error;
 
@@ -36,7 +44,12 @@ export async function loadMemoryContext(
     data?.find((d) => d.document_key === key)?.content ?? "";
 
   return {
-    profile: byKey("CLAUDE.md") || byKey("user_omar_profile"),
+    displayName: profile?.display_name ?? "",
+    profile:
+      // Prefer onboarding-created user_profile; fall back to legacy personal
+      // profile (user_omar_profile). CLAUDE.md is the project context doc and
+      // should NOT be used as a personal profile substitute.
+      byKey("user_profile") || byKey("user_omar_profile"),
     positioning: byKey("user_positioning"),
     dealbreakers: byKey("user_dealbreakers"),
     outreachStyle:

@@ -50,15 +50,14 @@ export const SKILLS: Record<string, SkillDefinition> = {
     tier: 1,
     phase: 2,
     summary:
-      "Draft a cold email to a CEO/founder at a B2B customer support or customer ops company. Omar's Inkeep insider voice.",
+      "Domain insider cold email to a CEO/founder at a B2B customer support or customer ops company.",
   },
   "email-head-of-growth": {
     slug: "email-head-of-growth",
     name: "Email — Head of Growth",
     tier: 1,
     phase: 2,
-    summary:
-      "Draft a cold email to a growth leader outside Omar's insider market. Stage-matched builder framing.",
+    summary: "Stage-matched builder framing cold email for growth leaders.",
   },
   "people-research": {
     slug: "people-research",

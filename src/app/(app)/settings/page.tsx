@@ -18,6 +18,13 @@ export default async function SettingsPage(props: {
     .eq("user_id", user.id)
     .single();
 
+  // Load scoring profile (may not exist yet)
+  const { data: scoringProfile } = await svc
+    .from("user_scoring_profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
   // Check Gmail connection status
   const { data: gmailCreds } = await svc
     .from("gmail_credentials")
@@ -59,6 +66,7 @@ export default async function SettingsPage(props: {
             "New York",
           ]
         }
+        scoringProfile={scoringProfile}
       />
     </div>
   );

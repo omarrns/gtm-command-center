@@ -86,6 +86,7 @@ async function processOneResearch(
     opp.company_name,
     opp.role_title,
     userId,
+    svc,
   );
 
   // Create research_reports row
