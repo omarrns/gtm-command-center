@@ -24,6 +24,7 @@ src/
 │       ├── layout.tsx      # Auth gate → AppShell wrapper
 │       ├── page.tsx        # Today queue: review, approve/send, skip, flag
 │       ├── history/        # Sent/replied/skipped/filterable historical view
+│       ├── watchlist/      # Company monitoring + alert review
 │       ├── settings/       # Pipeline config + Gmail connect/disconnect
 │       ├── actions.ts      # Today actions: trigger pipeline, approve, skip, flag
 │       ├── analysis/       # Kept detail pages; legacy list/intake routes redirect
@@ -33,6 +34,7 @@ src/
 │       ├── auth/gmail/     # Gmail OAuth start + callback
 │       ├── cron/pipeline/  # Daily autonomous pipeline cron
 │       ├── cron/replies/   # Reply tracking cron
+│       ├── cron/watchlist/ # Daily Exa watchlist alert ingestion
 │       └── pipeline/run/   # Authenticated manual pipeline trigger
 ├── components/
 │   ├── app-shell.tsx       # Client wrapper — manages sidebar state
@@ -151,6 +153,77 @@ src/
   - Advances `sent -> replied` only when the stage transition succeeds.
 - Vercel cron:
   - `/api/cron/replies` at `*/30 * * * *`.
+
+### Phase 5 — Watchlist Monitoring
+
+- Watchlist pipeline logic lives in `src/lib/pipeline/watchlist.ts`.
+- `addToWatchlist()` is idempotent and returns a discriminated union:
+  - `created` for newly inserted rows.
+  - `duplicate` for existing rows.
+  - `error` for insert/monitor setup failures that callers must handle.
+- Exa setup is split into:
+  - Webset creation for the company search.
+  - Monitor creation via the documented `/websets/v0/monitors` API shape with `websetId`, cron cadence, UTC timezone, and append search behavior.
+- Duplicate watchlist adds repair missing monitor state by creating a Webset/monitor when an existing row lacks `webset_id`.
+- `processWatchlistAlerts()` ingests Exa Webset items into `watchlist_alerts`, deduping by `source_item_id`; `last_alert_at` updates only when at least one genuinely new alert is inserted.
+- `removeFromWatchlist()` deletes the local row and best-effort cleans up the external Exa Webset; cleanup failures are logged but do not block local deletion.
+- High-scoring opportunities are auto-added from `steps/score.ts` when normalized score is `>= 80`.
+- Watchlist UI:
+  - `src/app/(app)/watchlist/page.tsx`
+  - `src/app/(app)/watchlist/actions.ts`
+  - `src/app/(app)/watchlist/_components/watchlist-client.tsx`
+- Watchlist cron:
+  - `src/app/api/cron/watchlist/route.ts`
+  - `GET`, bearer `CRON_SECRET`, fail-closed if missing/mismatched.
+  - Vercel schedule: `/api/cron/watchlist` at `0 11 * * *`.
+
+### Phase 6 — Settings UI
+
+- Settings page files:
+  - `src/app/(app)/settings/page.tsx`
+  - `src/app/(app)/settings/actions.ts`
+  - `src/app/(app)/settings/_components/settings-client.tsx`
+- Editable pipeline config:
+  - Score threshold: integer `0-100`.
+  - Search queries: tag input, max 10, each 1-100 chars.
+  - Search locations: tag input, max 10, each 1-100 chars.
+  - Daily send cap: integer `0-50`.
+- `updateConfigAction()` is authenticated with `requireUser()`, validates all inputs server-side, updates `pipeline_config` with the service client, and verifies a row was actually updated via `.select("id").maybeSingle()`.
+- `pipeline_config` remains client-readable only; direct client UPDATE is blocked by RLS because only a SELECT policy exists.
+- Pipeline runs consume the updated config on the next run:
+  - Discover uses `search_queries` and `search_locations`.
+  - Score uses `score_threshold`.
+  - Send-slot reservation reads `daily_send_cap`.
+- Gmail settings:
+  - Settings shows connected/disconnected status plus connect/disconnect controls.
+  - `disconnectGmailAction()` calls `revokeToken(user.id)`.
+  - `revokeToken()` treats Google revoke as best-effort, but throws on local Supabase credential delete or `gmail_send_address` clear failures so the UI can surface cleanup errors.
+- Cron schedule is displayed as read-only Settings information; schedules are owned by `vercel.json`.
+
+### Phase 7 — Polish + Metrics
+
+- Today dashboard metrics were added in:
+  - `src/app/(app)/page.tsx`
+  - `src/app/(app)/_components/today-client.tsx`
+- Header metrics now include:
+  - Reply rate across `sent` + `replied`.
+  - Sent today versus `daily_send_cap`.
+  - Sent this week, bounded Monday 00:00 UTC to next Monday 00:00 UTC.
+  - Average score of sent/replied opportunities.
+  - Funnel counts for `discovered -> replied`.
+- Metric queries are independent and run in parallel via `Promise.all(...)`; average score and funnel counts are computed in app code from minimal column selects (`score`, `stage`).
+- Today UI now renders:
+  - A 4-card responsive metrics grid.
+  - A pipeline funnel row using badge-styled stage/count pills.
+  - Existing manual trigger button with inline running state (`Running…` + spinner) still handles the manual pipeline action.
+- Loading state polish:
+  - `src/app/(app)/loading.tsx` now includes skeletons for the header, four metric cards, funnel bar, and five opportunity cards.
+- Discovery error isolation:
+  - `src/lib/pipeline/steps/discover.ts` wraps each `createOpportunity(...)` insert in a per-job `try/catch`.
+  - A single bad insert is logged with the JSearch job ID and does not abort the rest of the discovery batch.
+- Existing Phase 2+ pipeline error handling remains the baseline:
+  - Per-opportunity failures in score/research/draft/enrich set `last_error`, release claims, and continue the batch.
+  - Enrichment retry behavior still increments `enrichment_attempts` and respects `max_enrichment_attempts`.
 
 ## Design System
 

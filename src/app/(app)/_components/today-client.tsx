@@ -30,12 +30,33 @@ const STAGE_LABELS: Record<OpportunityStage, string> = {
   skipped: "Skipped",
 };
 
+// Badge color mapping for funnel stages
+const FUNNEL_BADGE_CLASS: Record<string, string> = {
+  discovered: "badge",
+  scored: "badge",
+  researched: "badge badge-accent",
+  enriched: "badge badge-accent",
+  drafted: "badge badge-accent",
+  queued: "badge badge-warning",
+  sent: "badge badge-success",
+  replied: "badge badge-success",
+};
+
+export interface DashboardMetrics {
+  replyRate: number | null;
+  sentToday: number;
+  dailyCap: number;
+  sentThisWeek: number;
+  avgScore: number | null;
+  funnel: { stage: OpportunityStage; count: number }[];
+}
+
 interface TodayClientProps {
   grouped: { stage: OpportunityStage; items: OpportunityRow[] }[];
   draftsMap: Record<string, EmailDraftRow[]>;
   analysisSummaries: Record<string, string>;
   researchSummaries: Record<string, string>;
-  stats: { found: number; scoredHigh: number; queued: number; sent: number };
+  metrics: DashboardMetrics;
 }
 
 export function TodayClient({
@@ -43,7 +64,7 @@ export function TodayClient({
   draftsMap,
   analysisSummaries,
   researchSummaries,
-  stats,
+  metrics,
 }: TodayClientProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -66,14 +87,7 @@ export function TodayClient({
 
   return (
     <>
-      <PageHeader
-        title="Today"
-        description={
-          isEmpty
-            ? "No opportunities discovered today yet."
-            : `${stats.found} found · ${stats.scoredHigh} scored 70+ · ${stats.queued} queued · ${stats.sent} sent`
-        }
-      >
+      <PageHeader title="Today" description="Pipeline performance at a glance.">
         <Button onClick={handleRunPipeline} disabled={isPending}>
           {isPending ? (
             <Loader2 size={14} className="animate-spin" />
@@ -83,6 +97,55 @@ export function TodayClient({
           {isPending ? "Running…" : "Run Pipeline"}
         </Button>
       </PageHeader>
+
+      {/* Metrics bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="surface-muted px-3 py-2.5">
+          <p className="text-xs text-[var(--color-text-subtle)]">Reply Rate</p>
+          <p className="text-sm font-semibold">
+            {metrics.replyRate != null ? `${metrics.replyRate}%` : "—"}
+          </p>
+        </div>
+        <div className="surface-muted px-3 py-2.5">
+          <p className="text-xs text-[var(--color-text-subtle)]">Sent Today</p>
+          <p className="text-sm font-semibold">
+            {metrics.sentToday} / {metrics.dailyCap}
+          </p>
+        </div>
+        <div className="surface-muted px-3 py-2.5">
+          <p className="text-xs text-[var(--color-text-subtle)]">
+            Sent This Week
+          </p>
+          <p className="text-sm font-semibold">{metrics.sentThisWeek}</p>
+        </div>
+        <div className="surface-muted px-3 py-2.5">
+          <p className="text-xs text-[var(--color-text-subtle)]">
+            Avg Score (Sent)
+          </p>
+          <p className="text-sm font-semibold">
+            {metrics.avgScore != null ? metrics.avgScore : "—"}
+          </p>
+        </div>
+      </div>
+
+      {/* Pipeline funnel */}
+      {metrics.funnel.length > 0 && (
+        <div className="surface-muted px-3 py-2.5 mb-6">
+          <p className="text-xs text-[var(--color-text-subtle)] mb-2">
+            Pipeline
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {metrics.funnel.map((s) => (
+              <span
+                key={s.stage}
+                className={FUNNEL_BADGE_CLASS[s.stage] ?? "badge"}
+              >
+                {STAGE_LABELS[s.stage]} {s.count}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isEmpty ? (
         <EmptyState

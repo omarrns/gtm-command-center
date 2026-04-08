@@ -28,16 +28,24 @@ export async function runDiscover(
   for (const job of jobs) {
     if (inserted >= MAX_DISCOVERIES_PER_RUN) break;
 
-    const created = await createOpportunity(svc, userId, {
-      source: "jsearch",
-      external_id: job.job_id,
-      company_name: job.employer_name,
-      role_title: job.job_title,
-      job_url: job.job_apply_link,
-      job_description: job.job_description ?? undefined,
-    });
+    try {
+      const created = await createOpportunity(svc, userId, {
+        source: "jsearch",
+        external_id: job.job_id,
+        company_name: job.employer_name,
+        role_title: job.job_title,
+        job_url: job.job_apply_link,
+        job_description: job.job_description ?? undefined,
+      });
 
-    if (created) inserted++;
+      if (created) inserted++;
+    } catch (err) {
+      // Per-job isolation: log and continue so one bad insert doesn't skip the rest
+      console.error(
+        `[discover] Failed to insert job ${job.job_id}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 
   return { found: jobs.length, inserted };
