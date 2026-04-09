@@ -31,7 +31,8 @@ function SidebarContent({
 
   return (
     <>
-      <div className="px-5 pt-6 pb-5">
+      {/* Logo region */}
+      <div className="px-5 pt-6 pb-6">
         <div className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[var(--color-text-subtle)]">
           GTM
         </div>
@@ -39,7 +40,9 @@ function SidebarContent({
           Command Center
         </div>
       </div>
-      <nav aria-label="Main navigation" className="px-3 flex-1 space-y-0.5">
+
+      {/* Navigation */}
+      <nav aria-label="Main navigation" className="px-3 flex-1 space-y-1">
         {NAV.map((item) => {
           const active =
             item.href === "/"
@@ -51,32 +54,51 @@ function SidebarContent({
               key={item.href}
               href={item.href}
               onClick={onLinkClick}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
+                "group relative flex items-center gap-2.5 rounded-lg text-sm",
+                "px-3 py-2.5",
+                "motion-safe:transition-[background-color,color,opacity] motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
                 active
-                  ? "bg-[var(--color-surface-muted)] text-[var(--color-text)] font-medium border-l-2 border-[var(--color-blue)]"
-                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]",
+                  ? "bg-[var(--color-surface-muted)] text-[var(--color-text)] font-medium"
+                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] motion-safe:active:opacity-70",
               )}
             >
-              <Icon size={15} className="shrink-0" />
+              {/* Active indicator — inset pill instead of border-left */}
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-[var(--color-blue)]"
+                />
+              )}
+              <Icon size={16} className="shrink-0" aria-hidden="true" />
               <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
-      <div className="p-3 border-t border-[var(--color-border)]">
+
+      {/* Footer: user info + sign out */}
+      <div className="p-3 border-t border-[var(--border)]">
         <div className="px-3 py-2">
-          <div className="text-xs text-[var(--color-text-subtle)]">
-            Signed in
+          <div className="text-xs font-medium text-[var(--color-text-muted)] truncate">
+            {user.email}
           </div>
-          <div className="text-xs font-medium truncate">{user.email}</div>
         </div>
         <form action={signOutAction}>
           <button
             type="submit"
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] transition-colors"
+            className={cn(
+              "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs",
+              "text-[var(--color-text-muted)]",
+              "motion-safe:transition-[background-color,color,opacity] motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+              "hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]",
+              "motion-safe:active:opacity-70",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
+            )}
           >
-            <LogOut size={13} />
+            <LogOut size={14} aria-hidden="true" />
             Sign out
           </button>
         </form>

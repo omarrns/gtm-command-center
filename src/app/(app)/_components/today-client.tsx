@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Play, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import type {
@@ -14,33 +15,7 @@ import type {
 } from "@/lib/supabase/types";
 import { triggerPipelineAction } from "../actions";
 import { OpportunityCard } from "./opportunity-card";
-
-const STAGE_LABELS: Record<OpportunityStage, string> = {
-  discovered: "Discovered",
-  scored: "Scored",
-  filtered: "Filtered",
-  researched: "Researched",
-  needs_contact: "Needs Contact",
-  enriched: "Enriched",
-  drafted: "Drafted",
-  queued: "Ready to Send",
-  sending: "Sending",
-  sent: "Sent",
-  replied: "Replied",
-  skipped: "Skipped",
-};
-
-// Badge color mapping for funnel stages
-const FUNNEL_BADGE_CLASS: Record<string, string> = {
-  discovered: "badge",
-  scored: "badge",
-  researched: "badge badge-accent",
-  enriched: "badge badge-accent",
-  drafted: "badge badge-accent",
-  queued: "badge badge-warning",
-  sent: "badge badge-success",
-  replied: "badge badge-success",
-};
+import { STAGE_CONFIG } from "./stage-config";
 
 export interface DashboardMetrics {
   replyRate: number | null;
@@ -136,12 +111,12 @@ export function TodayClient({
           </p>
           <div className="flex flex-wrap gap-2">
             {metrics.funnel.map((s) => (
-              <span
+              <Badge
                 key={s.stage}
-                className={FUNNEL_BADGE_CLASS[s.stage] ?? "badge"}
+                variant={STAGE_CONFIG[s.stage]?.variant ?? "secondary"}
               >
-                {STAGE_LABELS[s.stage]} {s.count}
-              </span>
+                {STAGE_CONFIG[s.stage]?.label ?? s.stage} {s.count}
+              </Badge>
             ))}
           </div>
         </div>
@@ -163,7 +138,7 @@ export function TodayClient({
             <section key={group.stage}>
               <div className="flex items-center gap-2 mb-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
-                  {STAGE_LABELS[group.stage]}
+                  {STAGE_CONFIG[group.stage].label}
                 </h3>
                 <span className="text-xs text-[var(--color-text-subtle)]">
                   ({group.items.length})
