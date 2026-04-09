@@ -56,13 +56,12 @@ function SidebarContent({
               onClick={onLinkClick}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "group relative flex items-center gap-2.5 rounded-lg text-sm",
-                "px-3 py-2.5",
-                "motion-safe:transition-[background-color,color,opacity] motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.25,0.1,0.25,1)]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
+                "relative flex items-center gap-2.5 rounded-lg text-sm",
+                "px-3 py-2.5 transition-colors duration-150",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]",
                 active
                   ? "bg-[var(--color-surface-muted)] text-[var(--color-text)] font-medium"
-                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] motion-safe:active:opacity-70",
+                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]",
               )}
             >
               {/* Active indicator — inset pill instead of border-left */}
@@ -91,11 +90,9 @@ function SidebarContent({
             type="submit"
             className={cn(
               "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs",
-              "text-[var(--color-text-muted)]",
-              "motion-safe:transition-[background-color,color,opacity] motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+              "text-[var(--color-text-muted)] transition-colors duration-150",
               "hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]",
-              "motion-safe:active:opacity-70",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]",
             )}
           >
             <LogOut size={14} aria-hidden="true" />
