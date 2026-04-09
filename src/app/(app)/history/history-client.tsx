@@ -11,6 +11,7 @@ import type {
   EmailDraftRow,
 } from "@/lib/supabase/types";
 import { OpportunityCard } from "../_components/opportunity-card";
+import { groupByDate } from "../_loaders/today-queue";
 import { getHistoryAction } from "./actions";
 
 const STAGE_OPTIONS: { value: OpportunityStage | ""; label: string }[] = [
@@ -46,24 +47,6 @@ function daySummary(items: OpportunityRow[]): string {
   if (replied > 0) parts.push(`${replied} replied`);
   if (skipped > 0) parts.push(`${skipped} skipped`);
   return parts.join(", ");
-}
-
-function groupByDate(
-  opportunities: OpportunityRow[],
-): { date: string; items: OpportunityRow[] }[] {
-  const map = new Map<string, OpportunityRow[]>();
-  for (const opp of opportunities) {
-    const date = opp.discovered_at.slice(0, 10);
-    const existing = map.get(date);
-    if (existing) {
-      existing.push(opp);
-    } else {
-      map.set(date, [opp]);
-    }
-  }
-  return Array.from(map.entries())
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([date, items]) => ({ date, items }));
 }
 
 interface HistoryClientProps {

@@ -22,7 +22,13 @@ export async function runDiscover(
   userId: string,
   config: PipelineConfigRow,
 ): Promise<DiscoverResult> {
-  const jobs = await searchJobs(config.search_queries, config.search_locations);
+  const jobs = await searchJobs(
+    config.search_queries,
+    config.search_locations,
+    {
+      datePosted: "today",
+    },
+  );
 
   let inserted = 0;
   for (const job of jobs) {
@@ -36,6 +42,7 @@ export async function runDiscover(
         role_title: job.job_title,
         job_url: job.job_apply_link,
         job_description: job.job_description ?? undefined,
+        job_posted_at: job.job_posted_at_datetime_utc ?? undefined,
       });
 
       if (created) inserted++;

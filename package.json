@@ -16,10 +16,12 @@
     "seed": "tsx scripts/seed-all.ts",
     "onboard:reset": "tsx scripts/onboard-reset.ts",
     "onboard:fixture": "tsx scripts/onboard-fixture.ts",
-    "test:sender-identity": "tsx scripts/test-sender-identity.ts"
+    "test:sender-identity": "tsx scripts/test-sender-identity.ts",
+    "test:extraction": "tsx scripts/test-extraction.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",
+    "@ai-sdk/react": "^3.0.156",
     "@base-ui/react": "^1.3.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.101.1",

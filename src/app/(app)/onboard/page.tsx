@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { isOnboardingComplete } from "@/lib/pipeline/onboarding";
-import { OnboardClient } from "./_components/onboard-client";
+import { OnboardRouter } from "./_components/onboard-router";
+import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 
 export default async function OnboardPage(props: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -21,7 +22,7 @@ export default async function OnboardPage(props: {
     redirect("/");
   }
 
-  // Fetch existing partial data for pre-fill
+  // Fetch existing partial data for pre-fill + active interview
   const [
     profileRes,
     positioningRes,
@@ -29,6 +30,7 @@ export default async function OnboardPage(props: {
     dealbreakersRes,
     outreachRes,
     gmailRes,
+    interviewRes,
   ] = await Promise.all([
     svc
       .from("memory_documents")
@@ -66,6 +68,12 @@ export default async function OnboardPage(props: {
       .select("id")
       .eq("user_id", user.id)
       .maybeSingle(),
+    svc
+      .from("onboarding_interviews")
+      .select("*")
+      .eq("user_id", user.id)
+      .in("status", ["in_progress", "extracting", "review"])
+      .maybeSingle(),
   ]);
 
   // Parse ?step=N for deep-linking
@@ -76,11 +84,16 @@ export default async function OnboardPage(props: {
   const initialStep =
     stepParam && stepParam >= 1 && stepParam <= 4 ? stepParam : null;
 
+  const activeInterview =
+    (interviewRes.data as OnboardingInterviewRow | null) ?? null;
+
   return (
-    <OnboardClient
+    <OnboardRouter
+      interview={activeInterview}
+      isRefresh={isRefresh}
+      gmailConnected={!!gmailRes.data}
       completedSteps={onboarding.completedSteps}
       initialStep={initialStep}
-      isRefresh={isRefresh}
       existingProfile={profileRes.data?.content ?? null}
       existingPositioning={positioningRes.data?.content ?? null}
       existingConfig={
@@ -95,7 +108,6 @@ export default async function OnboardPage(props: {
       }
       existingDealbreakers={dealbreakersRes.data?.content ?? null}
       existingOutreach={outreachRes.data?.content ?? null}
-      gmailConnected={!!gmailRes.data}
     />
   );
 }

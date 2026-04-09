@@ -7,6 +7,9 @@
  * Usage: npx tsx scripts/onboard-reset.ts
  */
 
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -37,6 +40,17 @@ async function main() {
 
   if (!userId) {
     console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
+    process.exit(1);
+  }
+
+  // Delete onboarding interviews (Phase 10)
+  const { count: interviewCount, error: interviewError } = await supabase
+    .from("onboarding_interviews")
+    .delete({ count: "exact" })
+    .eq("user_id", userId);
+
+  if (interviewError) {
+    console.error("Failed to delete interviews:", interviewError.message);
     process.exit(1);
   }
 
@@ -75,7 +89,7 @@ async function main() {
   }
 
   console.log(
-    `Reset complete: ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted`,
+    `Reset complete: ${interviewCount ?? 0} interviews, ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted`,
   );
 }
 
