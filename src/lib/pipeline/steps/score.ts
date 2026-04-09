@@ -4,6 +4,9 @@
  * Runs full analysis scoring on discovered opportunities.
  * Advances to 'scored' (passes threshold) or 'filtered' (below threshold).
  * Auto-adds high-scoring companies (>= 80) to the watchlist.
+ *
+ * `scoreOneOpportunity` is the shared primitive used by both the scheduled
+ * pipeline and the activation search engine.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -26,75 +29,35 @@ export interface ScoreResult {
   errors: number;
 }
 
-export async function runScore(
-  svc: SupabaseClient,
-  userId: string,
-  config: PipelineConfigRow,
-): Promise<ScoreResult> {
-  const opportunities = await getOpportunitiesByStage(
-    svc,
-    userId,
-    "discovered",
-    MAX_SCORES_PER_RUN,
-  );
-
-  const result: ScoreResult = {
-    processed: 0,
-    scored: 0,
-    filtered: 0,
-    errors: 0,
-  };
-
-  for (const opp of opportunities) {
-    try {
-      const claimed = await claimOpportunity(svc, opp.id, userId);
-      if (!claimed) continue;
-
-      result.processed++;
-      await processOneScore(svc, userId, opp, config);
-
-      // Re-read to check the final stage
-      const { data: updated } = await svc
-        .from("opportunities")
-        .select("stage, score")
-        .eq("id", opp.id)
-        .single();
-
-      if (updated?.stage === "scored") result.scored++;
-      else if (updated?.stage === "filtered") result.filtered++;
-
-      await releaseOpportunity(svc, opp.id, userId);
-    } catch (err) {
-      result.errors++;
-      await svc
-        .from("opportunities")
-        .update({
-          last_error: err instanceof Error ? err.message : String(err),
-        })
-        .eq("id", opp.id)
-        .eq("user_id", userId);
-      await releaseOpportunity(svc, opp.id, userId);
-    }
-  }
-
-  return result;
+export interface ScoreOneResult {
+  newStage: "scored" | "filtered";
+  normalizedScore: number;
 }
 
-async function processOneScore(
+/**
+ * Score a single opportunity: run analysis, persist the analysis row, advance
+ * the stage, and auto-watchlist at high scores. Throws on any failure so
+ * callers can record `last_error` and continue the batch.
+ *
+ * `source` tags the analysis row so pipeline vs activation origins are
+ * distinguishable. `model` is forwarded to the scoring LLM call.
+ */
+export async function scoreOneOpportunity(
   svc: SupabaseClient,
   userId: string,
   opp: OpportunityRow,
   config: PipelineConfigRow,
-): Promise<void> {
+  options?: { source?: string; model?: string },
+): Promise<ScoreOneResult> {
   const scoring = await scoreOpportunity(
     opp.company_name,
     opp.role_title,
     opp.job_description ?? "",
     userId,
     svc,
+    options?.model ? { model: options.model } : undefined,
   );
 
-  // Create analyses row and link to opportunity
   const { data: analysis, error: analysisError } = await svc
     .from("analyses")
     .insert({
@@ -107,7 +70,7 @@ async function processOneScore(
       input: {
         company_name: opp.company_name,
         role_title: opp.role_title,
-        source: "pipeline",
+        source: options?.source ?? "pipeline",
       },
       result: scoring.analysisResult,
     })
@@ -141,8 +104,56 @@ async function processOneScore(
     );
   }
 
-  // Auto-add to watchlist (with Exa monitoring) if score >= 80
   if (scoring.normalizedScore >= 80) {
     await addToWatchlist(svc, userId, opp.company_name, "auto");
   }
+
+  return { newStage, normalizedScore: scoring.normalizedScore };
+}
+
+export async function runScore(
+  svc: SupabaseClient,
+  userId: string,
+  config: PipelineConfigRow,
+): Promise<ScoreResult> {
+  const opportunities = await getOpportunitiesByStage(
+    svc,
+    userId,
+    "discovered",
+    MAX_SCORES_PER_RUN,
+  );
+
+  const result: ScoreResult = {
+    processed: 0,
+    scored: 0,
+    filtered: 0,
+    errors: 0,
+  };
+
+  for (const opp of opportunities) {
+    try {
+      const claimed = await claimOpportunity(svc, opp.id, userId);
+      if (!claimed) continue;
+
+      result.processed++;
+      const { newStage } = await scoreOneOpportunity(svc, userId, opp, config);
+
+      if (newStage === "scored") result.scored++;
+      else result.filtered++;
+
+      await releaseOpportunity(svc, opp.id, userId);
+    } catch (err) {
+      result.errors++;
+      await svc
+        .from("opportunities")
+        .update({
+          last_error: err instanceof Error ? err.message : String(err),
+        })
+        .eq("id", opp.id)
+        .eq("user_id", userId);
+      await releaseOpportunity(svc, opp.id, userId);
+    }
+  }
+
+  return result;
 }

@@ -21,12 +21,18 @@ interface CreateOpportunityInput {
   role_title: string;
   job_url?: string;
   job_description?: string;
+  job_posted_at?: string;
 }
 
 /**
  * Insert a new opportunity. Uses ON CONFLICT DO NOTHING on (user_id, source, external_id).
  * Also checks for a duplicate company+role within the last 30 days.
  * Returns the row if inserted, null if duplicate.
+ *
+ * The 30-day window prevents re-scoring a role the user already saw this
+ * month while still allowing re-discovery if the same company re-posts
+ * or a new listing cycle begins. This balances freshness against inbox
+ * noise — JSearch often returns the same employer/title across runs.
  */
 export async function createOpportunity(
   svc: SupabaseClient,
@@ -87,17 +93,22 @@ export async function claimOpportunity(
 
 /**
  * Release the claim after processing completes.
+ * Throws if the update fails so callers know the claim was not cleared.
  */
 export async function releaseOpportunity(
   svc: SupabaseClient,
   id: string,
   userId: string,
 ): Promise<void> {
-  await svc
+  const { error } = await svc
     .from("opportunities")
     .update({ processing_started_at: null })
     .eq("id", id)
     .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(`releaseOpportunity(${id}) failed: ${error.message}`);
+  }
 }
 
 // ---------------------------------------------------------------------------

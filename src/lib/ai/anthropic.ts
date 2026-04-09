@@ -8,7 +8,7 @@ import { generateText } from "ai";
  * routing, failover, and cost tracking on deploy.
  */
 
-const DEFAULT_MODEL = "claude-opus-4.6";
+const DEFAULT_MODEL = "claude-opus-4-6";
 
 function model(name: string = DEFAULT_MODEL) {
   return anthropic(name);

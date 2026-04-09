@@ -34,6 +34,7 @@ export async function scoreOpportunity(
   jobDescription: string,
   userId: string,
   client?: SupabaseClient,
+  options?: { model?: string },
 ): Promise<ScoringResult> {
   const svc = client;
 
@@ -91,6 +92,7 @@ export async function scoreOpportunity(
       memory: fullMemory,
     }),
     maxTokens: 8192,
+    ...(options?.model ? { model: options.model } : {}),
   });
 
   // Default to 0 (not max) when Claude output is malformed — prevents

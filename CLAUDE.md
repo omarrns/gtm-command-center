@@ -27,14 +27,30 @@ src/
 │       ├── watchlist/      # Company monitoring + alert review
 │       ├── settings/       # Pipeline config + Gmail connect/disconnect
 │       ├── actions.ts      # Today actions: trigger pipeline, approve, skip, flag
+│       ├── onboard/        # Onboarding: AI interview + manual wizard
+│       │   ├── page.tsx    # Server component — fetches interview + form data
+│       │   ├── actions.ts  # Wizard save actions (profile, config, outreach)
+│       │   ├── interview-actions.ts  # Interview lifecycle (create, extract, confirm, abandon)
+│       │   └── _components/
+│       │       ├── onboard-router.tsx    # Choice screen + mode routing
+│       │       ├── onboard-client.tsx    # Manual 4-step wizard (escape hatch)
+│       │       ├── interview-client.tsx  # Streaming chat UI (useChat)
+│       │       └── review-client.tsx     # Review extracted data + confirm
+│       ├── activate/       # Post-onboarding activation: first-results screen
+│       │   ├── page.tsx    # Server component — guards + Gmail check
+│       │   ├── actions.ts  # dismissActivationAction (escape hatch)
+│       │   └── _components/
+│       │       └── activation-client.tsx  # Searching/results/empty/error states
 │       ├── analysis/       # Kept detail pages; legacy list/intake routes redirect
 │       ├── research/       # Kept report detail pages; legacy list/new routes redirect
 │       └── _components/    # OpportunityCard, TodayClient, EmailVariantPicker
 │   └── api/
 │       ├── auth/gmail/     # Gmail OAuth start + callback
-│       ├── cron/pipeline/  # Daily autonomous pipeline cron
+│       ├── activation/search/  # POST — runs activation discover+score (maxDuration=300)
+│       ├── cron/pipeline/  # 12-hour autonomous pipeline cron
 │       ├── cron/replies/   # Reply tracking cron
 │       ├── cron/watchlist/ # Daily Exa watchlist alert ingestion
+│       ├── onboard/chat/   # Streaming interview chat endpoint (POST)
 │       └── pipeline/run/   # Authenticated manual pipeline trigger
 ├── components/
 │   ├── app-shell.tsx       # Client wrapper — manages sidebar state
@@ -55,11 +71,12 @@ src/
     ├── supabase/           # Server client, types, auth helpers
     ├── pipeline/           # JSearch, scoring, people search, opportunity helpers
     │   └── steps/          # discover → score → research → enrich → draft
+    ├── onboarding/         # Interview prompt, extraction prompt, extraction logic
     ├── integrations/       # Gmail client + token crypto
     └── jobs/               # Legacy async job handlers reused by pipeline
 ```
 
-## Implementation Notes — 2026-04-07
+## Implementation Notes
 
 ### Phase 0 — Integration Validation
 
@@ -104,7 +121,7 @@ src/
   - Single-user scoped.
   - `maxDuration = 300`.
 - Vercel cron:
-  - `/api/cron/pipeline` at `0 10 * * *`.
+  - `/api/cron/pipeline` at `0 4,16 * * *` (every 12 hours: 4am + 4pm UTC).
 
 ### Phase 3 — Today, History, and Settings UI
 
@@ -331,6 +348,135 @@ src/
   - `npm run test:sender-identity` runs this script.
   - `onboard:reset` and `onboard:fixture` now also clear/manage `user_scoring_profiles`.
 
+### Phase 10 — Agentic Career-Coach Onboarding Interview
+
+- Replaces the static 4-step wizard with a conversational AI interview as the primary onboarding path. The wizard remains as a "skip to manual entry" escape hatch.
+- Migration: `supabase/migrations/20260409000001_onboarding_interviews.sql`.
+  - New table: `onboarding_interviews` with partial unique index (one active per user).
+  - RLS: SELECT-only for client; all mutations via service-role.
+- Onboarding flow:
+  - `src/app/(app)/onboard/page.tsx` fetches active interview row + existing form data, renders `OnboardRouter`.
+  - `OnboardRouter` shows a choice screen (interview vs manual), then routes to `InterviewClient`, `ReviewClient`, or `OnboardClient` based on state.
+  - `InterviewClient` uses `useChat` from `@ai-sdk/react` with `DefaultChatTransport` to stream against `/api/onboard/chat`.
+  - `ReviewClient` shows extracted data with inline editing, "Back to interview", and "Confirm & Continue".
+- Streaming chat: `src/app/api/onboard/chat/route.ts`.
+  - Uses `streamText` with `claude-sonnet-4-6` via `@ai-sdk/anthropic`.
+  - `report_topics` tool (AI SDK `tool()` with `inputSchema`) tracks covered topics as structured data.
+  - `onFinish` callback persists messages, updates `topics_covered`, and sets `ready_for_extraction` when interview is complete.
+  - Server-side message cap: hard limit at 12 assistant messages. At 10+, injects wrap-up instruction. At 12+, forces extraction without generating.
+  - Completion detection: primary is `[INTERVIEW_COMPLETE]` marker, fallback heuristic triggers when 5+ topics covered and last message has no question.
+- Interview actions: `src/app/(app)/onboard/interview-actions.ts`.
+  - `getOrCreateInterviewAction`: finds active interview or creates new one.
+  - `checkInterviewStateAction`: lightweight refetch of `ready_for_extraction` + `topics_covered` (used by client after each response).
+  - `extractAndReviewAction`: atomic compare-and-set (`eq("status", "in_progress")`) prevents race conditions. Runs Opus extraction, writes `extracted_*` columns, sets status to `review`.
+  - `confirmInterviewAction`: sequential idempotent writes — upserts memory docs, pipeline_config, interview_insights, normalizeScoringProfile(), then marks `confirmed`. Stays in `review` on failure.
+  - `backToInterviewAction`: sets `status = 'in_progress'` and `ready_for_extraction = false` to prevent auto-extract loop.
+  - `abandonInterviewAction`: sets `status = 'abandoned'`.
+- Extraction: `src/lib/onboarding/extraction.ts` + `extraction-prompt.ts`.
+  - Formats UIMessages into plain-text transcript, sends to `runClaudeJson` with `claude-opus-4-6`.
+  - Two output layers: wizard-compatible fields (profile, search, outreach) + richer `insights` (career narrative, decision drivers, strongest stories, etc.).
+  - Insights persisted as `memory_document` with key `interview_insights`.
+- Interview prompt: `src/lib/onboarding/interview-prompt.ts`.
+  - `buildInterviewPrompt()` builds system prompt with optional refresh context.
+  - `interviewTools` defines `report_topics` tool with `inputSchema` (zod enum array).
+  - Prompt enforces: one question at a time, max 1 follow-up per topic, impatience handling, hard 12-message cap.
+- Refresh-mode data preservation:
+  - `ReviewClient` uses `topics_covered` to decide whether to trust extracted values.
+  - If `search_prefs` was not covered, existing `pipeline_config` values are preserved.
+  - If `outreach_style` / `dealbreakers` were not covered, existing outreach/dealbreaker memory docs survive.
+  - Extraction defaults never silently clobber saved settings.
+- AI SDK v6 patterns used:
+  - `useChat` from `@ai-sdk/react` with `DefaultChatTransport` (body includes `interviewId`).
+  - `streamText` + `toUIMessageStreamResponse` with `onFinish` for persistence.
+  - Tool parts use `tool-${NAME}` type pattern (v6); detection via `isToolUIPart()` + `getToolName()`.
+  - `convertToModelMessages` is async in v6 (requires `await`).
+- Dev tooling:
+  - `scripts/onboard-reset.ts`: also deletes `onboarding_interviews` rows.
+  - `scripts/onboard-fixture.ts`: `--interview-state=transcript|review|ready` seeds interview rows for testing.
+  - `scripts/test-extraction.ts` / `npm run test:extraction`: runs extraction on transcript fixture, asserts field presence.
+  - Scripts load `.env.local` via `dotenv`.
+
+### Phase 11 — Post-Confirm Activation Search
+
+- After onboarding confirm, users are routed to `/activate` instead of the empty Today dashboard.
+- Activation engine: `src/lib/pipeline/activation.ts`
+  - Calls JSearch with `numPages: 1`, `datePosted: "month"`, then post-filters to last 10 days (excludes undated jobs).
+  - Caps at 10 discoveries. Scores each using `claude-sonnet-4-6` (not Opus) for speed (~10-15s/job vs ~80-130s).
+  - On dedup hit, checks if existing opportunity is stranded at `discovered` (from interrupted prior run) and scores it.
+  - Rank step queries all recent scored/filtered opportunities (retry-safe — not just newly-inserted IDs).
+  - Takes top 5 above `score_threshold`, backfills with highest below-threshold results tagged `isCloseMatch`.
+  - Fit rationale extracted from `bottom_line` field of analysis result (first two sentences).
+  - Sets `pipeline_config.activation_completed_at` on completion.
+- API route: `src/app/api/activation/search/route.ts` — POST, authenticated, `maxDuration=300`.
+- Activate page: `src/app/(app)/activate/page.tsx`
+  - Guards: redirects to `/` if `activation_completed_at` set, to `/onboard` if no config.
+  - Renders `ActivationClient` with Gmail connection status.
+- Activation client: `src/app/(app)/activate/_components/activation-client.tsx`
+  - States: searching (timed reassurance messages), results (flat cards), empty, error.
+  - Cards show: company + View Job link, role + posted date, score badge, 2-sentence fit rationale, Skip action.
+  - No accordion — all content visible by default.
+  - All exit paths (Go to Dashboard, Adjust Settings, Run Deeper Search) call `dismissActivationAction()` before navigating to prevent redirect trap.
+  - Gmail prompt shown below results if not connected.
+- Dismiss action: `src/app/(app)/activate/actions.ts` — sets `activation_completed_at`, returns error on failure, client blocks navigation if dismiss fails.
+- Today page gate: `src/app/(app)/page.tsx` redirects to `/activate` if `activation_completed_at` is null (inside the `!skipOnboarding` block).
+- ReviewClient changes: `src/app/(app)/onboard/_components/review-client.tsx`
+  - Post-confirm routes to `/activate` (first-time) or `/settings` (refresh).
+  - Gmail step removed from ReviewClient — now part of activation results screen.
+  - `gmailConnected` prop removed from ReviewClient interface.
+- Migrations:
+  - `20260410000001_activation_completed_at.sql` — adds `activation_completed_at` to `pipeline_config`.
+  - `20260410000002_add_job_posted_at.sql` — adds `job_posted_at` to `opportunities`.
+- Extended existing modules:
+  - `jsearch.ts`: `searchJobs()` accepts optional `numPages` and `datePosted` params.
+  - `scoring.ts`: `scoreOpportunity()` accepts optional `{ model }` override.
+  - `opportunities.ts`: `createOpportunity()` accepts `job_posted_at`.
+  - `discover.ts`: passes `job_posted_at` through; uses `datePosted: "today"` for daily cron freshness.
+  - `types.ts`: `activation_completed_at` on `PipelineConfigRow`, `job_posted_at` on `OpportunityRow`.
+- Cron schedule updated: pipeline runs every 12 hours (`0 4,16 * * *`), discovers last-day posts only.
+
+### Phase 12 — Unified Opportunity Card
+
+- Unified `OpportunityCard` across Activate, Today, and History views. One component, one layout, conditional sections based on context.
+- Bug fix: `loadAnalysisSummaries()` in `src/app/(app)/_loaders/today-queue.ts` now reads `result.bottom_line` (first 2 sentences, 280 char cap) instead of `result.summary` / `result.executive_summary` which were always null. Today cards now show fit rationale.
+- Card layout (flat-first, matches Phase 11 Activate design):
+  - Row 1: Company + Stage Badge + Close Match badge (if `isCloseMatch`) + View Job link + Score + conditional chevron
+  - Row 2: Role Title + posted date (flex layout — title truncates, date stays visible via `shrink-0`)
+  - Row 3: Recipient Name · Title (if present)
+  - Row 4: Fit rationale (always visible, from `analysisSummary` prop)
+  - Row 5: Action buttons (Skip + Flag for non-terminal; Approve + Edit & Approve for queued)
+  - Expand section (only when `hasExpandableContent`): research summary + report link, analysis link, draft picker, error display
+- `hasExpandableContent` check: `drafts.length > 0 || !!opportunity.analysis_id || !!opportunity.research_id || !!researchSummary || !!opportunity.last_error`. Chevron only renders when true.
+- Research link is gated by `research_id` (not `researchSummary`) so reports with empty summaries still expose the "View full report" link.
+- New props on `OpportunityCard`:
+  - `isCloseMatch?: boolean` — shows "Close match" badge for backfill cards
+  - `onAction?: () => void` — called after successful skip/flag/approve for parent state management
+- Activation changes:
+  - `ActivationResult` now includes `opportunity: OpportunityRow` field.
+  - `rankResults()` in `activation.ts` uses `select("*")` instead of specific columns.
+  - `activation-client.tsx` removed: inline card JSX (~60 lines), local `scoreColor`, `handleSkip` callback, `cn`/`formatRelativeTime`/`skipOpportunityAction` imports.
+  - Now renders `<OpportunityCard>` with `onAction` callback that removes the card from local `results` state.
+- History inherits the unified layout via the shared card — no code changes needed.
+- Files modified (4): `_loaders/today-queue.ts`, `_components/opportunity-card.tsx`, `pipeline/activation.ts`, `activate/_components/activation-client.tsx`.
+
+### Evaluations Clean Code Remediation
+
+Correctness-first cleanup of evaluation-consuming surfaces. No storage contracts or prompt contracts were changed; all normalization is read-time only.
+
+- **History dedupe (Step A)**:
+  - `history/page.tsx` and `history/actions.ts` replaced inline draft/summary/research loading with calls to shared loaders (`loadDraftsMap`, `loadAnalysisSummaries`, `loadResearchSummaries`) from `_loaders/today-queue.ts`.
+  - History analysis summaries now use the same `bottom_line >> summary >> executive_summary` precedence and 2-sentence / 280-char truncation as Today (previously stuck on older `summary ?? executive_summary` contract).
+  - `groupByDate()` extracted from both `history/page.tsx` and `history-client.tsx` into the shared `_loaders/today-queue.ts` module. Both server page and client component import from one place.
+  - History loaders run in parallel via `Promise.all` (same pattern as the page's initial load and the server action's filtered load).
+  - Activation's separate teaser logic in `pipeline/activation.ts` was intentionally left unchanged.
+
+- **Company-fit detail rendering (Step B)**:
+  - `analysis/[id]/analysis-detail.tsx` split from one monolithic render into three sub-components: `ImportedMarkdownView`, `CompanyFitView`, `StandardAnalysisView`.
+  - Branch selection: `result.imported === true` → imported markdown; `skill_slug === "company-fit-analyzer"` → company-fit; everything else → standard (JD rubric / full analysis).
+  - `CompanyFitView` reads the actual flat contract from `company-fit-analyzer.ts`: `what_they_do`, `stage_and_funding`, `gtm_motion`, `market_position`, `strategic_fit`, `total_fit_score`, `verdict`, `green_flags`, `red_flags`, `outreach_angles[]`, `recent_signals[]`, `founder_profile { name, background, worldview }`, `bottom_line`.
+  - `ImportedMarkdownView` cleaned up repetitive `(result as Record<string, unknown>)` casts with a shared `Obj` type alias.
+  - `StandardAnalysisView` preserves the existing JD rubric and full-analysis rendering exactly as before (nested `jd_fit`, `strategic_fit`, `company_overview`, `outreach_angle` shapes).
+  - Added `isObj()` type guard to replace repeated inline `typeof x === "object"` checks.
+
 ## Design System
 
 ### Token Architecture
@@ -422,6 +568,10 @@ npm run import:research
 npm run import:outreach
 npm run import:coaching
 npm run seed             # Run all imports
+npm run onboard:reset    # Delete all onboarding data (interviews + memory docs + config + scoring)
+npm run onboard:fixture  # Seed onboarding state: --state=partial|complete|empty --interview-state=transcript|review|ready
+npm run test:sender-identity  # Verify prompt de-Omarification
+npm run test:extraction       # Run extraction on transcript fixture, assert field quality
 ```
 
 ---

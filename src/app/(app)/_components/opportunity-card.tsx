@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
 import type {
   OpportunityRow,
   OpportunityStage,
@@ -68,6 +68,10 @@ interface OpportunityCardProps {
   researchSummary?: string;
   /** Whether action buttons are shown (false for history cards) */
   showActions?: boolean;
+  /** Backfill flag — card scored below threshold */
+  isCloseMatch?: boolean;
+  /** Called after any successful mutation (skip/flag/approve) */
+  onAction?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,6 +84,8 @@ export function OpportunityCard({
   analysisSummary,
   researchSummary,
   showActions = true,
+  isCloseMatch = false,
+  onAction,
 }: OpportunityCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -89,12 +95,19 @@ export function OpportunityCard({
     stage === "sent" || stage === "replied" || stage === "skipped";
   const isActionable = showActions && !isPending;
   const isDraftReadOnly = !showActions || isTerminal;
+  const hasExpandableContent =
+    drafts.length > 0 ||
+    !!opportunity.analysis_id ||
+    !!opportunity.research_id ||
+    !!researchSummary ||
+    !!opportunity.last_error;
 
   function handleApprove() {
     startTransition(async () => {
       const result = await approveOpportunityAction(opportunity.id);
       if (result.ok) {
         toast.success("Email approved and sent");
+        onAction?.();
       } else {
         toast.error(result.error);
       }
@@ -106,6 +119,7 @@ export function OpportunityCard({
       const result = await skipOpportunityAction(opportunity.id);
       if (result.ok) {
         toast.success("Opportunity skipped");
+        onAction?.();
       } else {
         toast.error(result.error);
       }
@@ -113,7 +127,6 @@ export function OpportunityCard({
   }
 
   function handleEditAndApprove() {
-    // Expand the card so the user can edit the draft before approving
     setIsExpanded(true);
   }
 
@@ -122,6 +135,7 @@ export function OpportunityCard({
       const result = await flagCompanyAction(opportunity.id);
       if (result.ok) {
         toast.success(`${opportunity.company_name} added to watchlist`);
+        onAction?.();
       } else {
         toast.error(result.error);
       }
@@ -130,7 +144,7 @@ export function OpportunityCard({
 
   return (
     <div className="surface p-4">
-      {/* Header row */}
+      {/* Row 1: Company + badges + View Job | Score + chevron */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -138,17 +152,20 @@ export function OpportunityCard({
               {opportunity.company_name}
             </h3>
             <span className={stageInfo.className}>{stageInfo.label}</span>
+            {isCloseMatch && (
+              <span className="badge badge-warning">Close match</span>
+            )}
+            {opportunity.job_url && (
+              <a
+                href={opportunity.job_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[var(--color-blue)] hover:underline inline-flex items-center gap-0.5 shrink-0"
+              >
+                View Job <ExternalLink size={10} />
+              </a>
+            )}
           </div>
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">
-            {opportunity.role_title}
-          </p>
-          {opportunity.recipient_name && (
-            <p className="text-xs text-[var(--color-text-subtle)] mt-0.5">
-              {opportunity.recipient_name}
-              {opportunity.recipient_title &&
-                ` · ${opportunity.recipient_title}`}
-            </p>
-          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {opportunity.score != null && (
@@ -161,93 +178,45 @@ export function OpportunityCard({
               {opportunity.score}
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] transition-colors"
-            aria-label={isExpanded ? "Collapse" : "Expand"}
-          >
-            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
+          {hasExpandableContent && (
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-1 rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] transition-colors"
+              aria-label={isExpanded ? "Collapse" : "Expand"}
+            >
+              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Expanded detail */}
-      {isExpanded && (
-        <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-3">
-          {/* Analysis summary + detail link */}
-          {analysisSummary && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-medium text-[var(--color-text-muted)]">
-                  Analysis
-                </div>
-                {opportunity.analysis_id && (
-                  <Link
-                    href={`/analysis/${opportunity.analysis_id}`}
-                    className="text-xs text-[var(--color-blue)] hover:underline"
-                  >
-                    View full analysis
-                  </Link>
-                )}
-              </div>
-              <p className="text-xs text-[var(--color-text)] leading-relaxed">
-                {analysisSummary}
-              </p>
-            </div>
+      {/* Row 2: Role title + posted date */}
+      <div className="flex items-baseline gap-1 mt-0.5 text-xs">
+        <span className="text-[var(--color-text-muted)] truncate min-w-0">
+          {opportunity.role_title}
+        </span>
+        <span className="text-[var(--color-text-subtle)] shrink-0">
+          {"· "}
+          {formatRelativeTime(
+            opportunity.job_posted_at ?? opportunity.discovered_at,
           )}
+        </span>
+      </div>
 
-          {/* Research summary + detail link */}
-          {researchSummary && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-medium text-[var(--color-text-muted)]">
-                  Research
-                </div>
-                {opportunity.research_id && (
-                  <Link
-                    href={`/research/reports/${opportunity.research_id}`}
-                    className="text-xs text-[var(--color-blue)] hover:underline"
-                  >
-                    View full report
-                  </Link>
-                )}
-              </div>
-              <p className="text-xs text-[var(--color-text)] leading-relaxed">
-                {researchSummary}
-              </p>
-            </div>
-          )}
+      {/* Row 3: Recipient info */}
+      {opportunity.recipient_name && (
+        <p className="text-xs text-[var(--color-text-subtle)] mt-0.5">
+          {opportunity.recipient_name}
+          {opportunity.recipient_title && ` · ${opportunity.recipient_title}`}
+        </p>
+      )}
 
-          {/* Email variant picker */}
-          {drafts.length > 0 && (
-            <EmailVariantPicker
-              drafts={drafts}
-              selectedDraftId={opportunity.selected_draft_id}
-              opportunityId={opportunity.id}
-              readOnly={isDraftReadOnly}
-            />
-          )}
-
-          {/* Job URL link */}
-          {opportunity.job_url && (
-            <a
-              href={opportunity.job_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-[var(--color-blue)] hover:underline"
-            >
-              View Job Posting <ExternalLink size={11} />
-            </a>
-          )}
-
-          {/* Error display */}
-          {opportunity.last_error && (
-            <div className="text-xs text-[var(--color-danger)] bg-[var(--color-surface-muted)] rounded-md p-2">
-              Error: {opportunity.last_error}
-            </div>
-          )}
-        </div>
+      {/* Row 4: Fit rationale — always visible */}
+      {analysisSummary && (
+        <p className="text-xs text-[var(--color-text-muted)] leading-relaxed mt-2 line-clamp-3">
+          {analysisSummary}
+        </p>
       )}
 
       {/* Action buttons */}
@@ -272,34 +241,80 @@ export function OpportunityCard({
               )}
             </>
           )}
-          {stage !== "sent" &&
-            stage !== "replied" &&
-            stage !== "skipped" &&
-            stage !== "sending" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSkip}
-                disabled={isPending}
-              >
-                <SkipForward size={13} />
-                Skip
-              </Button>
-            )}
-          {stage !== "sent" &&
-            stage !== "replied" &&
-            stage !== "skipped" &&
-            stage !== "sending" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleFlag}
-                disabled={isPending}
-              >
-                <Flag size={13} />
-                Flag
-              </Button>
-            )}
+          {!isTerminal && stage !== "sending" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSkip}
+              disabled={isPending}
+            >
+              <SkipForward size={13} />
+              Skip
+            </Button>
+          )}
+          {!isTerminal && stage !== "sending" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleFlag}
+              disabled={isPending}
+            >
+              <Flag size={13} />
+              Flag
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Expanded detail — research, analysis link, drafts, error */}
+      {isExpanded && hasExpandableContent && (
+        <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-3">
+          {(researchSummary || opportunity.research_id) && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-xs font-medium text-[var(--color-text-muted)]">
+                  Research
+                </div>
+                {opportunity.research_id && (
+                  <Link
+                    href={`/research/reports/${opportunity.research_id}`}
+                    className="text-xs text-[var(--color-blue)] hover:underline"
+                  >
+                    View full report
+                  </Link>
+                )}
+              </div>
+              {researchSummary && (
+                <p className="text-xs text-[var(--color-text)] leading-relaxed">
+                  {researchSummary}
+                </p>
+              )}
+            </div>
+          )}
+
+          {opportunity.analysis_id && (
+            <Link
+              href={`/analysis/${opportunity.analysis_id}`}
+              className="inline-flex items-center gap-1 text-xs text-[var(--color-blue)] hover:underline"
+            >
+              View full analysis
+            </Link>
+          )}
+
+          {drafts.length > 0 && (
+            <EmailVariantPicker
+              drafts={drafts}
+              selectedDraftId={opportunity.selected_draft_id}
+              opportunityId={opportunity.id}
+              readOnly={isDraftReadOnly}
+            />
+          )}
+
+          {opportunity.last_error && (
+            <div className="text-xs text-[var(--color-danger)] bg-[var(--color-surface-muted)] rounded-md p-2">
+              Error: {opportunity.last_error}
+            </div>
+          )}
         </div>
       )}
     </div>

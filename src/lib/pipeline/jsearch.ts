@@ -69,20 +69,28 @@ async function fetchJSearch(
   return (body.data as JSearchResult[]) ?? [];
 }
 
+interface SearchJobsOptions {
+  /** Number of JSearch pages per query×location combo (default: 3). */
+  numPages?: number;
+  /** JSearch date filter — "3days", "week", "month" (default: "month"). */
+  datePosted?: string;
+}
+
 /**
  * Search for jobs across multiple queries and locations. Deduplicates by job_id.
  */
 export async function searchJobs(
   queries: string[],
   locations: string[],
+  options: SearchJobsOptions = {},
 ): Promise<JSearchResult[]> {
   const allResults: JSearchResult[] = [];
 
   for (const query of queries) {
     for (const location of locations) {
       const results = await fetchJSearch(`${query} in ${location}`, {
-        numPages: 3,
-        datePosted: "month",
+        numPages: options.numPages ?? 3,
+        datePosted: options.datePosted ?? "month",
         employmentTypes: "FULLTIME",
         country: "us",
       });

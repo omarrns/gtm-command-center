@@ -137,6 +137,7 @@ export interface PipelineConfigRow {
   search_locations: string[];
   daily_send_cap: number;
   gmail_send_address: string | null;
+  activation_completed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -178,6 +179,7 @@ export interface OpportunityRow {
   processing_started_at: string | null;
   attempt_count: number;
   last_error: string | null;
+  job_posted_at: string | null;
   discovered_at: string;
   updated_at: string;
 }
@@ -209,6 +211,33 @@ export interface WatchlistAlertRow {
   source_url: string | null;
   source_item_id: string;
   detected_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding Interviews (Phase 10)
+// ---------------------------------------------------------------------------
+
+export type OnboardingInterviewStatus =
+  | "in_progress"
+  | "extracting"
+  | "review"
+  | "confirmed"
+  | "abandoned";
+
+export interface OnboardingInterviewRow {
+  id: string;
+  user_id: string;
+  messages: unknown[];
+  status: OnboardingInterviewStatus;
+  ready_for_extraction: boolean;
+  extracted_profile: Record<string, unknown> | null;
+  extracted_search: Record<string, unknown> | null;
+  extracted_outreach: Record<string, unknown> | null;
+  extracted_insights: Record<string, unknown> | null;
+  topics_covered: string[];
+  is_refresh: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // ---------------------------------------------------------------------------
