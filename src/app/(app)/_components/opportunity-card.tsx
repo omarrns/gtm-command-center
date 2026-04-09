@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type {
   OpportunityRow,
@@ -25,28 +27,7 @@ import {
   flagCompanyAction,
 } from "../actions";
 import { EmailVariantPicker } from "./email-variant-picker";
-
-// ---------------------------------------------------------------------------
-// Stage display config
-// ---------------------------------------------------------------------------
-
-const STAGE_CONFIG: Record<
-  OpportunityStage,
-  { label: string; className: string }
-> = {
-  discovered: { label: "Discovered", className: "badge" },
-  scored: { label: "Scored", className: "badge badge-accent" },
-  filtered: { label: "Filtered", className: "badge" },
-  researched: { label: "Researched", className: "badge badge-accent" },
-  needs_contact: { label: "Needs Contact", className: "badge badge-warning" },
-  enriched: { label: "Enriched", className: "badge badge-accent" },
-  drafted: { label: "Drafted", className: "badge badge-accent" },
-  queued: { label: "Ready to Send", className: "badge badge-success" },
-  sending: { label: "Sending", className: "badge badge-warning" },
-  sent: { label: "Sent", className: "badge badge-success" },
-  replied: { label: "Replied", className: "badge badge-success" },
-  skipped: { label: "Skipped", className: "badge" },
-};
+import { STAGE_CONFIG } from "./stage-config";
 
 function scoreColor(score: number | null): string {
   if (score == null) return "text-[var(--color-text-muted)]";
@@ -143,7 +124,7 @@ export function OpportunityCard({
   }
 
   return (
-    <div className="surface p-4">
+    <Card className="gap-0 p-4">
       {/* Row 1: Company + badges + View Job | Score + chevron */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -151,10 +132,8 @@ export function OpportunityCard({
             <h3 className="text-sm font-semibold truncate">
               {opportunity.company_name}
             </h3>
-            <span className={stageInfo.className}>{stageInfo.label}</span>
-            {isCloseMatch && (
-              <span className="badge badge-warning">Close match</span>
-            )}
+            <Badge variant={stageInfo.variant}>{stageInfo.label}</Badge>
+            {isCloseMatch && <Badge variant="warning">Close match</Badge>}
             {opportunity.job_url && (
               <a
                 href={opportunity.job_url}
@@ -317,6 +296,6 @@ export function OpportunityCard({
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
