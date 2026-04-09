@@ -100,27 +100,43 @@ export interface PeopleSearchResult {
   researchResult: Record<string, unknown>;
 }
 
+export type ContactArchetype =
+  | "founder"
+  | "hiring_manager"
+  | "department_head"
+  | "recruiter";
+
+export interface PeopleSearchOptions {
+  /** Preferred contact archetype from the pursuit planner. Adjusts search query and selection. */
+  targetContact?: ContactArchetype;
+}
+
 export async function researchPeople(
   companyName: string,
   roleTitle: string,
   userId: string,
   client?: SupabaseClient,
+  options?: PeopleSearchOptions,
 ): Promise<PeopleSearchResult> {
   const apiKey = assertEnv("EXA_API_KEY");
+  const target = options?.targetContact;
+
+  // Build search query based on targeting
+  const query = buildSearchQuery(companyName, roleTitle, target);
+  const criteria = buildSearchCriteria(companyName, roleTitle, target);
 
   const webset = await createWebset(apiKey, {
     search: {
-      query: `CEO OR founder OR "${roleTitle}" hiring manager at ${companyName}`,
+      query,
       count: 5,
       entity: { type: "person" },
-      criteria: [
-        { description: `Person currently works at ${companyName}` },
-        {
-          description: `Person is either the CEO/founder or a senior leader who would hire a ${roleTitle}`,
-        },
-      ],
+      criteria,
     },
-    metadata: { pipeline: "v2", company: companyName },
+    metadata: {
+      pipeline: "v2",
+      company: companyName,
+      targetContact: target ?? "default",
+    },
   });
 
   const idleWebset = await waitUntilIdle(apiKey, webset.id);
@@ -141,8 +157,9 @@ export async function researchPeople(
     maxTokens: 4096,
   });
 
+  // Select contact based on planner targeting (if specified)
   const recommended = result.recommended_first_contact;
-  const contact = recommended === "ceo" ? result.ceo : result.hiring_manager;
+  const contact = selectContact(result, target, recommended);
 
   // Primary: use the webset_item_id the model extracted from the [ID: witem_xxx] tag.
   // Fallback: case-insensitive name match against webset items.
@@ -174,6 +191,95 @@ export async function researchPeople(
     recipientWebsetItemId: matchedItem?.id ?? null,
     researchResult: result as Record<string, unknown>,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Planner-aware targeting helpers
+// ---------------------------------------------------------------------------
+
+function buildSearchQuery(
+  companyName: string,
+  roleTitle: string,
+  target?: ContactArchetype,
+): string {
+  switch (target) {
+    case "founder":
+      return `CEO OR founder OR co-founder at ${companyName}`;
+    case "hiring_manager":
+      return `"${roleTitle}" hiring manager OR team lead at ${companyName}`;
+    case "department_head":
+      return `VP OR "Head of" OR Director at ${companyName}`;
+    case "recruiter":
+      return `recruiter OR talent acquisition at ${companyName}`;
+    default:
+      return `CEO OR founder OR "${roleTitle}" hiring manager at ${companyName}`;
+  }
+}
+
+function buildSearchCriteria(
+  companyName: string,
+  roleTitle: string,
+  target?: ContactArchetype,
+): Array<{ description: string }> {
+  const base = { description: `Person currently works at ${companyName}` };
+  switch (target) {
+    case "founder":
+      return [
+        base,
+        {
+          description: `Person is the CEO, founder, or co-founder of ${companyName}`,
+        },
+      ];
+    case "hiring_manager":
+      return [
+        base,
+        {
+          description: `Person is a manager or team lead who would hire a ${roleTitle}`,
+        },
+      ];
+    case "department_head":
+      return [
+        base,
+        {
+          description: `Person is a VP, Head, or Director in a department related to ${roleTitle}`,
+        },
+      ];
+    case "recruiter":
+      return [
+        base,
+        { description: `Person works in recruiting or talent acquisition` },
+      ];
+    default:
+      return [
+        base,
+        {
+          description: `Person is either the CEO/founder or a senior leader who would hire a ${roleTitle}`,
+        },
+      ];
+  }
+}
+
+/** Select the best contact from research output, preferring the planner's target archetype. */
+function selectContact(
+  result: PeopleResearchOutput,
+  target: ContactArchetype | undefined,
+  recommended: PeopleResearchOutput["recommended_first_contact"],
+): PeopleResearchContact | undefined {
+  // If planner says founder → prefer CEO contact
+  if (target === "founder" && result.ceo?.identified) {
+    return result.ceo;
+  }
+  // If planner says hiring_manager/department_head/recruiter → prefer hiring_manager contact
+  if (
+    (target === "hiring_manager" ||
+      target === "department_head" ||
+      target === "recruiter") &&
+    result.hiring_manager?.identified
+  ) {
+    return result.hiring_manager;
+  }
+  // Fall back to Claude's recommendation
+  return recommended === "ceo" ? result.ceo : result.hiring_manager;
 }
 
 // ---------------------------------------------------------------------------

@@ -3,13 +3,17 @@
  *
  * Daily cron that runs the autonomous pipeline for all configured users.
  * Auth: CRON_SECRET bearer token (fail-closed if missing).
- * Vercel cron schedule: 0 10 * * * UTC (6 AM EDT).
+ * Vercel cron schedule: 0 4,16 * * * UTC (every 12 hours).
+ *
+ * Phase 13A: each user gets an independent Workflow run with its own
+ * durability/retry guarantees. No shared 300s timeout across users.
  */
 
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { runPipeline, type PipelineRunResult } from "@/lib/pipeline/runner";
+import { start } from "workflow/api";
+import { pipelineWorkflow } from "@/lib/pipeline/workflow";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   // Fail-closed: reject if CRON_SECRET is not configured
@@ -42,46 +46,22 @@ export async function GET(request: Request) {
     });
   }
 
-  const results: Array<{ userId: string; summary: PipelineRunSummary }> = [];
+  // Fire-and-forget: start each user's workflow independently.
+  // Each workflow runs with its own durability/retry — no shared timeout.
+  const runs: Array<{ userId: string; runId: string; error?: string }> = [];
 
   for (const { user_id } of configs) {
     try {
-      const result = await runPipeline(svc, user_id);
-      results.push({ userId: user_id, summary: summarize(result) });
+      const run = await start(pipelineWorkflow, [user_id]);
+      runs.push({ userId: user_id, runId: run.runId });
     } catch (err) {
-      results.push({
+      runs.push({
         userId: user_id,
-        summary: {
-          error: err instanceof Error ? err.message : String(err),
-          discovered: 0,
-          scored: 0,
-          researched: 0,
-          enriched: 0,
-          drafted: 0,
-        },
+        runId: "",
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }
 
-  return Response.json({ ok: true, processed: configs.length, results });
-}
-
-interface PipelineRunSummary {
-  discovered: number;
-  scored: number;
-  researched: number;
-  enriched: number;
-  drafted: number;
-  error: string | null;
-}
-
-function summarize(result: PipelineRunResult): PipelineRunSummary {
-  return {
-    discovered: result.discover.inserted,
-    scored: result.score.scored,
-    researched: result.research.researched,
-    enriched: result.enrich.enriched,
-    drafted: result.draft.drafted,
-    error: result.error,
-  };
+  return Response.json({ ok: true, processed: configs.length, runs });
 }

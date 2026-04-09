@@ -3,22 +3,29 @@
  *
  * Manual pipeline trigger from the UI. Authenticated via requireUser() —
  * always scoped to the authenticated user's ID, never client-supplied.
+ *
+ * Phase 13A: runs via Vercel Workflow for durability. Awaits completion
+ * since the UI expects a synchronous summary response.
  */
 
 import { requireUser } from "@/lib/supabase/server";
-import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { runPipeline } from "@/lib/pipeline/runner";
+import { start } from "workflow/api";
+import {
+  pipelineWorkflow,
+  type WorkflowPipelineResult,
+} from "@/lib/pipeline/workflow";
 
 export const maxDuration = 300;
 
 export async function POST() {
   const user = await requireUser();
-  const svc = createSupabaseServiceClient();
 
-  const result = await runPipeline(svc, user.id);
+  const run = await start(pipelineWorkflow, [user.id]);
+  const result = (await run.returnValue) as WorkflowPipelineResult;
 
   return Response.json({
     ok: true,
+    runId: run.runId,
     summary: {
       discovered: result.discover.inserted,
       scored: result.score.scored,
