@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { AnalysisDetail } from "./analysis-detail";
 
 export const metadata = { title: "Analysis Detail · GTM Command Center" };
@@ -7,13 +8,10 @@ export const metadata = { title: "Analysis Detail · GTM Command Center" };
 type Props = { params: Promise<{ id: string }> };
 
 export default async function AnalysisDetailPage({ params }: Props) {
-  const [{ id }, user, supabase] = await Promise.all([
-    params,
-    requireUser(),
-    createSupabaseServerClient(),
-  ]);
+  const [{ id }, user] = await Promise.all([params, requireUser()]);
+  const svc = createSupabaseServiceClient();
 
-  const { data: analysis } = await supabase
+  const { data: analysis } = await svc
     .from("analyses")
     .select("*")
     .eq("id", id)
