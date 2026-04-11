@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
@@ -47,6 +47,12 @@ function daySummary(items: OpportunityRow[]): string {
   if (replied > 0) parts.push(`${replied} replied`);
   if (skipped > 0) parts.push(`${skipped} skipped`);
   return parts.join(", ");
+}
+
+function totalOpportunities(
+  grouped: { date: string; items: OpportunityRow[] }[],
+): number {
+  return grouped.reduce((sum, g) => sum + g.items.length, 0);
 }
 
 interface HistoryClientProps {
@@ -97,6 +103,7 @@ export function HistoryClient({
   }
 
   const isEmpty = grouped.length === 0;
+  const total = totalOpportunities(grouped);
 
   return (
     <>
@@ -106,12 +113,24 @@ export function HistoryClient({
       />
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 mb-6">
+      <form
+        role="search"
+        aria-label="Filter opportunities"
+        onSubmit={(e) => {
+          e.preventDefault();
+          applyFilters();
+        }}
+        className="flex flex-wrap items-end gap-3 mb-6"
+      >
         <div>
-          <label className="text-xs font-medium text-[var(--color-text-muted)] block mb-1">
+          <label
+            htmlFor="history-stage"
+            className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+          >
             Stage
           </label>
           <select
+            id="history-stage"
             className="input text-xs h-8"
             value={stageFilter}
             onChange={(e) =>
@@ -126,10 +145,14 @@ export function HistoryClient({
           </select>
         </div>
         <div>
-          <label className="text-xs font-medium text-[var(--color-text-muted)] block mb-1">
+          <label
+            htmlFor="history-min-score"
+            className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+          >
             Min Score
           </label>
           <input
+            id="history-min-score"
             className="input text-xs h-8 w-20"
             type="number"
             min={0}
@@ -140,10 +163,14 @@ export function HistoryClient({
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-[var(--color-text-muted)] block mb-1">
+          <label
+            htmlFor="history-max-score"
+            className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+          >
             Max Score
           </label>
           <input
+            id="history-max-score"
             className="input text-xs h-8 w-20"
             type="number"
             min={0}
@@ -154,15 +181,20 @@ export function HistoryClient({
           />
         </div>
         <div className="flex-1 min-w-[140px]">
-          <label className="text-xs font-medium text-[var(--color-text-muted)] block mb-1">
+          <label
+            htmlFor="history-company"
+            className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+          >
             Company
           </label>
           <div className="relative">
             <Search
               size={13}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
+              aria-hidden="true"
+              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
             />
             <input
+              id="history-company"
               className="input text-xs h-8 pl-7"
               placeholder="Search company…"
               value={companySearch}
@@ -170,9 +202,22 @@ export function HistoryClient({
             />
           </div>
         </div>
-        <Button size="sm" onClick={applyFilters} disabled={isPending}>
+        <Button type="submit" size="sm" disabled={isPending}>
+          {isPending && <Loader2 size={14} className="animate-spin" />}
           {isPending ? "Filtering…" : "Apply"}
         </Button>
+      </form>
+
+      {/* Screen reader results announcement */}
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {isPending
+          ? "Filtering results…"
+          : `Showing ${total} opportunities across ${grouped.length} days`}
       </div>
 
       {/* Timeline */}
@@ -182,39 +227,49 @@ export function HistoryClient({
           hint="Opportunities will appear here after the pipeline runs."
         />
       ) : (
-        <div className="space-y-8">
-          {grouped.map((group) => (
-            <section key={group.date}>
-              <div className="flex items-baseline gap-3 mb-3">
-                <h3 className="text-sm font-semibold text-[var(--color-text)]">
-                  {formatDateHeading(group.date)}
-                </h3>
-                <span className="text-xs text-[var(--color-text-subtle)]">
-                  {daySummary(group.items)}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {group.items.map((opp) => (
-                  <OpportunityCard
-                    key={opp.id}
-                    opportunity={opp}
-                    drafts={draftsMap[opp.id] ?? []}
-                    analysisSummary={
-                      opp.analysis_id
-                        ? analysisSummaries[opp.analysis_id]
-                        : undefined
-                    }
-                    researchSummary={
-                      opp.research_id
-                        ? researchSummaries[opp.research_id]
-                        : undefined
-                    }
-                    showActions={false}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+        <div
+          className="space-y-8"
+          role="feed"
+          aria-label="Opportunity timeline"
+        >
+          {grouped.map((group) => {
+            const headingId = `date-${group.date}`;
+            return (
+              <section key={group.date} aria-labelledby={headingId}>
+                <div className="flex items-baseline gap-2 mb-3">
+                  <h3
+                    id={headingId}
+                    className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]"
+                  >
+                    {formatDateHeading(group.date)}
+                  </h3>
+                  <span className="text-xs text-[var(--color-text-subtle)]">
+                    · {daySummary(group.items)}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {group.items.map((opp) => (
+                    <OpportunityCard
+                      key={opp.id}
+                      opportunity={opp}
+                      drafts={draftsMap[opp.id] ?? []}
+                      analysisSummary={
+                        opp.analysis_id
+                          ? analysisSummaries[opp.analysis_id]
+                          : undefined
+                      }
+                      researchSummary={
+                        opp.research_id
+                          ? researchSummaries[opp.research_id]
+                          : undefined
+                      }
+                      showActions={false}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
     </>

@@ -34,6 +34,14 @@ interface TodayClientProps {
   metrics: DashboardMetrics;
 }
 
+function sentTodayColor(sent: number, cap: number): string {
+  if (cap === 0) return "";
+  const ratio = sent / cap;
+  if (ratio >= 1) return "text-[var(--color-success)]";
+  if (ratio >= 0.7) return "text-[var(--color-warning)]";
+  return "";
+}
+
 export function TodayClient({
   grouped,
   draftsMap,
@@ -73,52 +81,69 @@ export function TodayClient({
         </Button>
       </PageHeader>
 
-      {/* Metrics bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div className="surface-muted px-3 py-2.5">
+        <div className="surface px-3 py-2.5">
           <p className="text-xs text-[var(--color-text-subtle)]">Reply Rate</p>
-          <p className="text-sm font-semibold">
-            {metrics.replyRate != null ? `${metrics.replyRate}%` : "—"}
+          <p className="text-lg font-semibold tabular-nums">
+            {metrics.replyRate != null ? (
+              <>
+                {metrics.replyRate}
+                <span className="text-xs font-normal text-[var(--color-text-subtle)] ml-0.5">
+                  %
+                </span>
+              </>
+            ) : (
+              <span className="text-[var(--color-text-subtle)]">—</span>
+            )}
           </p>
         </div>
-        <div className="surface-muted px-3 py-2.5">
+        <div className="surface px-3 py-2.5">
           <p className="text-xs text-[var(--color-text-subtle)]">Sent Today</p>
-          <p className="text-sm font-semibold">
-            {metrics.sentToday} / {metrics.dailyCap}
+          <p className="text-lg font-semibold tabular-nums">
+            <span
+              className={sentTodayColor(metrics.sentToday, metrics.dailyCap)}
+            >
+              {metrics.sentToday}
+            </span>
+            <span className="text-xs font-normal text-[var(--color-text-subtle)] ml-0.5">
+              / {metrics.dailyCap}
+            </span>
           </p>
         </div>
         <div className="surface-muted px-3 py-2.5">
           <p className="text-xs text-[var(--color-text-subtle)]">
             Sent This Week
           </p>
-          <p className="text-sm font-semibold">{metrics.sentThisWeek}</p>
+          <p className="text-lg font-semibold tabular-nums">
+            {metrics.sentThisWeek}
+          </p>
         </div>
         <div className="surface-muted px-3 py-2.5">
-          <p className="text-xs text-[var(--color-text-subtle)]">
-            Avg Score (Sent)
-          </p>
-          <p className="text-sm font-semibold">
-            {metrics.avgScore != null ? metrics.avgScore : "—"}
+          <p className="text-xs text-[var(--color-text-subtle)]">Avg Score</p>
+          <p className="text-lg font-semibold tabular-nums">
+            {metrics.avgScore != null ? (
+              metrics.avgScore
+            ) : (
+              <span className="text-[var(--color-text-subtle)]">—</span>
+            )}
           </p>
         </div>
       </div>
 
-      {/* Pipeline funnel */}
       {metrics.funnel.length > 0 && (
-        <div className="surface-muted px-3 py-2.5 mb-6">
-          <p className="text-xs text-[var(--color-text-subtle)] mb-2">
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-1.5 mb-6 px-0.5">
+          <span className="text-xs font-medium text-[var(--color-text-subtle)] mr-1">
             Pipeline
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {metrics.funnel.map((s) => (
-              <Badge
-                key={s.stage}
-                variant={STAGE_CONFIG[s.stage]?.variant ?? "secondary"}
-              >
-                {STAGE_CONFIG[s.stage]?.label ?? s.stage} {s.count}
-              </Badge>
-            ))}
-          </div>
+          </span>
+          {metrics.funnel.map((s) => (
+            <Badge
+              key={s.stage}
+              variant={STAGE_CONFIG[s.stage]?.variant ?? "secondary"}
+            >
+              {STAGE_CONFIG[s.stage]?.label ?? s.stage}{" "}
+              <span className="font-semibold">{s.count}</span>
+            </Badge>
+          ))}
         </div>
       )}
 
@@ -135,13 +160,16 @@ export function TodayClient({
       ) : (
         <div className="space-y-6">
           {grouped.map((group) => (
-            <section key={group.stage}>
-              <div className="flex items-center gap-2 mb-3">
+            <section
+              key={group.stage}
+              aria-label={`${STAGE_CONFIG[group.stage].label} opportunities`}
+            >
+              <div className="flex items-baseline gap-2 mb-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
                   {STAGE_CONFIG[group.stage].label}
                 </h3>
-                <span className="text-xs text-[var(--color-text-subtle)]">
-                  ({group.items.length})
+                <span className="text-xs font-semibold text-[var(--color-text-subtle)] tabular-nums">
+                  {group.items.length}
                 </span>
               </div>
               <div className="space-y-2">
@@ -150,6 +178,7 @@ export function TodayClient({
                     key={opp.id}
                     opportunity={opp}
                     drafts={draftsMap[opp.id] ?? []}
+                    hideStageBadge
                     analysisSummary={
                       opp.analysis_id
                         ? analysisSummaries[opp.analysis_id]
