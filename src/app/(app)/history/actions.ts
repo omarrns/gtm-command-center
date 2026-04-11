@@ -8,6 +8,15 @@ import type {
   OpportunityStage,
   EmailDraftRow,
 } from "@/lib/supabase/types";
+
+const HISTORY_STAGES: OpportunityStage[] = [
+  "queued",
+  "researched",
+  "scored",
+  "sent",
+  "replied",
+  "skipped",
+];
 import {
   loadDraftsMap,
   loadAnalysisSummaries,
@@ -52,6 +61,7 @@ export async function getHistoryAction(
 
   try {
     const data = await getOpportunitiesHistory(svc, user.id, {
+      stages: HISTORY_STAGES,
       stage: filters.stage,
       minScore: filters.minScore,
       maxScore: filters.maxScore,

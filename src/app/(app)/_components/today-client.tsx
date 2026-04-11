@@ -56,8 +56,8 @@ export function TodayClient({
     startTransition(async () => {
       const result = await triggerPipelineAction();
       if (result.ok) {
-        toast.success("Pipeline complete", {
-          description: `${result.summary?.discovered ?? 0} found, ${result.summary?.scored ?? 0} scored, ${result.summary?.drafted ?? 0} drafted`,
+        toast.success("Pipeline running", {
+          description: "Refresh the page in a few minutes to see new results.",
         });
         router.refresh();
       } else {
@@ -149,8 +149,8 @@ export function TodayClient({
 
       {isEmpty ? (
         <EmptyState
-          message="No opportunities today"
-          hint="Run the pipeline to discover new roles, or check back after the daily cron."
+          message="No opportunities ready for review"
+          hint="The pipeline runs twice daily — check back soon, or run it manually."
         >
           <Button onClick={handleRunPipeline} disabled={isPending}>
             <Play size={14} />
