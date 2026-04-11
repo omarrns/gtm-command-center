@@ -81,8 +81,8 @@ export async function saveProfileAction(
     // Non-critical: derive scoring profile from updated data
     try {
       await normalizeScoringProfile(svc, user.id);
-    } catch {
-      /* best-effort */
+    } catch (err) {
+      console.error("normalizeScoringProfile failed (non-critical):", err);
     }
 
     revalidatePath("/onboard");
@@ -187,8 +187,8 @@ export async function saveSearchConfigAction(
     // Non-critical: derive scoring profile from updated search config
     try {
       await normalizeScoringProfile(svc, user.id);
-    } catch {
-      /* best-effort */
+    } catch (err) {
+      console.error("normalizeScoringProfile failed (non-critical):", err);
     }
 
     revalidatePath("/onboard");
@@ -275,8 +275,8 @@ export async function saveOutreachAction(
     // Non-critical: derive scoring profile from updated dealbreakers/outreach
     try {
       await normalizeScoringProfile(svc, user.id);
-    } catch {
-      /* best-effort */
+    } catch (err) {
+      console.error("normalizeScoringProfile failed (non-critical):", err);
     }
 
     revalidatePath("/onboard");
