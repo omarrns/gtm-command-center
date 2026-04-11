@@ -175,6 +175,7 @@ export async function getOpportunitiesByDate(
 
 interface HistoryFilters {
   stage?: OpportunityStage;
+  stages?: OpportunityStage[]; // allowlist — rows outside this set are excluded
   minScore?: number;
   maxScore?: number;
   company?: string;
@@ -200,6 +201,8 @@ export async function getOpportunitiesHistory(
       (filters.offset ?? 0) + (filters.limit ?? 50) - 1,
     );
 
+  if (filters.stages && filters.stages.length > 0)
+    query = query.in("stage", filters.stages);
   if (filters.stage) query = query.eq("stage", filters.stage);
   if (filters.minScore != null) query = query.gte("score", filters.minScore);
   if (filters.maxScore != null) query = query.lte("score", filters.maxScore);

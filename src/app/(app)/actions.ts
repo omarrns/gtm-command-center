@@ -16,7 +16,7 @@ import type { OpportunityStage } from "@/lib/supabase/types";
 export async function triggerPipelineAction(): Promise<{
   ok: boolean;
   error?: string;
-  summary?: Record<string, number | string | null>;
+  runId?: string;
 }> {
   // Auth gate — will redirect if not logged in
   await requireUser();
@@ -39,13 +39,14 @@ export async function triggerPipelineAction(): Promise<{
     headers: { cookie: cookieHeader },
   });
 
-  if (!res.ok) {
+  // Route returns 202 immediately — the workflow runs durably in the background
+  if (res.status !== 202) {
     return { ok: false, error: `Pipeline returned ${res.status}` };
   }
 
   const data = await res.json();
   revalidatePath("/");
-  return { ok: true, summary: data.summary };
+  return { ok: true, runId: data.runId };
 }
 
 // ---------------------------------------------------------------------------
@@ -283,6 +284,45 @@ export async function updateSelectedDraftAction(
 
   revalidatePath("/");
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Send with specific draft — selects the draft then approves in one call
+// ---------------------------------------------------------------------------
+
+export async function sendWithDraftAction(
+  opportunityId: string,
+  draftId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
+
+  // Validate draft belongs to this user AND this opportunity
+  const { data: draft, error: draftError } = await svc
+    .from("email_drafts")
+    .select("id")
+    .eq("id", draftId)
+    .eq("user_id", user.id)
+    .eq("opportunity_id", opportunityId)
+    .single();
+
+  if (draftError || !draft) {
+    return {
+      ok: false,
+      error: "Draft not found or does not belong to this opportunity",
+    };
+  }
+
+  const { error: updateError } = await svc
+    .from("opportunities")
+    .update({ selected_draft_id: draftId })
+    .eq("id", opportunityId)
+    .eq("user_id", user.id);
+
+  if (updateError) return { ok: false, error: updateError.message };
+
+  // approveOpportunityAction reads selected_draft_id fresh from the DB
+  return approveOpportunityAction(opportunityId);
 }
 
 // ---------------------------------------------------------------------------
