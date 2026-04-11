@@ -1,0 +1,87 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Cancel in-flight runs on the same PR when new commits land — only the latest review matters.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--model claude-sonnet-4-6"
+          prompt: |
+            You are reviewing a pull request for `gtm-command-center`, a solo-maintained Next.js 16 + Supabase + Vercel Workflow application. This is Omar's autonomous job-search agent. The source of truth for every architectural pattern is `CLAUDE.md` at the repo root — read it first, then review the diff against it.
+
+            Only flag issues in the **changed files**. Do not audit the whole repo. Every finding must include a `file:line` anchor and a one-line fix. Lead with the most important finding.
+
+            ## Checks (derived from the local audit-gtm-architecture skill)
+
+            **Check 1 — Supabase client drift (P0 — active bug class).**
+            Any new or modified page under `src/app/(app)/**/page.tsx` that reads a user-scoped table (`analyses`, `research_reports`, `opportunities`, `drafts`, `watchlist*`, `memory_*`, `pipeline_config`, `onboarding_*`) MUST use `createSupabaseServiceClient()` from `@/lib/supabase/service` plus an app-level `.eq("user_id", user.id)` filter. The cookies-based `createSupabaseServerClient()` is only for auth flows (login, callback, middleware). In dev mode, `requireUser()` returns a hardcoded fallback user but the actual Supabase session is empty, so RLS via `auth.uid()` silently returns no rows → 404. This is the bug class that shipped on `/analysis/[id]` and `/research/reports/[id]` before commit `6b9bf61`.
+
+            **Check 2 — Duplicated opportunity-list loader logic (P1).**
+            Today, History, and Activate share one loader implementation. Currently at `src/app/(app)/_loaders/today-queue.ts`: `loadDraftsMap`, `loadAnalysisSummaries`, `loadResearchSummaries`, `groupByDate`. Flag any file under `src/app/(app)/**` that queries `drafts`, `analyses`, or `research_reports` directly for an opportunity list without going through the shared loader. Also flag any inline extraction of `bottom_line`, `summary`, or `executive_summary` from an analysis `result` outside the shared loader and the analysis detail components. The invariant is "exactly one projection," whatever file name it lives in.
+
+            **Check 3 — Sender-identity prompt compliance (P1).**
+            Phase 9 converted every prompt builder under `src/lib/skills/prompts/**` to accept a `SenderIdentity` parameter from `src/lib/skills/sender-identity.ts`. Flag any new or modified prompt file that hardcodes `Omar`, `Inkeep`, `Compass`, or `Mira Migo` string literals (excluding comments and test fixtures), OR any prompt builder that doesn't accept a `SenderIdentity`. This is a regression of finished work.
+
+            **Check 4 — Stage transitions bypass `advanceStage` (P1 — correctness risk).**
+            All opportunity stage changes must go through `advanceStage()` in `src/lib/pipeline/opportunities.ts`. Flag any `.update(...)` call in `src/lib/pipeline/**` or `src/app/**/actions.ts` that writes the `stage` field directly (outside `opportunities.ts` itself). The pipeline has concurrent runners (cron + manual trigger + Vercel Workflow); bypassing the precondition guard means two runners can drive the same opportunity through incompatible transitions.
+
+            **Check 5 — Pipeline step contract (P2).**
+            Any new or modified file in `src/lib/pipeline/steps/*.ts` must export a `run<StepName>` function and a `<StepName>Result` type. Both `src/lib/pipeline/workflow.ts` and `src/lib/pipeline/runner.ts` import both shapes.
+
+            **Check 6 — CLAUDE.md drift (P2).**
+            If the PR adds new files, moves files, or changes canonical paths that `CLAUDE.md` references, verify `CLAUDE.md` is updated in the same PR. Dead path references mislead the next audit. If the PR touches a documented pattern but doesn't update the docs, flag it.
+
+            **Check 7 — Error swallowing in server actions (P2).**
+            Any `catch` block inside `src/app/**/actions.ts` that has an empty body, a bare `return`, or only `console.log` (without returning a structured `{ error: ... }` result) violates the CLAUDE.md "never swallow errors" rule. Flag these. Exception: `catch` blocks that intentionally return a typed error result are fine.
+
+            **Check 8 — Client/server client confusion (P2).**
+            Client components (files with `"use client"`) should NOT import `createSupabaseServerClient` or `createSupabaseServiceClient` directly. Server-side data should flow via props from server components, or via server actions. Flag any client component that instantiates a Supabase client itself.
+
+            ## Also check
+
+            - Obvious bugs, typos, or off-by-one errors in the diff
+            - New dependencies added to `package.json` — flag any that duplicate existing functionality (we already have `zod`, `ai`, `@ai-sdk/anthropic`, `@supabase/ssr`, `lucide-react`, `shadcn`, `tailwind-merge`)
+            - New environment variables referenced in code without a corresponding entry in `.env.example`
+            - Migrations that modify existing columns on populated tables (CLAUDE.md rule: add new columns, don't modify existing ones)
+            - Any `TODO` or `FIXME` comments added without context
+
+            ## Do NOT flag
+
+            - Style or formatting issues — Prettier handles those
+            - Test coverage — this repo has no test suite by design
+            - File size or line count — whole-repo metrics aren't PR-appropriate
+            - Missing docstrings or JSDoc comments — not a project convention
+            - Anything documented as intentional in `CLAUDE.md` (e.g., legacy routes that redirect)
+            - Generic "consider adding error handling" advice without pointing to a specific swallowed error
+
+            ## Output format
+
+            - **Inline comments** for file-specific issues — attach each one to the exact `file:line`
+            - **One summary comment** at the top of the PR with: (1) overall verdict, (2) P0 count, (3) P1 count, (4) the single most important finding
+            - Lead with severity: P0 (active bug) → P1 (pattern drift) → P2 (maintenance)
+            - Include a `**Fix:**` line for every finding
+            - If the PR is clean, post a single comment: "✓ No pattern drift detected against CLAUDE.md. Shipping recommended."
+            - Do not pad. Do not restate the diff. Do not praise the code unnecessarily.

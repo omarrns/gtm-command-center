@@ -33,16 +33,16 @@ function SidebarContent({
     <>
       {/* Logo region */}
       <div className="px-5 pt-6 pb-6">
-        <div className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[var(--color-text-subtle)]">
+        <div className="text-[11px] uppercase tracking-[0.2em] font-semibold text-[var(--color-text-subtle)]">
           GTM
         </div>
-        <div className="text-sm font-bold tracking-tight mt-0.5">
+        <div className="text-base font-bold tracking-tight mt-0.5">
           Command Center
         </div>
       </div>
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="px-3 flex-1 space-y-1">
+      <nav aria-label="Main navigation" className="px-3 flex-1 space-y-0.5">
         {NAV.map((item) => {
           const active =
             item.href === "/"
@@ -57,31 +57,37 @@ function SidebarContent({
               aria-current={active ? "page" : undefined}
               className={cn(
                 "relative flex items-center gap-2.5 rounded-lg text-sm",
-                "px-3 py-2.5 transition-colors duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]",
+                "px-3 py-2.5",
+                "transition-[color,background-color,opacity] duration-[120ms] ease-out",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
                 active
                   ? "bg-[var(--color-surface-muted)] text-[var(--color-text)] font-medium"
                   : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]",
               )}
             >
-              {/* Active indicator — inset pill instead of border-left */}
-              {active && (
-                <span
-                  aria-hidden="true"
-                  className="absolute left-1.5 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-[var(--color-blue)]"
-                />
-              )}
-              <Icon size={16} className="shrink-0" aria-hidden="true" />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute left-1 top-1/2 -translate-y-1/2 w-[3px] rounded-full bg-[var(--color-blue)]",
+                  "motion-safe:transition-[height,opacity] motion-safe:duration-[120ms] motion-safe:ease-out",
+                  active ? "h-5 opacity-100" : "h-0 opacity-0",
+                )}
+              />
+              <Icon
+                size={16}
+                className={cn("shrink-0", active && "text-[var(--color-blue)]")}
+                aria-hidden="true"
+              />
               <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer: user info + sign out */}
-      <div className="p-3 border-t border-[var(--border)]">
+      {/* Footer */}
+      <div className="px-3 pb-3 pt-2 border-t border-[var(--border)]">
         <div className="px-3 py-2">
-          <div className="text-xs font-medium text-[var(--color-text-muted)] truncate">
+          <div className="text-xs text-[var(--color-text-subtle)] truncate">
             {user.email}
           </div>
         </div>
@@ -90,9 +96,10 @@ function SidebarContent({
             type="submit"
             className={cn(
               "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs",
-              "text-[var(--color-text-muted)] transition-colors duration-150",
+              "text-[var(--color-text-muted)]",
+              "transition-[color,background-color,opacity] duration-[120ms] ease-out",
               "hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
             )}
           >
             <LogOut size={14} aria-hidden="true" />
@@ -108,7 +115,7 @@ export function SidebarNav({ user, open, onOpenChange }: SidebarNavProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-60 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex-col">
+      <aside className="hidden md:flex w-60 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex-col sticky top-0 h-screen">
         <SidebarContent user={user} />
       </aside>
 
