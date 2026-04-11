@@ -101,8 +101,8 @@ export function ActivationClient({ gmailConnected }: ActivationClientProps) {
       }
       const result = await triggerPipelineAction();
       if (result.ok) {
-        toast.success("Pipeline complete", {
-          description: `${result.summary?.discovered ?? 0} found, ${result.summary?.scored ?? 0} scored`,
+        toast.success("Pipeline running", {
+          description: "Refresh in a few minutes to see new results.",
         });
       } else {
         toast.error(result.error ?? "Pipeline failed");
