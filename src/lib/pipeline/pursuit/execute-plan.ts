@@ -166,11 +166,12 @@ async function executePursuit(
       return "needs_contact";
     }
 
-    // Build ordered list of archetypes to try: primary + fallbacks
+    // Build ordered list of archetypes to try: primary + fallbacks, capped at 3
+    const MAX_ARCHETYPE_ATTEMPTS = 3;
     const archetypes: ContactArchetype[] = [
       entry.plan.target_contact as ContactArchetype,
       ...(entry.plan.fallback_target_order as ContactArchetype[]),
-    ];
+    ].slice(0, MAX_ARCHETYPE_ATTEMPTS);
 
     let research: PeopleSearchResult | null = null;
     let lastReportId: string | null = null;
