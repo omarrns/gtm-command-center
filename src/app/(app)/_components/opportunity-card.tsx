@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ChevronDown,
-  ChevronUp,
   Send,
   Pencil,
   SkipForward,
@@ -36,28 +35,17 @@ function scoreColor(score: number | null): string {
   return "text-[var(--color-danger)]";
 }
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface OpportunityCardProps {
   opportunity: OpportunityRow;
   drafts: EmailDraftRow[];
-  /** Summary text from linked analysis (pre-fetched) */
   analysisSummary?: string;
-  /** Summary text from linked research (pre-fetched) */
   researchSummary?: string;
-  /** Whether action buttons are shown (false for history cards) */
   showActions?: boolean;
-  /** Backfill flag — card scored below threshold */
   isCloseMatch?: boolean;
-  /** Called after any successful mutation (skip/flag/approve) */
+  /** Hide the stage badge when the section header already communicates it */
+  hideStageBadge?: boolean;
   onAction?: () => void;
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function OpportunityCard({
   opportunity,
@@ -66,6 +54,7 @@ export function OpportunityCard({
   researchSummary,
   showActions = true,
   isCloseMatch = false,
+  hideStageBadge = false,
   onAction,
 }: OpportunityCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -124,15 +113,21 @@ export function OpportunityCard({
   }
 
   return (
-    <Card className="gap-0 p-4">
-      {/* Row 1: Company + badges + View Job | Score + chevron */}
+    <Card
+      className={cn(
+        "gap-0 p-4 transition-[box-shadow] duration-150 ease-out",
+        showActions && "hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-semibold truncate">
               {opportunity.company_name}
             </h3>
-            <Badge variant={stageInfo.variant}>{stageInfo.label}</Badge>
+            {!hideStageBadge && (
+              <Badge variant={stageInfo.variant}>{stageInfo.label}</Badge>
+            )}
             {isCloseMatch && <Badge variant="warning">Close match</Badge>}
             {opportunity.job_url && (
               <a
@@ -150,7 +145,7 @@ export function OpportunityCard({
           {opportunity.score != null && (
             <span
               className={cn(
-                "text-lg font-bold tabular-nums",
+                "text-base font-bold tabular-nums",
                 scoreColor(opportunity.score),
               )}
             >
@@ -161,16 +156,27 @@ export function OpportunityCard({
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1 rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] transition-colors"
-              aria-label={isExpanded ? "Collapse" : "Expand"}
+              className={cn(
+                "p-1.5 -m-0.5 rounded-lg text-[var(--color-text-muted)]",
+                "hover:bg-[var(--color-surface-muted)] active:bg-[var(--color-surface-muted)]",
+                "transition-colors duration-150",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
+              )}
+              aria-label={isExpanded ? "Collapse details" : "Expand details"}
+              aria-expanded={isExpanded}
             >
-              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              <ChevronDown
+                size={14}
+                className={cn(
+                  "motion-safe:transition-transform motion-safe:duration-200",
+                  isExpanded && "rotate-180",
+                )}
+              />
             </button>
           )}
         </div>
       </div>
 
-      {/* Row 2: Role title + posted date */}
       <div className="flex items-baseline gap-1 mt-0.5 text-xs">
         <span className="text-[var(--color-text-muted)] truncate min-w-0">
           {opportunity.role_title}
@@ -183,7 +189,6 @@ export function OpportunityCard({
         </span>
       </div>
 
-      {/* Row 3: Recipient info */}
       {opportunity.recipient_name && (
         <p className="text-xs text-[var(--color-text-subtle)] mt-0.5">
           {opportunity.recipient_name}
@@ -191,14 +196,12 @@ export function OpportunityCard({
         </p>
       )}
 
-      {/* Row 4: Fit rationale — always visible */}
       {analysisSummary && (
-        <p className="text-xs text-[var(--color-text-muted)] leading-relaxed mt-2 line-clamp-3">
+        <p className="text-xs text-[var(--color-text-muted)] leading-relaxed mt-2 line-clamp-2">
           {analysisSummary}
         </p>
       )}
 
-      {/* Action buttons */}
       {isActionable && (
         <div className="mt-3 flex items-center gap-1.5">
           {stage === "queued" && (
@@ -237,6 +240,7 @@ export function OpportunityCard({
               size="sm"
               onClick={handleFlag}
               disabled={isPending}
+              className="text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger)]/5"
             >
               <Flag size={13} />
               Flag
@@ -245,55 +249,63 @@ export function OpportunityCard({
         </div>
       )}
 
-      {/* Expanded detail — research, analysis link, drafts, error */}
-      {isExpanded && hasExpandableContent && (
-        <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-3">
-          {(researchSummary || opportunity.research_id) && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-medium text-[var(--color-text-muted)]">
-                  Research
+      {hasExpandableContent && (
+        <div
+          className={cn(
+            "grid motion-safe:transition-[grid-template-rows] motion-safe:duration-200 ease-out",
+            isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="overflow-hidden min-h-0">
+            <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-3">
+              {(researchSummary || opportunity.research_id) && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                      Research
+                    </span>
+                    {opportunity.research_id && (
+                      <Link
+                        href={`/research/reports/${opportunity.research_id}`}
+                        className="text-xs text-[var(--color-blue)] hover:underline"
+                      >
+                        View full report
+                      </Link>
+                    )}
+                  </div>
+                  {researchSummary && (
+                    <p className="text-xs text-[var(--color-text)] leading-relaxed">
+                      {researchSummary}
+                    </p>
+                  )}
                 </div>
-                {opportunity.research_id && (
-                  <Link
-                    href={`/research/reports/${opportunity.research_id}`}
-                    className="text-xs text-[var(--color-blue)] hover:underline"
-                  >
-                    View full report
-                  </Link>
-                )}
-              </div>
-              {researchSummary && (
-                <p className="text-xs text-[var(--color-text)] leading-relaxed">
-                  {researchSummary}
-                </p>
+              )}
+
+              {opportunity.analysis_id && (
+                <Link
+                  href={`/analysis/${opportunity.analysis_id}`}
+                  className="inline-flex items-center gap-1 text-xs text-[var(--color-blue)] hover:underline"
+                >
+                  View full analysis
+                </Link>
+              )}
+
+              {drafts.length > 0 && (
+                <EmailVariantPicker
+                  drafts={drafts}
+                  selectedDraftId={opportunity.selected_draft_id}
+                  opportunityId={opportunity.id}
+                  readOnly={isDraftReadOnly}
+                />
+              )}
+
+              {opportunity.last_error && (
+                <div className="text-xs text-[var(--color-danger)] bg-[var(--color-surface-muted)] rounded-md p-2">
+                  Error: {opportunity.last_error}
+                </div>
               )}
             </div>
-          )}
-
-          {opportunity.analysis_id && (
-            <Link
-              href={`/analysis/${opportunity.analysis_id}`}
-              className="inline-flex items-center gap-1 text-xs text-[var(--color-blue)] hover:underline"
-            >
-              View full analysis
-            </Link>
-          )}
-
-          {drafts.length > 0 && (
-            <EmailVariantPicker
-              drafts={drafts}
-              selectedDraftId={opportunity.selected_draft_id}
-              opportunityId={opportunity.id}
-              readOnly={isDraftReadOnly}
-            />
-          )}
-
-          {opportunity.last_error && (
-            <div className="text-xs text-[var(--color-danger)] bg-[var(--color-surface-muted)] rounded-md p-2">
-              Error: {opportunity.last_error}
-            </div>
-          )}
+          </div>
         </div>
       )}
     </Card>
