@@ -128,8 +128,8 @@ export async function updateConfigAction(
     // Non-critical: derive scoring profile from updated config
     try {
       await normalizeScoringProfile(svc, user.id);
-    } catch {
-      /* best-effort */
+    } catch (err) {
+      console.error("normalizeScoringProfile failed (non-critical):", err);
     }
 
     revalidatePath("/settings");
