@@ -1,7 +1,18 @@
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { getOpportunitiesHistory } from "@/lib/pipeline/opportunities";
+import type { OpportunityStage } from "@/lib/supabase/types";
 import { HistoryClient } from "./history-client";
+
+// Pipeline-internal stages the user never directly acted on — hide from History
+const HISTORY_STAGES: OpportunityStage[] = [
+  "queued",
+  "researched",
+  "scored",
+  "sent",
+  "replied",
+  "skipped",
+];
 import {
   loadDraftsMap,
   loadAnalysisSummaries,
@@ -14,6 +25,7 @@ export default async function HistoryPage() {
   const svc = createSupabaseServiceClient();
 
   const opportunities = await getOpportunitiesHistory(svc, user.id, {
+    stages: HISTORY_STAGES,
     limit: 50,
     offset: 0,
   });

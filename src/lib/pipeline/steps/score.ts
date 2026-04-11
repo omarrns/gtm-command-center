@@ -21,6 +21,7 @@ import {
 import { addToWatchlist } from "@/lib/pipeline/watchlist";
 
 const MAX_SCORES_PER_RUN = 5;
+const PIPELINE_MODEL = "claude-sonnet-4-6";
 
 export interface ScoreResult {
   processed: number;
@@ -136,7 +137,10 @@ export async function runScore(
       if (!claimed) continue;
 
       result.processed++;
-      const { newStage } = await scoreOneOpportunity(svc, userId, opp, config);
+      const { newStage } = await scoreOneOpportunity(svc, userId, opp, config, {
+        source: "pipeline",
+        model: PIPELINE_MODEL,
+      });
 
       if (newStage === "scored") result.scored++;
       else result.filtered++;

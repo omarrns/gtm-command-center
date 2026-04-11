@@ -12,20 +12,13 @@ import {
 } from "./_loaders/today-queue";
 import { loadDashboardMetrics } from "./_loaders/today-metrics";
 
-const STAGE_ORDER: OpportunityStage[] = [
+// Only show stages the user can act on — pipeline internals belong in History
+const TODAY_STAGES = new Set<OpportunityStage>([
   "queued",
-  "drafted",
-  "enriched",
   "researched",
-  "needs_contact",
   "scored",
-  "discovered",
-  "sending",
-  "sent",
-  "replied",
-  "skipped",
-  "filtered",
-];
+]);
+const STAGE_ORDER: OpportunityStage[] = ["queued", "researched", "scored"];
 
 export default async function TodayPage() {
   const user = await requireUser();
@@ -54,7 +47,9 @@ export default async function TodayPage() {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const opportunities = await getOpportunitiesByDate(svc, user.id, today);
+  const opportunities = (
+    await getOpportunitiesByDate(svc, user.id, today)
+  ).filter((o) => TODAY_STAGES.has(o.stage as OpportunityStage));
 
   const oppIds = opportunities.map((o) => o.id);
   const analysisIds = opportunities
