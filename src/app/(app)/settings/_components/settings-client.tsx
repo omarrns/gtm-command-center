@@ -288,7 +288,12 @@ export function SettingsClient({
 
       {/* Pipeline Configuration */}
       <section className="surface p-5 space-y-5">
-        <h2 className="text-sm font-semibold">Pipeline Configuration</h2>
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold">Pipeline Configuration</h2>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Controls how jobs are discovered, scored, and emailed.
+          </p>
+        </div>
 
         {/* Score Threshold */}
         <div className="space-y-1.5">
