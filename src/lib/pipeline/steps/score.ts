@@ -91,6 +91,9 @@ export async function scoreOneOpportunity(
     newStage,
     {
       score: scoring.normalizedScore,
+      // score_components is persisted for potential future use but currently
+      // has no readers — the UI shows the composite score on cards and the
+      // full scorecard breakdown lives in analyses.result.
       score_components: {
         jd_fit: scoring.jdFit,
         strategic_fit: scoring.strategicFit,

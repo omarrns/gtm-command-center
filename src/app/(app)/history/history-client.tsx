@@ -60,6 +60,7 @@ interface HistoryClientProps {
   initialDraftsMap: Record<string, EmailDraftRow[]>;
   initialAnalysisSummaries: Record<string, string>;
   initialResearchSummaries: Record<string, string>;
+  scoreThreshold: number;
 }
 
 export function HistoryClient({
@@ -67,6 +68,7 @@ export function HistoryClient({
   initialDraftsMap,
   initialAnalysisSummaries,
   initialResearchSummaries,
+  scoreThreshold,
 }: HistoryClientProps) {
   const [grouped, setGrouped] = useState(initialGrouped);
   const [draftsMap, setDraftsMap] = useState(initialDraftsMap);
@@ -253,6 +255,7 @@ export function HistoryClient({
                       key={opp.id}
                       opportunity={opp}
                       drafts={draftsMap[opp.id] ?? []}
+                      scoreThreshold={scoreThreshold}
                       analysisSummary={
                         opp.analysis_id
                           ? analysisSummaries[opp.analysis_id]

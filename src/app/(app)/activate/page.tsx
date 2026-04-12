@@ -9,7 +9,7 @@ export default async function ActivatePage() {
 
   const { data: config } = await svc
     .from("pipeline_config")
-    .select("activation_completed_at")
+    .select("activation_completed_at, score_threshold")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -23,6 +23,8 @@ export default async function ActivatePage() {
     redirect("/onboard");
   }
 
+  const scoreThreshold = config.score_threshold ?? 70;
+
   // Check Gmail connection for the prompt
   const { data: gmailCreds } = await svc
     .from("gmail_credentials")
@@ -30,5 +32,10 @@ export default async function ActivatePage() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  return <ActivationClient gmailConnected={!!gmailCreds} />;
+  return (
+    <ActivationClient
+      gmailConnected={!!gmailCreds}
+      scoreThreshold={scoreThreshold}
+    />
+  );
 }

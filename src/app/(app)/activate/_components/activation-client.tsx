@@ -35,9 +35,13 @@ type Phase = "searching" | "results" | "empty" | "error";
 
 interface ActivationClientProps {
   gmailConnected: boolean;
+  scoreThreshold: number;
 }
 
-export function ActivationClient({ gmailConnected }: ActivationClientProps) {
+export function ActivationClient({
+  gmailConnected,
+  scoreThreshold,
+}: ActivationClientProps) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("searching");
   const [data, setData] = useState<ActivationSearchResult | null>(null);
@@ -248,6 +252,7 @@ export function ActivationClient({ gmailConnected }: ActivationClientProps) {
             key={r.id}
             opportunity={r.opportunity}
             drafts={[]}
+            scoreThreshold={scoreThreshold}
             analysisSummary={r.fitRationale}
             isCloseMatch={r.isCloseMatch}
             onAction={() =>

@@ -24,11 +24,21 @@ export default async function HistoryPage() {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
 
-  const opportunities = await getOpportunitiesHistory(svc, user.id, {
-    stages: HISTORY_STAGES,
-    limit: 50,
-    offset: 0,
-  });
+  const [opportunities, pipelineConfig] = await Promise.all([
+    getOpportunitiesHistory(svc, user.id, {
+      stages: HISTORY_STAGES,
+      limit: 50,
+      offset: 0,
+    }),
+    svc
+      .from("pipeline_config")
+      .select("score_threshold")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then((r) => r.data),
+  ]);
+
+  const scoreThreshold = pipelineConfig?.score_threshold ?? 70;
 
   const oppIds = opportunities.map((o) => o.id);
   const analysisIds = opportunities
@@ -50,6 +60,7 @@ export default async function HistoryPage() {
       initialDraftsMap={draftsMap}
       initialAnalysisSummaries={analysisSummaries}
       initialResearchSummaries={researchSummaries}
+      scoreThreshold={scoreThreshold}
     />
   );
 }

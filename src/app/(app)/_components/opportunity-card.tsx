@@ -29,16 +29,17 @@ import {
 import { EmailVariantPicker } from "./email-variant-picker";
 import { STAGE_CONFIG } from "./stage-config";
 
-function scoreColor(score: number | null): string {
+function scoreColor(score: number | null, threshold: number): string {
   if (score == null) return "text-[var(--color-text-muted)]";
   if (score >= 80) return "text-[var(--color-success)]";
-  if (score >= 60) return "text-[var(--color-warning)]";
-  return "text-[var(--color-danger)]";
+  if (score >= threshold) return "text-[var(--color-warning)]";
+  return "text-[var(--color-text-muted)]";
 }
 
 interface OpportunityCardProps {
   opportunity: OpportunityRow;
   drafts: EmailDraftRow[];
+  scoreThreshold: number;
   analysisSummary?: string;
   researchSummary?: string;
   showActions?: boolean;
@@ -51,6 +52,7 @@ interface OpportunityCardProps {
 export function OpportunityCard({
   opportunity,
   drafts,
+  scoreThreshold,
   analysisSummary,
   researchSummary,
   showActions = true,
@@ -159,7 +161,7 @@ export function OpportunityCard({
             <span
               className={cn(
                 "text-base font-bold tabular-nums",
-                scoreColor(opportunity.score),
+                scoreColor(opportunity.score, scoreThreshold),
               )}
             >
               {opportunity.score}
