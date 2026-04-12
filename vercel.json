@@ -1,6 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/pipeline", "schedule": "0 4,16 * * *" },
+    { "path": "/api/cron/pipeline", "schedule": "0 4,10,16,22 * * *" },
     { "path": "/api/cron/replies", "schedule": "*/30 * * * *" },
     { "path": "/api/cron/watchlist", "schedule": "0 11 * * *" }
   ]

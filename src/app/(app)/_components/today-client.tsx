@@ -150,7 +150,7 @@ export function TodayClient({
       {isEmpty ? (
         <EmptyState
           message="No opportunities ready for review"
-          hint="The pipeline runs twice daily — check back soon, or run it manually."
+          hint="The pipeline runs every 6 hours — check back soon, or run it manually."
         >
           <Button onClick={handleRunPipeline} disabled={isPending}>
             <Play size={14} />
