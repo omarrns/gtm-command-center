@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { isOnboardingComplete } from "@/lib/pipeline/onboarding";
-import { getOpportunitiesByDate } from "@/lib/pipeline/opportunities";
+import { getOpportunitiesByStages } from "@/lib/pipeline/opportunities";
 import type { OpportunityRow, OpportunityStage } from "@/lib/supabase/types";
 import { TodayClient } from "./_components/today-client";
 import {
@@ -46,10 +46,16 @@ export default async function TodayPage() {
     }
   }
 
+  // today still used for loadDashboardMetrics (sent-today, weekly, funnel date windows)
   const today = new Date().toISOString().slice(0, 10);
-  const opportunities = (
-    await getOpportunitiesByDate(svc, user.id, today)
-  ).filter((o) => TODAY_STAGES.has(o.stage as OpportunityStage));
+  // List shows actionable stages regardless of discovery date — a row queued
+  // today but discovered last week still belongs on Today. Previously this
+  // filtered by discovered_at = today, which hid legitimate queued work.
+  const opportunities = await getOpportunitiesByStages(
+    svc,
+    user.id,
+    Array.from(TODAY_STAGES),
+  );
 
   const oppIds = opportunities.map((o) => o.id);
   const analysisIds = opportunities
