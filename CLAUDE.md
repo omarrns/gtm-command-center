@@ -109,11 +109,11 @@ Migrations live in `supabase/migrations/`. TypeScript row types in `src/lib/supa
 
 ### Cron Schedules (owned by `vercel.json`)
 
-| Route                 | Schedule       | Purpose                                                       |
-| --------------------- | -------------- | ------------------------------------------------------------- |
-| `/api/cron/pipeline`  | `0 4,16 * * *` | Discover (last-day posts) → score → research → enrich → draft |
-| `/api/cron/replies`   | `*/30 * * * *` | Check Gmail threads for replies, advance `sent → replied`     |
-| `/api/cron/watchlist` | `0 11 * * *`   | Ingest Exa Webset alerts                                      |
+| Route                 | Schedule             | Purpose                                                       |
+| --------------------- | -------------------- | ------------------------------------------------------------- |
+| `/api/cron/pipeline`  | `0 4,10,16,22 * * *` | Discover (last-day posts) → score → research → enrich → draft |
+| `/api/cron/replies`   | `*/30 * * * *`       | Check Gmail threads for replies, advance `sent → replied`     |
+| `/api/cron/watchlist` | `0 11 * * *`         | Ingest Exa Webset alerts                                      |
 
 All use `maxDuration = 300`.
 

@@ -20,7 +20,7 @@ import {
 } from "@/lib/pipeline/opportunities";
 import { addToWatchlist } from "@/lib/pipeline/watchlist";
 
-const MAX_SCORES_PER_RUN = 5;
+const MAX_SCORES_PER_RUN = 10;
 const PIPELINE_MODEL = "claude-sonnet-4-6";
 
 export interface ScoreResult {
