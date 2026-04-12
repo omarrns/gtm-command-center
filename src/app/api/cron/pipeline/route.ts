@@ -3,7 +3,7 @@
  *
  * Daily cron that runs the autonomous pipeline for all configured users.
  * Auth: CRON_SECRET bearer token (fail-closed if missing).
- * Vercel cron schedule: 0 4,16 * * * UTC (every 12 hours).
+ * Vercel cron schedule: 0 4,10,16,22 * * * UTC (every 6 hours).
  *
  * Phase 13A: each user gets an independent Workflow run with its own
  * durability/retry guarantees. No shared 300s timeout across users.
