@@ -28,23 +28,25 @@ export default async function TodayPage() {
   const skipOnboarding =
     process.env.DEV_SKIP_ONBOARDING === "true" &&
     process.env.NODE_ENV === "development";
+
+  const { data: pipelineConfig } = await svc
+    .from("pipeline_config")
+    .select("activation_completed_at, score_threshold")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
   if (!skipOnboarding) {
     const onboarding = await isOnboardingComplete(svc, user.id);
     if (!onboarding.complete) {
       redirect("/onboard");
     }
 
-    // Activation gate
-    const { data: activationConfig } = await svc
-      .from("pipeline_config")
-      .select("activation_completed_at")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (activationConfig && !activationConfig.activation_completed_at) {
+    if (pipelineConfig && !pipelineConfig.activation_completed_at) {
       redirect("/activate");
     }
   }
+
+  const scoreThreshold = pipelineConfig?.score_threshold ?? 70;
 
   // today still used for loadDashboardMetrics (sent-today, weekly, funnel date windows)
   const today = new Date().toISOString().slice(0, 10);
@@ -98,6 +100,7 @@ export default async function TodayPage() {
       analysisSummaries={analysisSummaries}
       researchSummaries={researchSummaries}
       metrics={metrics}
+      scoreThreshold={scoreThreshold}
     />
   );
 }

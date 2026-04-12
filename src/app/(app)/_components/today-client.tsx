@@ -1,13 +1,14 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Loader2 } from "lucide-react";
+import { Play, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
+import { cn } from "@/lib/utils";
 import type {
   OpportunityRow,
   OpportunityStage,
@@ -32,7 +33,24 @@ interface TodayClientProps {
   analysisSummaries: Record<string, string>;
   researchSummaries: Record<string, string>;
   metrics: DashboardMetrics;
+  scoreThreshold: number;
 }
+
+type DiscoveredWindow = "all" | "today" | "3d" | "7d";
+
+const WINDOW_MS: Record<DiscoveredWindow, number> = {
+  all: Infinity,
+  today: 24 * 60 * 60 * 1000,
+  "3d": 3 * 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+};
+
+const WINDOW_OPTIONS: { value: DiscoveredWindow; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "today", label: "Today" },
+  { value: "3d", label: "3d" },
+  { value: "7d", label: "7d" },
+];
 
 function sentTodayColor(sent: number, cap: number): string {
   if (cap === 0) return "";
@@ -48,9 +66,16 @@ export function TodayClient({
   analysisSummaries,
   researchSummaries,
   metrics,
+  scoreThreshold,
 }: TodayClientProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  const [companySearch, setCompanySearch] = useState("");
+  const [minScore, setMinScore] = useState("");
+  const [maxScore, setMaxScore] = useState("");
+  const [discoveredWindow, setDiscoveredWindow] =
+    useState<DiscoveredWindow>("all");
 
   function handleRunPipeline() {
     startTransition(async () => {
@@ -66,7 +91,52 @@ export function TodayClient({
     });
   }
 
-  const isEmpty = grouped.length === 0;
+  function resetFilters() {
+    setCompanySearch("");
+    setMinScore("");
+    setMaxScore("");
+    setDiscoveredWindow("all");
+  }
+
+  const filteredGrouped = useMemo(() => {
+    // Bucketing window tolerates millisecond variation; the purity lint is
+    // safe to relax here since deps control when this memo reruns.
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
+    const windowMs = WINDOW_MS[discoveredWindow];
+    const min = minScore ? parseInt(minScore, 10) : null;
+    const max = maxScore ? parseInt(maxScore, 10) : null;
+    const q = companySearch.trim().toLowerCase();
+
+    return grouped
+      .map((g) => ({
+        stage: g.stage,
+        items: g.items.filter((o) => {
+          if (q && !o.company_name.toLowerCase().includes(q)) return false;
+          // Null-scored rows fail any score filter by design — if the user is
+          // filtering by score, unscored rows aren't what they asked for.
+          if (min != null && (o.score ?? -1) < min) return false;
+          if (max != null && (o.score ?? 101) > max) return false;
+          if (windowMs !== Infinity) {
+            const age = now - new Date(o.discovered_at).getTime();
+            if (age > windowMs) return false;
+          }
+          return true;
+        }),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [grouped, companySearch, minScore, maxScore, discoveredWindow]);
+
+  const unfilteredTotal = grouped.reduce((s, g) => s + g.items.length, 0);
+  const filteredTotal = filteredGrouped.reduce((s, g) => s + g.items.length, 0);
+  const hasActiveFilters =
+    companySearch !== "" ||
+    minScore !== "" ||
+    maxScore !== "" ||
+    discoveredWindow !== "all";
+
+  const isEmpty = unfilteredTotal === 0;
+  const isEmptyAfterFilter = !isEmpty && filteredTotal === 0;
 
   return (
     <>
@@ -131,7 +201,7 @@ export function TodayClient({
       </div>
 
       {metrics.funnel.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-1.5 mb-6 px-0.5">
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-1.5 mb-3 px-0.5">
           <span className="text-xs font-medium text-[var(--color-text-subtle)] mr-1">
             Pipeline
           </span>
@@ -147,6 +217,130 @@ export function TodayClient({
         </div>
       )}
 
+      {!isEmpty && (
+        <div className="flex flex-wrap items-end gap-2 mb-5">
+          <div>
+            <span
+              id="today-discovered-label"
+              className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+            >
+              Discovered
+            </span>
+            <div
+              role="group"
+              aria-labelledby="today-discovered-label"
+              className="inline-flex rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-0.5"
+            >
+              {WINDOW_OPTIONS.map((opt) => {
+                const active = discoveredWindow === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setDiscoveredWindow(opt.value)}
+                    className={cn(
+                      "px-2.5 h-7 text-xs font-medium rounded-md transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
+                      active
+                        ? "bg-[var(--color-blue-muted)] text-[var(--color-blue)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="today-min-score"
+              className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+            >
+              Min Score
+            </label>
+            <input
+              id="today-min-score"
+              type="number"
+              min={0}
+              max={100}
+              inputMode="numeric"
+              placeholder="0"
+              className="input text-xs h-8 w-16 tabular-nums"
+              value={minScore}
+              onChange={(e) => setMinScore(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="today-max-score"
+              className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+            >
+              Max Score
+            </label>
+            <input
+              id="today-max-score"
+              type="number"
+              min={0}
+              max={100}
+              inputMode="numeric"
+              placeholder="100"
+              className="input text-xs h-8 w-16 tabular-nums"
+              value={maxScore}
+              onChange={(e) => setMaxScore(e.target.value)}
+            />
+          </div>
+
+          <div className="flex-1 min-w-[180px]">
+            <label
+              htmlFor="today-company"
+              className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+            >
+              Company
+            </label>
+            <div className="relative">
+              <Search
+                size={13}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
+              />
+              <input
+                id="today-company"
+                type="search"
+                placeholder="Search company…"
+                className="input text-xs h-8 pl-7"
+                value={companySearch}
+                onChange={(e) => setCompanySearch(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="h-8 px-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1 rounded-md"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {hasActiveFilters
+          ? `${filteredTotal} of ${unfilteredTotal} opportunities match filters`
+          : `${unfilteredTotal} opportunities`}
+      </div>
+
       {isEmpty ? (
         <EmptyState
           message="No opportunities ready for review"
@@ -157,9 +351,18 @@ export function TodayClient({
             Run Pipeline Now
           </Button>
         </EmptyState>
+      ) : isEmptyAfterFilter ? (
+        <EmptyState
+          message="No opportunities match these filters"
+          hint="Try widening the score range, extending the discovered window, or clearing the company search."
+        >
+          <Button variant="outline" onClick={resetFilters}>
+            Clear filters
+          </Button>
+        </EmptyState>
       ) : (
         <div className="space-y-6">
-          {grouped.map((group) => (
+          {filteredGrouped.map((group) => (
             <section
               key={group.stage}
               aria-label={`${STAGE_CONFIG[group.stage].label} opportunities`}
@@ -178,6 +381,7 @@ export function TodayClient({
                     key={opp.id}
                     opportunity={opp}
                     drafts={draftsMap[opp.id] ?? []}
+                    scoreThreshold={scoreThreshold}
                     hideStageBadge
                     analysisSummary={
                       opp.analysis_id
