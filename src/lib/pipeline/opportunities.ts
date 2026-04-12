@@ -173,6 +173,27 @@ export async function getOpportunitiesByDate(
   return (data ?? []) as OpportunityRow[];
 }
 
+/**
+ * Get opportunities currently in any of the given stages (no date filter).
+ * Used by Today to surface actionable work regardless of discovery date —
+ * an opportunity discovered last week but queued today still belongs on Today.
+ */
+export async function getOpportunitiesByStages(
+  svc: SupabaseClient,
+  userId: string,
+  stages: OpportunityStage[],
+): Promise<OpportunityRow[]> {
+  const { data, error } = await svc
+    .from("opportunities")
+    .select("*")
+    .eq("user_id", userId)
+    .in("stage", stages)
+    .order("discovered_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as OpportunityRow[];
+}
+
 interface HistoryFilters {
   stage?: OpportunityStage;
   stages?: OpportunityStage[]; // allowlist — rows outside this set are excluded
