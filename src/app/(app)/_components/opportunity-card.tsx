@@ -68,9 +68,10 @@ export function OpportunityCard({
     stage === "sent" || stage === "replied" || stage === "skipped";
   const isActionable = showActions && !isPending;
   const isDraftReadOnly = !showActions || isTerminal;
+  // Analysis deliberately excluded: it has its own always-visible link in the
+  // actions row and should not gate the chevron on its own.
   const hasExpandableContent =
     drafts.length > 0 ||
-    !!opportunity.analysis_id ||
     !!opportunity.research_id ||
     !!researchSummary ||
     !!opportunity.last_error;
@@ -130,7 +131,7 @@ export function OpportunityCard({
   return (
     <Card
       className={cn(
-        "gap-0 p-4 transition-[box-shadow] duration-150 ease-out",
+        "gap-0 p-4 motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-out",
         showActions && "hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
       )}
     >
@@ -149,9 +150,13 @@ export function OpportunityCard({
                 href={opportunity.job_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[var(--color-blue)] hover:underline inline-flex items-center gap-0.5 shrink-0"
+                className={cn(
+                  "text-xs text-[var(--color-blue)] inline-flex items-center gap-0.5 shrink-0 rounded-sm",
+                  "hover:underline",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
+                )}
               >
-                View Job <ExternalLink size={10} />
+                View job <ExternalLink size={10} aria-hidden="true" />
               </a>
             )}
           </div>
@@ -174,7 +179,7 @@ export function OpportunityCard({
               className={cn(
                 "p-1.5 -m-0.5 rounded-lg text-[var(--color-text-muted)]",
                 "hover:bg-[var(--color-surface-muted)] active:bg-[var(--color-surface-muted)]",
-                "transition-colors duration-150",
+                "motion-safe:transition-colors motion-safe:duration-200 ease-out",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
               )}
               aria-label={isExpanded ? "Collapse details" : "Expand details"}
@@ -182,8 +187,9 @@ export function OpportunityCard({
             >
               <ChevronDown
                 size={14}
+                aria-hidden="true"
                 className={cn(
-                  "motion-safe:transition-transform motion-safe:duration-200",
+                  "motion-safe:transition-transform motion-safe:duration-200 ease-out",
                   isExpanded && "rotate-180",
                 )}
               />
@@ -217,9 +223,9 @@ export function OpportunityCard({
         </p>
       )}
 
-      {isActionable && (
+      {(isActionable || opportunity.analysis_id) && (
         <div className="mt-3 flex items-center gap-1.5">
-          {stage === "queued" && (
+          {isActionable && stage === "queued" && (
             <>
               <Button size="sm" onClick={handleApprove} disabled={isPending}>
                 <Send size={13} />
@@ -238,7 +244,7 @@ export function OpportunityCard({
               )}
             </>
           )}
-          {!isTerminal && stage !== "sending" && (
+          {isActionable && !isTerminal && stage !== "sending" && (
             <Button
               variant="ghost"
               size="sm"
@@ -249,7 +255,7 @@ export function OpportunityCard({
               Skip
             </Button>
           )}
-          {!isTerminal && stage !== "sending" && (
+          {isActionable && !isTerminal && stage !== "sending" && (
             <Button
               variant="ghost"
               size="sm"
@@ -261,13 +267,25 @@ export function OpportunityCard({
               Flag
             </Button>
           )}
+          {opportunity.analysis_id && (
+            <Link
+              href={`/analysis/${opportunity.analysis_id}`}
+              className={cn(
+                "ml-auto text-xs text-[var(--color-blue)] rounded-sm",
+                "hover:underline",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
+              )}
+            >
+              View full analysis
+            </Link>
+          )}
         </div>
       )}
 
       {hasExpandableContent && (
         <div
           className={cn(
-            "grid motion-safe:transition-[grid-template-rows] motion-safe:duration-200 ease-out",
+            "grid motion-safe:transition-[grid-template-rows] motion-safe:duration-200 motion-safe:ease-out",
             isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           )}
         >
@@ -282,7 +300,11 @@ export function OpportunityCard({
                     {opportunity.research_id && (
                       <Link
                         href={`/research/reports/${opportunity.research_id}`}
-                        className="text-xs text-[var(--color-blue)] hover:underline"
+                        className={cn(
+                          "text-xs text-[var(--color-blue)] rounded-sm",
+                          "hover:underline",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
+                        )}
                       >
                         View full report
                       </Link>
@@ -294,15 +316,6 @@ export function OpportunityCard({
                     </p>
                   )}
                 </div>
-              )}
-
-              {opportunity.analysis_id && (
-                <Link
-                  href={`/analysis/${opportunity.analysis_id}`}
-                  className="inline-flex items-center gap-1 text-xs text-[var(--color-blue)] hover:underline"
-                >
-                  View full analysis
-                </Link>
               )}
 
               {drafts.length > 0 && (
