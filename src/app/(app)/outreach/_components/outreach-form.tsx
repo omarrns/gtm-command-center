@@ -4,19 +4,6 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { generateEmailDraftAction } from "../actions";
 
-const DRAFT_TYPES = [
-  {
-    value: "email-b2b-customer-support",
-    label: "B2B CX CEO",
-    desc: "CEO/founder at a B2B customer support company. Insider voice.",
-  },
-  {
-    value: "email-head-of-growth",
-    label: "Head of Growth",
-    desc: "Growth leader outside the insider market. Stage-matched builder framing.",
-  },
-];
-
 interface Prefill {
   companyName?: string;
   roleTitle?: string;
@@ -47,32 +34,11 @@ export function OutreachForm({ prefill }: { prefill: Prefill }) {
       {prefill.analysisId && (
         <input type="hidden" name="analysis_id" value={prefill.analysisId} />
       )}
-
-      <fieldset>
-        <legend className="text-xs font-medium text-[var(--color-text-muted)] mb-2">
-          Email type
-        </legend>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {DRAFT_TYPES.map((t) => (
-            <label
-              key={t.value}
-              className="surface px-4 py-3 cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-[var(--color-blue)] transition-shadow"
-            >
-              <input
-                type="radio"
-                name="draft_type"
-                value={t.value}
-                defaultChecked={t.value === "email-b2b-customer-support"}
-                className="sr-only"
-              />
-              <div className="text-sm font-medium">{t.label}</div>
-              <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                {t.desc}
-              </div>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <input
+        type="hidden"
+        name="draft_type"
+        value="email-b2b-customer-support"
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="block">
@@ -123,11 +89,11 @@ export function OutreachForm({ prefill }: { prefill: Prefill }) {
 
       <div className="flex items-center gap-3 pt-1">
         <button type="submit" className="btn-primary" disabled={isPending}>
-          {isPending ? "Generating…" : "Generate Drafts"}
+          {isPending ? "Generating…" : "Generate Draft"}
         </button>
         {isPending && (
           <span className="text-xs text-[var(--color-text-muted)]">
-            Drafting variants (~8s)…
+            Drafting (~8s)…
           </span>
         )}
       </div>

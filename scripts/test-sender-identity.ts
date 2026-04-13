@@ -12,7 +12,6 @@
  */
 
 import { buildEmailB2bCustomerSupportSystem } from "../src/lib/skills/prompts/email-b2b-customer-support";
-import { buildEmailHeadOfGrowthSystem } from "../src/lib/skills/prompts/email-head-of-growth";
 import { buildFullAnalysisSystem } from "../src/lib/skills/prompts/full-analysis";
 import { buildJdFitRubricSystem } from "../src/lib/skills/prompts/jd-fit-rubric";
 import { buildCompanyFitAnalyzerSystem } from "../src/lib/skills/prompts/company-fit-analyzer";
@@ -79,11 +78,6 @@ const BUILDERS: Array<{
   {
     name: "emailB2bCustomerSupport",
     build: buildEmailB2bCustomerSupportSystem,
-    usesRecentCompany: true,
-  },
-  {
-    name: "emailHeadOfGrowth",
-    build: buildEmailHeadOfGrowthSystem,
     usesRecentCompany: true,
   },
   {

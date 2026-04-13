@@ -24,7 +24,6 @@ import {
   approveOpportunityAction,
   skipOpportunityAction,
   flagCompanyAction,
-  sendWithDraftAction,
 } from "../actions";
 import { EmailVariantPicker } from "./email-variant-picker";
 import { STAGE_CONFIG } from "./stage-config";
@@ -102,18 +101,6 @@ export function OpportunityCard({
 
   function handleEditAndApprove() {
     setIsExpanded(true);
-  }
-
-  function handleSendWithDraft(draftId: string) {
-    startTransition(async () => {
-      const result = await sendWithDraftAction(opportunity.id, draftId);
-      if (result.ok) {
-        toast.success("Email approved and sent");
-        onAction?.();
-      } else {
-        toast.error(result.error);
-      }
-    });
   }
 
   function handleFlag() {
@@ -321,11 +308,7 @@ export function OpportunityCard({
               {drafts.length > 0 && (
                 <EmailVariantPicker
                   drafts={drafts}
-                  selectedDraftId={opportunity.selected_draft_id}
-                  opportunityId={opportunity.id}
                   readOnly={isDraftReadOnly}
-                  onSend={stage === "queued" ? handleSendWithDraft : undefined}
-                  isSending={isPending}
                 />
               )}
 

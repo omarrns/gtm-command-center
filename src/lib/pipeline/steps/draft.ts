@@ -1,8 +1,8 @@
 /**
  * Pipeline Step: Draft
  *
- * Auto-routes email template by recipient title, generates 2 variants via Claude,
- * creates email_drafts rows, and advances opportunity to 'drafted' then 'queued'.
+ * Generates one cold email via Claude using the Inkeep-insider prompt,
+ * creates the email_drafts row, and advances opportunity to 'drafted' then 'queued'.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -12,10 +12,6 @@ import {
   buildEmailB2bCustomerSupportSystem,
   buildEmailB2bCustomerSupportPrompt,
 } from "@/lib/skills/prompts/email-b2b-customer-support";
-import {
-  buildEmailHeadOfGrowthSystem,
-  buildEmailHeadOfGrowthPrompt,
-} from "@/lib/skills/prompts/email-head-of-growth";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import {
@@ -26,9 +22,6 @@ import {
 } from "@/lib/pipeline/opportunities";
 
 const MAX_DRAFTS_PER_RUN = 5;
-
-// CEO/founder keywords route to the b2b-customer-support prompt
-const CEO_KEYWORDS = ["ceo", "founder", "cto", "co-founder", "cofounder"];
 
 export interface DraftResult {
   processed: number;
@@ -75,16 +68,10 @@ export async function runDraft(
   return result;
 }
 
-interface DraftVariant {
-  variant_name: string;
+interface DraftOutput {
   subject: string;
   body: string;
   reasoning: string;
-}
-
-interface DraftOutput {
-  variants: DraftVariant[];
-  recommended_variant: number;
 }
 
 async function processOneDraft(
@@ -109,10 +96,6 @@ async function processOneDraft(
     }
   }
 
-  const isCeoType = CEO_KEYWORDS.some((kw) =>
-    (opp.recipient_title ?? "").toLowerCase().includes(kw),
-  );
-
   // Append privacy guard to the system prompt — drafts must not include raw
   // memory content (positioning docs, dealbreakers, internal strategy notes).
   const PRIVACY_GUARD = `
@@ -122,13 +105,9 @@ Do NOT quote, paraphrase, or include raw memory content in the email body.
 The email should sound like the sender wrote it naturally — not like it was generated from a document.
 Never mention internal scoring, dealbreakers, or strategy notes.`;
 
-  const baseSystem = isCeoType
-    ? buildEmailB2bCustomerSupportSystem(sender)
-    : buildEmailHeadOfGrowthSystem(sender);
+  const system = buildEmailB2bCustomerSupportSystem(sender) + PRIVACY_GUARD;
 
-  const system = baseSystem + PRIVACY_GUARD;
-
-  const promptArgs = {
+  const prompt = buildEmailB2bCustomerSupportPrompt({
     companyName: opp.company_name,
     recipientName: opp.recipient_name ?? "Hiring Manager",
     recipientTitle: opp.recipient_title ?? "Unknown",
@@ -143,11 +122,7 @@ Never mention internal scoring, dealbreakers, or strategy notes.`;
       "feedback_outreach_style",
       "feedback_outreach_performance",
     ]),
-  };
-
-  const prompt = isCeoType
-    ? buildEmailB2bCustomerSupportPrompt(promptArgs)
-    : buildEmailHeadOfGrowthPrompt(promptArgs);
+  });
 
   const draftOutput = await runClaudeJson<DraftOutput>({
     system,
@@ -155,69 +130,31 @@ Never mention internal scoring, dealbreakers, or strategy notes.`;
     maxTokens: 4096,
   });
 
-  // Validate exactly 2 usable variants with required fields.
-  // Reject any other count — malformed output should not silently proceed.
-  if (
-    !Array.isArray(draftOutput.variants) ||
-    draftOutput.variants.length !== 2
-  ) {
+  if (!draftOutput.subject || !draftOutput.body) {
     throw new Error(
-      `Draft output has ${draftOutput.variants?.length ?? 0} variants, expected exactly 2 for opportunity ${opp.id}`,
+      `Draft output missing subject or body for opportunity ${opp.id}`,
     );
   }
-  const variants = draftOutput.variants;
-  for (const v of variants) {
-    if (!v.subject || !v.body) {
-      throw new Error(
-        `Draft variant missing subject or body for opportunity ${opp.id}`,
-      );
-    }
-  }
 
-  // Insert email draft rows with opportunity_id
-  const draftType = isCeoType
-    ? "email-b2b-customer-support"
-    : "email-head-of-growth";
+  const { data: draft, error: draftError } = await svc
+    .from("email_drafts")
+    .insert({
+      user_id: userId,
+      opportunity_id: opp.id,
+      draft_type: "email-b2b-customer-support",
+      company_name: opp.company_name,
+      recipient_name: opp.recipient_name,
+      recipient_title: opp.recipient_title,
+      context: { reasoning: draftOutput.reasoning },
+      subject: draftOutput.subject,
+      body: draftOutput.body,
+      variant_index: 0,
+      status: "draft",
+    })
+    .select("id")
+    .single();
 
-  let firstDraftId: string | null = null;
-
-  for (let i = 0; i < variants.length; i++) {
-    const variant = variants[i];
-    const { data: draft, error: draftError } = await svc
-      .from("email_drafts")
-      .insert({
-        user_id: userId,
-        opportunity_id: opp.id,
-        draft_type: draftType,
-        company_name: opp.company_name,
-        recipient_name: opp.recipient_name,
-        recipient_title: opp.recipient_title,
-        context: {
-          variant_name: variant.variant_name,
-          reasoning: variant.reasoning,
-        },
-        subject: variant.subject,
-        body: variant.body,
-        variant_index: i,
-        status: "draft",
-      })
-      .select("id")
-      .single();
-
-    if (draftError) throw draftError;
-    if (i === draftOutput.recommended_variant) {
-      firstDraftId = draft.id;
-    }
-    if (i === 0 && !firstDraftId) {
-      firstDraftId = draft.id;
-    }
-  }
-
-  if (!firstDraftId) {
-    throw new Error(
-      `No usable draft variant produced for opportunity ${opp.id}`,
-    );
-  }
+  if (draftError) throw draftError;
 
   // Advance: enriched -> drafted -> queued
   const drafted = await advanceStage(
@@ -227,7 +164,7 @@ Never mention internal scoring, dealbreakers, or strategy notes.`;
     "enriched",
     "drafted",
     {
-      selected_draft_id: firstDraftId,
+      selected_draft_id: draft.id,
     },
   );
 

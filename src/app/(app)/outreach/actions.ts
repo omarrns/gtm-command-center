@@ -8,17 +8,6 @@ import {
   buildEmailB2bCustomerSupportSystem,
   buildEmailB2bCustomerSupportPrompt,
 } from "@/lib/skills/prompts/email-b2b-customer-support";
-import {
-  buildEmailHeadOfGrowthSystem,
-  buildEmailHeadOfGrowthPrompt,
-} from "@/lib/skills/prompts/email-head-of-growth";
-
-interface DraftVariant {
-  variant_name: string;
-  subject: string;
-  body: string;
-  reasoning: string;
-}
 
 export async function generateEmailDraftAction(formData: FormData) {
   const user = await requireUser();
@@ -53,22 +42,15 @@ export async function generateEmailDraftAction(formData: FormData) {
     }
   }
 
-  // Choose skill
   const sender = extractSenderIdentity(ctx, ctx.displayName);
-  const isCxCeo = draftType === "email-b2b-customer-support";
-  const system = isCxCeo
-    ? buildEmailB2bCustomerSupportSystem(sender)
-    : buildEmailHeadOfGrowthSystem(sender);
-  const promptBuilder = isCxCeo
-    ? buildEmailB2bCustomerSupportPrompt
-    : buildEmailHeadOfGrowthPrompt;
 
   const result = await runClaudeJson<{
-    variants: DraftVariant[];
-    recommended_variant: number;
+    subject: string;
+    body: string;
+    reasoning: string;
   }>({
-    system,
-    prompt: promptBuilder({
+    system: buildEmailB2bCustomerSupportSystem(sender),
+    prompt: buildEmailB2bCustomerSupportPrompt({
       companyName,
       recipientName,
       recipientTitle,
@@ -80,35 +62,31 @@ export async function generateEmailDraftAction(formData: FormData) {
     maxTokens: 4096,
   });
 
-  // Save all variants in parallel
-  const insertResults = await Promise.all(
-    result.variants.map((v, i) =>
-      supabase
-        .from("email_drafts")
-        .insert({
-          user_id: user.id,
-          draft_type: draftType,
-          company_name: companyName,
-          recipient_name: recipientName,
-          recipient_title: recipientTitle,
-          context: { role_title: roleTitle, reasoning: v.reasoning },
-          subject: v.subject,
-          body: v.body,
-          variant_index: i,
-          status: "draft",
-          source_analysis_id: analysisId,
-        })
-        .select("id")
-        .single(),
-    ),
-  );
+  if (!result.subject || !result.body) {
+    return { error: "Draft output missing subject or body." };
+  }
 
-  const firstError = insertResults.find((r) => r.error);
-  if (firstError?.error) return { error: firstError.error.message };
+  const { data, error } = await supabase
+    .from("email_drafts")
+    .insert({
+      user_id: user.id,
+      draft_type: "email-b2b-customer-support",
+      company_name: companyName,
+      recipient_name: recipientName,
+      recipient_title: recipientTitle,
+      context: { role_title: roleTitle, reasoning: result.reasoning },
+      subject: result.subject,
+      body: result.body,
+      variant_index: 0,
+      status: "draft",
+      source_analysis_id: analysisId,
+    })
+    .select("id")
+    .single();
 
-  const draftIds = insertResults.filter((r) => r.data).map((r) => r.data!.id);
+  if (error) return { error: error.message };
 
-  return { draftIds, recommendedVariant: result.recommended_variant };
+  return { draftIds: [data.id], recommendedVariant: 0 };
 }
 
 export async function saveEmailDraftAction(formData: FormData) {
