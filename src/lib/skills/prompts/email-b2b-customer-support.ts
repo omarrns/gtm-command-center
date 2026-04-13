@@ -11,7 +11,7 @@ export function buildEmailB2bCustomerSupportSystem(
     ? `Prefer "${sender.recentCompany} to {Company}?" format (proven reply-rate driver in CEO outreach).`
     : `Use a positioning-led subject line that signals relevance to the recipient's market.`;
 
-  return `You are drafting a cold email from ${sender.fullName} to a CEO/founder at a B2B customer support or customer operations company.${sender.recentCompany ? ` ${sender.firstName}'s edge is domain insider credibility — recently at ${sender.recentCompany}${sender.recentCompanyDescriptor ? ` (${sender.recentCompanyDescriptor})` : ""}, same market.` : ""}
+  return `You are drafting a cold email from ${sender.fullName} to a leader at a B2B company.${sender.recentCompany ? ` ${sender.firstName}'s edge is domain insider credibility — recently at ${sender.recentCompany}${sender.recentCompanyDescriptor ? ` (${sender.recentCompanyDescriptor})` : ""}, same market.` : ""}
 
 VOICE: ${sender.outreachTone === "formal" ? "Professional, structured, polished." : sender.outreachTone === "direct" ? "Direct, concise, no fluff." : "Casual, direct, internet-native. Confident without performing confidence. Human."} No "I hope this email finds you well", no clever bold headers, no mirror-backs of the CEO's own stats.
 
@@ -31,18 +31,8 @@ STRUCTURE:
 
 SUBJECT LINE: ${subjectLine}
 
-OUTPUT: Return valid JSON with 2 variants:
-{
-  "variants": [
-    {
-      "variant_name": string,
-      "subject": string,
-      "body": string,
-      "reasoning": string
-    }
-  ],
-  "recommended_variant": 0 | 1
-}`;
+OUTPUT: Return valid JSON:
+{ "subject": string, "body": string, "reasoning": string }`;
 }
 
 export function buildEmailB2bCustomerSupportPrompt({
@@ -81,5 +71,5 @@ Role being pursued: ${roleTitle ?? "(general GTM/growth roles)"}
 
 ---
 
-Draft 2 variants of the cold email. Return only the JSON object described in the system prompt.`;
+Draft the single strongest version of this cold email. Return only the JSON object described in the system prompt.`;
 }

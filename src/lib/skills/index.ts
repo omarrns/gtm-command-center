@@ -46,18 +46,11 @@ export const SKILLS: Record<string, SkillDefinition> = {
   },
   "email-b2b-customer-support": {
     slug: "email-b2b-customer-support",
-    name: "Email — B2B Customer Support CEO",
+    name: "Email — Domain Insider",
     tier: 1,
     phase: 2,
     summary:
-      "Domain insider cold email to a CEO/founder at a B2B customer support or customer ops company.",
-  },
-  "email-head-of-growth": {
-    slug: "email-head-of-growth",
-    name: "Email — Head of Growth",
-    tier: 1,
-    phase: 2,
-    summary: "Stage-matched builder framing cold email for growth leaders.",
+      "Domain insider cold email to a leader at a B2B company. Ex-Inkeep framing.",
   },
   "people-research": {
     slug: "people-research",
