@@ -8,6 +8,7 @@ import {
   Pencil,
   SkipForward,
   Flag,
+  CheckCheck,
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ import {
   approveOpportunityAction,
   skipOpportunityAction,
   flagCompanyAction,
+  applyManuallyAction,
 } from "../actions";
 import { EmailVariantPicker } from "./email-variant-picker";
 import { STAGE_CONFIG } from "./stage-config";
@@ -115,6 +117,18 @@ export function OpportunityCard({
     });
   }
 
+  function handleApplyManually() {
+    startTransition(async () => {
+      const result = await applyManuallyAction(opportunity.id);
+      if (result.ok) {
+        toast.success("Marked as applied — good luck!");
+        onAction?.();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
   return (
     <Card
       className={cn(
@@ -130,6 +144,9 @@ export function OpportunityCard({
             </h3>
             {!hideStageBadge && (
               <Badge variant={stageInfo.variant}>{stageInfo.label}</Badge>
+            )}
+            {opportunity.applied_manually && (
+              <Badge variant="success">Applied manually</Badge>
             )}
             {isCloseMatch && <Badge variant="warning">Close match</Badge>}
             {opportunity.job_url && (
@@ -252,6 +269,18 @@ export function OpportunityCard({
             >
               <Flag size={13} />
               Flag
+            </Button>
+          )}
+          {isActionable && !isTerminal && stage !== "sending" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleApplyManually}
+              disabled={isPending}
+              className="text-[var(--color-text-subtle)] hover:text-[var(--color-success)] hover:bg-[var(--color-success)]/5"
+            >
+              <CheckCheck size={13} />
+              Applied
             </Button>
           )}
           {opportunity.analysis_id && (

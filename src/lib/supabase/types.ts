@@ -171,6 +171,7 @@ export interface OpportunityRow {
   recipient_email: string | null;
   recipient_webset_id: string | null;
   recipient_webset_item_id: string | null;
+  applied_manually: boolean;
   gmail_thread_id: string | null;
   gmail_message_id: string | null;
   sent_at: string | null;
