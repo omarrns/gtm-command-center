@@ -26,7 +26,7 @@ src/
 │       ├── history/
 │       ├── watchlist/
 │       ├── settings/
-│       ├── actions.ts          # Today: trigger, approve, skip, flag
+│       ├── actions.ts          # Today: trigger, approve, skip, flag, manual-apply
 │       ├── onboard/
 │       │   ├── page.tsx
 │       │   ├── actions.ts
@@ -182,6 +182,7 @@ npm run onboard:reset    # Delete all onboarding data
 npm run onboard:fixture  # Seed: --state=partial|complete|empty --interview-state=transcript|review|ready
 npm run test:sender-identity  # Verify prompt de-Omarification
 npm run test:extraction       # Run extraction on transcript fixture
+npm run test:correctness      # Verify recent pipeline correctness guardrails
 ```
 
 ---

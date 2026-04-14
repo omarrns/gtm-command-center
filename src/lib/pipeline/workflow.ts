@@ -71,10 +71,13 @@ async function loadConfig(userId: string) {
     .from("pipeline_config")
     .select("*")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
-  if (error || !config) {
-    throw new Error("No pipeline_config found for user");
+  if (error) {
+    throw new Error(`pipeline_config query failed: ${error.message}`);
+  }
+  if (!config) {
+    throw new Error("No pipeline_config row found for user");
   }
   console.log(`[workflow] loadConfig: done`);
   return config as PipelineConfigRow;
@@ -281,7 +284,10 @@ export async function pipelineWorkflow(
   let config: PipelineConfigRow;
   try {
     config = await loadConfig(userId);
-  } catch {
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Unknown config load failure";
+    console.error(`[workflow] loadConfig failed for userId=${userId}:`, err);
     return {
       userId,
       startedAt,
@@ -299,7 +305,7 @@ export async function pipelineWorkflow(
       },
       draft: { processed: 0, drafted: 0, errors: 0 },
       queuedRecovery: 0,
-      error: "No pipeline_config found for user",
+      error: message,
     };
   }
 

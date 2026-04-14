@@ -17,7 +17,8 @@
     "onboard:reset": "tsx scripts/onboard-reset.ts",
     "onboard:fixture": "tsx scripts/onboard-fixture.ts",
     "test:sender-identity": "tsx scripts/test-sender-identity.ts",
-    "test:extraction": "tsx scripts/test-extraction.ts"
+    "test:extraction": "tsx scripts/test-extraction.ts",
+    "test:correctness": "tsx scripts/test-correctness-fixes.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",

@@ -223,8 +223,7 @@ async function executePursuit(
         !!research.recipientWebsetItemId;
 
       if (isEnrichable) {
-        // Contact found — advance to researched
-        await advanceStage(
+        const advanced = await advanceStage(
           svc,
           entry.opportunityId,
           userId,
@@ -239,11 +238,17 @@ async function executePursuit(
           },
         );
 
+        if (!advanced) {
+          throw new Error(
+            `Stage transition scored→researched missed for ${entry.companyName} (${entry.opportunityId}) — row already moved`,
+          );
+        }
+
         console.log(
           `[executor] ${entry.companyName}: researched → ${research.recipientName} (archetype=${archetype})`,
         );
 
-        return "researched"; // Enrich + draft workflow steps handle the rest
+        return "researched";
       }
 
       console.log(
@@ -262,7 +267,7 @@ async function executePursuit(
       `[executor] ${entry.companyName}: no contact after [${attemptedTargets.join(", ")}] → ${targetStage}`,
     );
 
-    await advanceStage(
+    const advanced = await advanceStage(
       svc,
       entry.opportunityId,
       userId,
@@ -279,6 +284,12 @@ async function executePursuit(
           : {}),
       },
     );
+
+    if (!advanced) {
+      throw new Error(
+        `Stage transition scored→${targetStage} missed for ${entry.companyName} (${entry.opportunityId}) — row already moved`,
+      );
+    }
 
     return targetStage as "skipped" | "needs_contact";
   } finally {

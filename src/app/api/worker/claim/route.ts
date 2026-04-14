@@ -29,8 +29,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const types = Array.isArray(body.types) ? body.types : ALL_JOB_TYPES;
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Request body must be valid JSON" },
+      { status: 400 },
+    );
+  }
+
+  if (body == null || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json(
+      { error: "Request body must be a JSON object" },
+      { status: 400 },
+    );
+  }
+
+  const parsed = body as Record<string, unknown>;
+  const types = Array.isArray(parsed.types) ? parsed.types : ALL_JOB_TYPES;
 
   const job = await claimAndRun(types);
 

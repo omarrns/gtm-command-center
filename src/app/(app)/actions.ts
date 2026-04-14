@@ -341,3 +341,41 @@ export async function flagCompanyAction(
   revalidatePath("/");
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Mark as applied manually (user applied outside the system)
+// ---------------------------------------------------------------------------
+
+export async function applyManuallyAction(
+  opportunityId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
+
+  // Direct update — bypasses advanceStage() since we're jumping straight to
+  // "sent" without the Gmail send flow. Guard prevents double-applying
+  // opportunities already in a terminal or in-flight state.
+  const { data, error } = await svc
+    .from("opportunities")
+    .update({
+      stage: "sent" as OpportunityStage,
+      applied_manually: true,
+      sent_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", opportunityId)
+    .eq("user_id", user.id)
+    .not("stage", "in", "(sent,replied,skipped,sending)")
+    .select("id");
+
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) {
+    return {
+      ok: false,
+      error: "Opportunity not found or already in a terminal stage",
+    };
+  }
+
+  revalidatePath("/");
+  return { ok: true };
+}
