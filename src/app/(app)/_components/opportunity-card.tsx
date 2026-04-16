@@ -157,8 +157,8 @@ export function OpportunityCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 className={cn(
-                  "text-xs text-[var(--color-blue)] inline-flex items-center gap-0.5 shrink-0 rounded-sm",
-                  "hover:underline",
+                  "text-xs text-[var(--color-text-subtle)] inline-flex items-center gap-0.5 shrink-0 rounded-sm",
+                  "hover:text-[var(--color-text-muted)]",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
                 )}
               >
@@ -289,8 +289,8 @@ export function OpportunityCard({
             <Link
               href={`/analysis/${opportunity.analysis_id}`}
               className={cn(
-                "ml-auto text-xs text-[var(--color-blue)] rounded-sm",
-                "hover:underline",
+                "ml-auto text-xs text-[var(--color-text-subtle)] rounded-sm",
+                "hover:text-[var(--color-text-muted)]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
               )}
             >
