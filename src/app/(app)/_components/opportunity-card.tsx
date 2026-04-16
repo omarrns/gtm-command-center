@@ -32,8 +32,10 @@ import { STAGE_CONFIG } from "./stage-config";
 
 function scoreColor(score: number | null, threshold: number): string {
   if (score == null) return "text-[var(--color-text-muted)]";
-  if (score >= 80) return "text-[var(--color-success)]";
-  if (score >= threshold) return "text-[var(--color-warning)]";
+  // ≥80 is the default-good state — plain foreground, no color shout
+  if (score >= 80) return "text-[var(--color-text)]";
+  // ≥threshold is the meaningful signal: above your cutoff but not exceptional
+  if (score >= threshold) return "text-[var(--color-blue)]";
   return "text-[var(--color-text-muted)]";
 }
 

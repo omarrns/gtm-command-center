@@ -73,7 +73,7 @@ function sentTodayColor(sent: number, cap: number): string {
 }
 
 function scoreAvgColor(avg: number, threshold: number): string {
-  if (avg >= 80) return "text-[var(--color-success)]";
+  if (avg >= 80) return "text-[var(--color-text)]";
   if (avg >= threshold) return "text-[var(--color-blue)]";
   return "";
 }
@@ -451,17 +451,10 @@ export function TodayClient({
               aria-label={`${STAGE_CONFIG[group.stage].label} opportunities`}
             >
               <div className="flex items-baseline gap-2 mb-3">
-                <h3
-                  className={cn(
-                    "text-xs font-semibold uppercase tracking-wider",
-                    group.stage === "queued"
-                      ? "text-[var(--color-blue)]"
-                      : "text-[var(--color-text-subtle)]",
-                  )}
-                >
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
                   {STAGE_CONFIG[group.stage].label}
                 </h3>
-                <span className="text-xs font-semibold tabular-nums text-[var(--color-text-subtle)]">
+                <span className="text-xs tabular-nums text-[var(--color-text-subtle)]">
                   {group.items.length}
                 </span>
               </div>

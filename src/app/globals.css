@@ -292,7 +292,7 @@
 
   .badge-success {
     background: #e7f6ec;
-    color: var(--color-success);
+    color: #1d7a4a;
     border-color: #c9ebd5;
   }
 
@@ -316,7 +316,7 @@
 
   .dark .badge-success {
     background: #1a3a2a;
-    color: #3ec47f;
+    color: #2ea66b;
     border-color: #2a4a3a;
   }
 
