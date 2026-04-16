@@ -179,7 +179,7 @@ export function TodayClient({
 
   return (
     <>
-      <PageHeader title="Today" description="Pipeline performance at a glance.">
+      <PageHeader title="Today, at a glance">
         <Button
           variant="outline"
           onClick={() => setInjectOpen(true)}
