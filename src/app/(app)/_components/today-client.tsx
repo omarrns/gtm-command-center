@@ -2,10 +2,17 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Loader2, Search } from "lucide-react";
+import { Play, Loader2, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
@@ -14,7 +21,10 @@ import type {
   OpportunityStage,
   EmailDraftRow,
 } from "@/lib/supabase/types";
-import { triggerPipelineAction } from "../actions";
+import {
+  triggerPipelineAction,
+  manualInjectOpportunityAction,
+} from "../actions";
 import { OpportunityCard } from "./opportunity-card";
 import { STAGE_CONFIG } from "./stage-config";
 
@@ -57,6 +67,14 @@ function sentTodayColor(sent: number, cap: number): string {
   const ratio = sent / cap;
   if (ratio >= 1) return "text-[var(--color-success)]";
   if (ratio >= 0.7) return "text-[var(--color-warning)]";
+  // Nothing sent yet — mute the zero so it doesn't read as a positive signal
+  if (sent === 0) return "text-[var(--color-text-muted)]";
+  return "";
+}
+
+function scoreAvgColor(avg: number, threshold: number): string {
+  if (avg >= 80) return "text-[var(--color-success)]";
+  if (avg >= threshold) return "text-[var(--color-blue)]";
   return "";
 }
 
@@ -77,6 +95,10 @@ export function TodayClient({
   const [discoveredWindow, setDiscoveredWindow] =
     useState<DiscoveredWindow>("all");
 
+  const [injectOpen, setInjectOpen] = useState(false);
+  const [injectPending, startInjectTransition] = useTransition();
+  const [jobUrl, setJobUrl] = useState("");
+
   function handleRunPipeline() {
     startTransition(async () => {
       const result = await triggerPipelineAction();
@@ -87,6 +109,23 @@ export function TodayClient({
         router.refresh();
       } else {
         toast.error(result.error ?? "Pipeline failed");
+      }
+    });
+  }
+
+  function handleInjectSubmit() {
+    startInjectTransition(async () => {
+      const result = await manualInjectOpportunityAction(jobUrl);
+      if (result.ok) {
+        toast.success(
+          `Scored ${result.score}/100 — ${result.stage === "scored" ? "passed threshold" : "filtered out"}`,
+          { description: `${result.companyName} · ${result.roleTitle}` },
+        );
+        setJobUrl("");
+        setInjectOpen(false);
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Failed to score job");
       }
     });
   }
@@ -141,6 +180,14 @@ export function TodayClient({
   return (
     <>
       <PageHeader title="Today" description="Pipeline performance at a glance.">
+        <Button
+          variant="outline"
+          onClick={() => setInjectOpen(true)}
+          disabled={injectPending}
+        >
+          <Plus size={14} />
+          Add Job
+        </Button>
         <Button onClick={handleRunPipeline} disabled={isPending}>
           {isPending ? (
             <Loader2 size={14} className="animate-spin" />
@@ -150,6 +197,40 @@ export function TodayClient({
           {isPending ? "Running…" : "Run Pipeline"}
         </Button>
       </PageHeader>
+
+      <Dialog open={injectOpen} onOpenChange={setInjectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Job to Pipeline</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <input
+              className="input w-full text-sm"
+              type="url"
+              value={jobUrl}
+              onChange={(e) => setJobUrl(e.target.value)}
+              placeholder="https://..."
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setInjectOpen(false)}
+              disabled={injectPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleInjectSubmit}
+              disabled={injectPending || !jobUrl.trim()}
+            >
+              {injectPending && <Loader2 size={14} className="animate-spin" />}
+              {injectPending ? "Scoring…" : "Score & Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className="surface px-3 py-2.5">
@@ -192,7 +273,9 @@ export function TodayClient({
           <p className="text-xs text-[var(--color-text-subtle)]">Avg Score</p>
           <p className="text-lg font-semibold tabular-nums">
             {metrics.avgScore != null ? (
-              metrics.avgScore
+              <span className={scoreAvgColor(metrics.avgScore, scoreThreshold)}>
+                {metrics.avgScore}
+              </span>
             ) : (
               <span className="text-[var(--color-text-subtle)]">—</span>
             )}
@@ -368,10 +451,17 @@ export function TodayClient({
               aria-label={`${STAGE_CONFIG[group.stage].label} opportunities`}
             >
               <div className="flex items-baseline gap-2 mb-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
+                <h3
+                  className={cn(
+                    "text-xs font-semibold uppercase tracking-wider",
+                    group.stage === "queued"
+                      ? "text-[var(--color-blue)]"
+                      : "text-[var(--color-text-subtle)]",
+                  )}
+                >
                   {STAGE_CONFIG[group.stage].label}
                 </h3>
-                <span className="text-xs font-semibold text-[var(--color-text-subtle)] tabular-nums">
+                <span className="text-xs font-semibold tabular-nums text-[var(--color-text-subtle)]">
                   {group.items.length}
                 </span>
               </div>

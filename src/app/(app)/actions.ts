@@ -4,10 +4,13 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { advanceStage } from "@/lib/pipeline/opportunities";
+import { advanceStage, createOpportunity } from "@/lib/pipeline/opportunities";
 import { addToWatchlist } from "@/lib/pipeline/watchlist";
 import { getGmailClient, sendEmail } from "@/lib/integrations/gmail";
-import type { OpportunityStage } from "@/lib/supabase/types";
+import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
+import { firecrawlScrape } from "@/lib/ai/firecrawl";
+import { runClaudeJson } from "@/lib/ai/anthropic";
+import type { OpportunityStage, PipelineConfigRow } from "@/lib/supabase/types";
 
 // ---------------------------------------------------------------------------
 // Trigger pipeline manually (calls /api/pipeline/run with cookie forwarding)
@@ -378,4 +381,88 @@ export async function applyManuallyAction(
 
   revalidatePath("/");
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Manually inject a job URL into the pipeline and immediately score it
+// ---------------------------------------------------------------------------
+
+export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
+  ok: boolean;
+  error?: string;
+  score?: number;
+  stage?: string;
+  companyName?: string;
+  roleTitle?: string;
+}> {
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
+
+  const { data: config, error: configError } = await svc
+    .from("pipeline_config")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  if (configError || !config) {
+    return { ok: false, error: "Pipeline config not found" };
+  }
+
+  let markdown: string;
+  try {
+    markdown = await firecrawlScrape(jobUrl);
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Could not fetch the job page: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  if (!markdown.trim()) {
+    return { ok: false, error: "Job page returned empty content" };
+  }
+
+  const parsed = await runClaudeJson<{
+    company_name: string;
+    role_title: string;
+  }>({
+    system:
+      "Extract the hiring company name and exact job title from the job posting. Return JSON with keys company_name and role_title only.",
+    prompt: markdown.slice(0, 8000),
+    model: "claude-haiku-4-5-20251001",
+    maxTokens: 128,
+  });
+
+  const opp = await createOpportunity(svc, user.id, {
+    source: "manual",
+    external_id: jobUrl,
+    company_name: parsed.company_name,
+    role_title: parsed.role_title,
+    job_url: jobUrl,
+    job_description: markdown,
+  });
+
+  if (!opp) {
+    return {
+      ok: false,
+      error: "Duplicate — this role was already added within the last 30 days",
+    };
+  }
+
+  const { newStage, normalizedScore } = await scoreOneOpportunity(
+    svc,
+    user.id,
+    opp,
+    config as PipelineConfigRow,
+    { source: "manual" },
+  );
+
+  revalidatePath("/");
+  return {
+    ok: true,
+    score: normalizedScore,
+    stage: newStage,
+    companyName: parsed.company_name,
+    roleTitle: parsed.role_title,
+  };
 }
