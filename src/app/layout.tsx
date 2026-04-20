@@ -3,11 +3,12 @@ import { Analytics } from "@vercel/analytics/react";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { Geist } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: "GTM Command Center",
@@ -23,7 +24,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("font-sans", geist.variable)}
+      className={cn("font-sans", geistSans.variable, geistMono.variable)}
       suppressHydrationWarning
     >
       <body>

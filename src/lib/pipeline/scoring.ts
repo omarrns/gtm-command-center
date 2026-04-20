@@ -12,7 +12,9 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UserScoringProfileRow } from "@/lib/supabase/types";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { generateObject } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { z } from "zod";
 import { exaFindCompany, formatExaResults } from "@/lib/ai/exa";
 import {
   buildFullAnalysisSystem,
@@ -21,11 +23,83 @@ import {
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 
+const dimensionScoreSchema = z.object({
+  score: z.number().min(0).max(5),
+  justification: z.string(),
+});
+
+const jdFitScorecardSchema = z.object({
+  years_seniority: dimensionScoreSchema,
+  core_responsibilities: dimensionScoreSchema,
+  technical_requirements: dimensionScoreSchema,
+  industry_domain: dimensionScoreSchema,
+  outcome_evidence: dimensionScoreSchema,
+  soft_skills: dimensionScoreSchema,
+  gap_risk: dimensionScoreSchema,
+});
+
+const strategicFitScorecardSchema = z.object({
+  market_familiarity: dimensionScoreSchema,
+  product_adjacency: dimensionScoreSchema,
+  gtm_motion_match: dimensionScoreSchema,
+  ai_technical_edge: dimensionScoreSchema,
+  founder_alignment: dimensionScoreSchema,
+  stage_match: dimensionScoreSchema,
+});
+
+const analysisSchema = z.object({
+  company_name: z.string(),
+  role_title: z.string(),
+  jd_fit: z.object({
+    scorecard: jdFitScorecardSchema,
+    total_score: z.number(),
+    verdict: z.enum(["Strong match", "Solid match", "Stretch", "Weak match"]),
+    requirement_matches: z.array(
+      z.object({
+        requirement: z.string(),
+        status: z.enum(["STRONG MATCH", "PARTIAL MATCH", "GAP"]),
+        evidence: z.string(),
+        notes: z.string(),
+      }),
+    ),
+  }),
+  strategic_fit: z.object({
+    scorecard: strategicFitScorecardSchema,
+    total_score: z.number(),
+    verdict: z.enum(["Pursue", "Worth exploring", "Skip"]),
+  }),
+  company_overview: z.object({
+    what_they_do: z.string(),
+    stage_and_funding: z.string(),
+    gtm_motion: z.string(),
+    founder_profile: z.object({
+      name: z.string(),
+      background: z.string(),
+    }),
+  }),
+  flags: z.object({
+    green: z.array(z.string()),
+    red: z.array(z.string()),
+    orange: z.array(z.string()),
+  }),
+  interview_angle: z.string(),
+  outreach_angle: z.object({
+    hook: z.string(),
+    bullets: z.array(z.string()),
+    bridge: z.string(),
+    ask: z.string(),
+  }),
+  positioning_recommendations: z.array(z.string()),
+  bottom_line: z.string(),
+});
+
+export type AnalysisResult = z.infer<typeof analysisSchema>;
+
 export interface ScoringResult {
   jdFit: number;
   strategicFit: number;
   normalizedScore: number;
-  analysisResult: Record<string, unknown>;
+  analysisResult: AnalysisResult;
 }
 
 export async function scoreOpportunity(
@@ -82,7 +156,8 @@ export async function scoreOpportunity(
     ? `${memory}\n\n## Structured Scoring Preferences\n\n${structuredPreferences}`
     : memory;
 
-  const result = await runClaudeJson<Record<string, unknown>>({
+  const { object: result } = await generateObject({
+    model: anthropic(options?.model ?? "claude-opus-4-6"),
     system: buildFullAnalysisSystem(sender),
     prompt: buildFullAnalysisPrompt({
       companyName,
@@ -91,31 +166,32 @@ export async function scoreOpportunity(
       research,
       memory: fullMemory,
     }),
-    maxTokens: 8192,
-    ...(options?.model ? { model: options.model } : {}),
+    schema: analysisSchema,
+    maxOutputTokens: 8192,
   });
 
-  // Default to 0 (not max) when Claude output is malformed — prevents
-  // broken responses from scoring as perfect and auto-watchlisting.
-  const jdFit = extractDimensionScores(result, "jd_fit");
-  const strategicFit = extractDimensionScores(result, "strategic_fit");
+  const jdFit = dimensionScores(result.jd_fit.scorecard);
+  const strategicFit = dimensionScores(result.strategic_fit.scorecard);
 
   const weights = scoringProfile ?? DEFAULT_WEIGHTS;
   const normalizedScore = computeWeightedScore(jdFit, strategicFit, weights);
 
-  const jdFitTotal = extractScore(result, "jd_fit", "total_score");
-  const strategicFitTotal = extractScore(
-    result,
-    "strategic_fit",
-    "total_score",
-  );
-
   return {
-    jdFit: jdFitTotal,
-    strategicFit: strategicFitTotal,
+    jdFit: result.jd_fit.total_score,
+    strategicFit: result.strategic_fit.total_score,
     normalizedScore,
     analysisResult: result,
   };
+}
+
+function dimensionScores(
+  scorecard: Record<string, { score: number }>,
+): DimensionScores {
+  const out: DimensionScores = {};
+  for (const [dim, val] of Object.entries(scorecard)) {
+    out[dim] = val.score;
+  }
+  return out;
 }
 
 // ── Scoring profile loader ──
@@ -178,25 +254,6 @@ const STRATEGIC_FIT_WEIGHT_MAP: Record<string, keyof WeightSource> = {
   market_familiarity: "weight_domain",
   // Others (product_adjacency, gtm_motion_match, ai_technical_edge, founder_alignment) use 1.0
 };
-
-function extractDimensionScores(
-  result: Record<string, unknown>,
-  section: string,
-): DimensionScores {
-  const s = result[section] as Record<string, unknown> | undefined;
-  const scorecard = s?.scorecard as Record<string, unknown> | undefined;
-  if (!scorecard) return {};
-
-  const scores: DimensionScores = {};
-  for (const [dim, val] of Object.entries(scorecard)) {
-    const dimObj = val as Record<string, unknown> | undefined;
-    const score = dimObj?.score;
-    if (typeof score === "number" && score >= 0) {
-      scores[dim] = score;
-    }
-  }
-  return scores;
-}
 
 function computeWeightedScore(
   jdFitScores: DimensionScores,
@@ -275,19 +332,4 @@ function formatStructuredPreferences(profile: UserScoringProfileRow): string {
   }
 
   return lines.join("\n");
-}
-
-// ── Helpers ──
-
-function extractScore(
-  result: Record<string, unknown>,
-  section: string,
-  field: string,
-): number {
-  const s = result[section] as Record<string, unknown> | undefined;
-  const val = s?.[field];
-  if (typeof val === "number" && val >= 0) return val;
-  // Missing or invalid field defaults to 0 — malformed output should never
-  // produce a high score.
-  return 0;
 }

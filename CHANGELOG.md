@@ -400,3 +400,23 @@ Correctness-first cleanup of evaluation-consuming surfaces. No storage contracts
   - `ImportedMarkdownView` cleaned up repetitive `(result as Record<string, unknown>)` casts with a shared `Obj` type alias.
   - `StandardAnalysisView` preserves the existing JD rubric and full-analysis rendering exactly as before (nested `jd_fit`, `strategic_fit`, `company_overview`, `outreach_angle` shapes).
   - Added `isObj()` type guard to replace repeated inline `typeof x === "object"` checks.
+
+## Zod Schemas at LLM Boundaries
+
+Replaced hand-rolled `runClaudeJson` + per-field defaulting with AI SDK v6 `generateObject` + zod schemas at the two highest-value LLM boundaries.
+
+- **`src/lib/onboarding/extraction.ts`**:
+  - `extractionResultSchema` composes `profileSchema`, `searchSchema`, `outreachSchema`, `insightsSchema`. Each field uses `.default()` so the model omitting an optional value falls through to the prior fallback values (searchQueries → `["Software Engineer"]`, searchLocations → `["Remote"]`, scoreThreshold → 70, dailySendCap → 10, outreachTone → `"casual"`, etc.).
+  - `ExtractionResult`, `ExtractionProfile`, `ExtractionSearch`, `ExtractionOutreach`, `ExtractionInsights` now derived via `z.infer` — schema is the single source of truth.
+  - Deleted ~50 lines of manual `Array.isArray(...) ? ... : []` / `typeof x === "number" ? ... : default` fallback code.
+
+- **`src/lib/pipeline/scoring.ts`**:
+  - Full `analysisSchema` covers the complete JD+strategic-fit output contract: `jd_fit.scorecard` (7 dimensions × `{score, justification}`), `strategic_fit.scorecard` (6 dimensions), `verdict` enums, `requirement_matches`, `company_overview.founder_profile`, `flags.{green,red,orange}`, `outreach_angle`, `positioning_recommendations`, `bottom_line`.
+  - `AnalysisResult` type exported via `z.infer`. `ScoringResult.analysisResult` now typed as `AnalysisResult` (was `Record<string, unknown>`).
+  - Deleted `extractDimensionScores()` and `extractScore()` helpers (~40 lines) that walked the untyped record defensively. Replaced with direct indexing (`result.jd_fit.scorecard.years_seniority.score`) plus a small `dimensionScores()` helper that flattens the scorecard into `{dim: score}` for the weighted-score calculation.
+  - **Behavior change**: malformed LLM output now throws at the `generateObject` boundary rather than silently scoring as 0. The pipeline's per-opportunity error handler (`src/lib/pipeline/opportunities.ts`) catches, sets `last_error`, releases the claim, and continues the batch. Chosen over lenient-with-defaults because silent-zero hid prompt drift and produced false negatives; loud failure surfaces real signal.
+  - Note: `analysisResult` is still stored as JSON in the DB and read back as `Json`/`unknown` in UI components. Read-side casts unchanged.
+
+- AI SDK pattern: `generateObject({ model: anthropic("claude-opus-4-6"), schema, system, prompt, maxOutputTokens })`. Model slug format (hyphens, e.g. `claude-opus-4-6`) matches the rest of the codebase.
+
+- Not migrated (yet): `src/lib/pipeline/steps/draft.ts`, `src/lib/pipeline/people-search.ts`, `src/lib/pipeline/pursuit/planner.ts`, `src/lib/jobs/handlers/career-coach.ts`, `src/lib/jobs/handlers/company-fit-analyzer.ts`, `src/app/(app)/actions.ts`, `src/app/(app)/outreach/actions.ts`, `src/app/(app)/workspace-tools/actions.ts`, `src/app/(app)/analysis/actions.ts`. These still use `runClaudeJson`. `runClaudeJson` itself remains in `src/lib/ai/anthropic.ts` for those call sites.
