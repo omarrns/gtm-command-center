@@ -1,116 +1,258 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Command } from "cmdk";
-import { CalendarCheck, Clock, Eye, Settings } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  ArrowRight,
+  CalendarCheck,
+  Clock,
+  Eye,
+  Search,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const COMMANDS = [
+type PaletteItem = {
+  id: string;
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+const ITEMS: PaletteItem[] = [
+  { id: "today", label: "Go to Today", href: "/", icon: CalendarCheck },
+  { id: "history", label: "Go to History", href: "/history", icon: Clock },
+  { id: "watchlist", label: "Go to Watchlist", href: "/watchlist", icon: Eye },
   {
-    group: "Navigate",
-    items: [
-      {
-        id: "nav:today",
-        label: "Go to Today",
-        href: "/",
-        icon: CalendarCheck,
-      },
-      {
-        id: "nav:history",
-        label: "Go to History",
-        href: "/history",
-        icon: Clock,
-      },
-      {
-        id: "nav:watchlist",
-        label: "Go to Watchlist",
-        href: "/watchlist",
-        icon: Eye,
-      },
-      {
-        id: "nav:settings",
-        label: "Go to Settings",
-        href: "/settings",
-        icon: Settings,
-      },
-    ],
+    id: "settings",
+    label: "Go to Settings",
+    href: "/settings",
+    icon: Settings,
   },
 ];
 
+const PANEL_SPRING = { type: "spring", stiffness: 480, damping: 36 } as const;
+const RESULT_CAP = 8;
+
 export function CommandPalette() {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    function handler(e: KeyboardEvent) {
-      if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((v) => !v);
-      }
-      if (e.key === "Escape") setOpen(false);
+    function onKey(event: KeyboardEvent) {
+      const isShortcut =
+        (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+      if (!isShortcut) return;
+      event.preventDefault();
+      setOpen((prev) => !prev);
     }
-    function toggle() {
+    function onToggle() {
       setOpen((v) => !v);
     }
-    window.addEventListener("keydown", handler);
-    window.addEventListener("command-palette:toggle", toggle);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("command-palette:toggle", onToggle);
     return () => {
-      window.removeEventListener("keydown", handler);
-      window.removeEventListener("command-palette:toggle", toggle);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("command-palette:toggle", onToggle);
     };
   }, []);
 
-  if (!open) return null;
+  // Reset query + focus on every open. rAF defer so focus lands after the
+  // mount paint, not during it — prevents the cursor from appearing before
+  // the panel has settled.
+  useEffect(() => {
+    if (!open) return;
+    // Reset visible state on every open — one-time sync, not derived state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuery("");
+    setActiveIndex(0);
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q === "") return ITEMS.slice(0, RESULT_CAP);
+    return ITEMS.filter((item) => item.label.toLowerCase().includes(q)).slice(
+      0,
+      RESULT_CAP,
+    );
+  }, [query]);
+
+  useEffect(() => {
+    // Clamp highlight into the current result window. Can't be useMemo
+    // because activeIndex is user-driven (arrow keys) — this effect only
+    // fires when the list shrinks.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveIndex((i) =>
+      filtered.length === 0 ? 0 : Math.min(i, filtered.length - 1),
+    );
+  }, [filtered.length]);
+
+  function select(item: PaletteItem) {
+    setOpen(false);
+    router.push(item.href);
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setOpen(false);
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, filtered.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const item = filtered[activeIndex];
+      if (item) select(item);
+    }
+  }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[18vh] bg-black/20 backdrop-blur-[2px] animate-in fade-in duration-150"
-      onClick={() => setOpen(false)}
-    >
-      <div
-        className="w-full max-w-lg surface shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Command label="Command palette">
-          <Command.Input
-            placeholder="Type a command or search…"
-            className="w-full px-4 py-3 text-sm bg-transparent border-b border-[var(--color-border)] outline-none"
-          />
-          <Command.List className="max-h-80 overflow-auto p-2">
-            <Command.Empty className="px-3 py-6 text-center text-xs text-[var(--color-text-muted)]">
-              No matching commands.
-            </Command.Empty>
-            {COMMANDS.map((group) => (
-              <Command.Group
-                key={group.group}
-                heading={group.group}
-                className="text-xs uppercase tracking-[0.14em] text-[var(--color-text-subtle)] px-2 pt-2 pb-1"
-              >
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Command.Item
-                      key={item.id}
-                      value={`${group.group} ${item.label}`}
-                      onSelect={() => {
-                        setOpen(false);
-                        router.push(item.href);
-                      }}
-                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-[var(--color-surface-muted)]"
-                    >
-                      <Icon
-                        size={14}
-                        className="text-[var(--color-text-muted)]"
-                      />
-                      {item.label}
-                    </Command.Item>
-                  );
-                })}
-              </Command.Group>
-            ))}
-          </Command.List>
-        </Command>
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Command palette"
+          onKeyDown={onKeyDown}
+          onMouseDown={() => setOpen(false)}
+          initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[15vh] backdrop-blur-sm"
+        >
+          <motion.div
+            onMouseDown={(e) => e.stopPropagation()}
+            initial={
+              reduceMotion
+                ? { opacity: 1, y: 0, scale: 1 }
+                : { opacity: 0, y: -8, scale: 0.98 }
+            }
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={
+              reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }
+            }
+            transition={reduceMotion ? { duration: 0 } : PANEL_SPRING}
+            className="w-full max-w-xl overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-2xl"
+          >
+            <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3">
+              <Search
+                size={16}
+                className="shrink-0 text-[var(--color-text-muted)]"
+              />
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Type a command or search…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Type a command or search"
+                className="h-11 flex-1 border-0 bg-transparent px-0 text-sm outline-none placeholder:text-[var(--color-text-subtle)]"
+              />
+              <kbd className="shrink-0 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-1.5 py-0.5 font-mono text-[10px] leading-none text-[var(--color-text-muted)]">
+                esc
+              </kbd>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto p-1">
+              {filtered.length === 0 ? (
+                <p className="px-3 py-10 text-center text-sm text-[var(--color-text-muted)]">
+                  No matching commands.
+                </p>
+              ) : (
+                <ul role="listbox" aria-label="Commands">
+                  {filtered.map((item, i) => {
+                    const active = i === activeIndex;
+                    const Icon = item.icon;
+                    return (
+                      <li key={item.id} role="option" aria-selected={active}>
+                        <button
+                          type="button"
+                          onMouseEnter={() => setActiveIndex(i)}
+                          onMouseDown={(e) => {
+                            // Commit on mousedown so click events don't race with
+                            // the overlay's close handler.
+                            e.preventDefault();
+                            e.stopPropagation();
+                            select(item);
+                          }}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
+                            active
+                              ? "bg-[var(--color-surface-muted)] text-[var(--color-text)]"
+                              : "text-[var(--color-text)]",
+                          )}
+                        >
+                          <Icon
+                            size={16}
+                            className="shrink-0 text-[var(--color-text-muted)]"
+                          />
+                          <span className="min-w-0 flex-1 truncate">
+                            {item.label}
+                          </span>
+                          <AnimatePresence initial={false}>
+                            {active && (
+                              <motion.span
+                                key="caret"
+                                initial={
+                                  reduceMotion ? false : { opacity: 0, x: -2 }
+                                }
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.1 }}
+                                className="shrink-0 text-[var(--color-text-muted)]"
+                              >
+                                <ArrowRight size={14} />
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-3 py-2 text-[10px] text-[var(--color-text-muted)]">
+              <span className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <Key>↑</Key>
+                  <Key>↓</Key>
+                  navigate
+                </span>
+                <span className="flex items-center gap-1">
+                  <Key>↵</Key>
+                  open
+                </span>
+              </span>
+              <span>
+                {filtered.length} of {ITEMS.length}
+              </span>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function Key({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 font-mono text-[10px] leading-none">
+      {children}
+    </kbd>
   );
 }

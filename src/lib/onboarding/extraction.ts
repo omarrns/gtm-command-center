@@ -1,49 +1,54 @@
 import type { UIMessage } from "ai";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { generateObject } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { z } from "zod";
 import { EXTRACTION_SYSTEM_PROMPT } from "./extraction-prompt";
 
-export interface ExtractionProfile {
-  positioning: string;
-  careerHighlights: string;
-  proofPoints: string;
-  technicalTools: string;
-}
+const profileSchema = z.object({
+  positioning: z.string().default(""),
+  careerHighlights: z.string().default(""),
+  proofPoints: z.string().default(""),
+  technicalTools: z.string().default(""),
+});
 
-export interface ExtractionSearch {
-  searchQueries: string[];
-  searchLocations: string[];
-  scoreThreshold: number;
-  dailySendCap: number;
-}
+const searchSchema = z.object({
+  searchQueries: z.array(z.string()).default(["Software Engineer"]),
+  searchLocations: z.array(z.string()).default(["Remote"]),
+  scoreThreshold: z.number().default(70),
+  dailySendCap: z.number().default(10),
+});
 
-export interface ExtractionOutreach {
-  greenFlags: string;
-  redFlags: string;
-  outreachTone: "casual" | "direct" | "formal";
-  whatsWorked: string;
-  whatToAvoid: string;
-}
+const outreachSchema = z.object({
+  greenFlags: z.string().default(""),
+  redFlags: z.string().default(""),
+  outreachTone: z.enum(["casual", "direct", "formal"]).default("casual"),
+  whatsWorked: z.string().default(""),
+  whatToAvoid: z.string().default(""),
+});
 
-export interface ExtractionInsights {
-  career_narrative: string;
-  decision_drivers: string[];
-  unstated_preferences: string[];
-  strongest_stories: string[];
-  positioning_alternatives: string[];
-  risk_tolerance: string;
-  communication_style_notes: string;
-}
+const insightsSchema = z.object({
+  career_narrative: z.string().default(""),
+  decision_drivers: z.array(z.string()).default([]),
+  unstated_preferences: z.array(z.string()).default([]),
+  strongest_stories: z.array(z.string()).default([]),
+  positioning_alternatives: z.array(z.string()).default([]),
+  risk_tolerance: z.string().default(""),
+  communication_style_notes: z.string().default(""),
+});
 
-export interface ExtractionResult {
-  profile: ExtractionProfile;
-  search: ExtractionSearch;
-  outreach: ExtractionOutreach;
-  insights: ExtractionInsights;
-}
+export const extractionResultSchema = z.object({
+  profile: profileSchema,
+  search: searchSchema,
+  outreach: outreachSchema,
+  insights: insightsSchema,
+});
 
-/**
- * Format UIMessages into a plain-text transcript for extraction.
- */
+export type ExtractionProfile = z.infer<typeof profileSchema>;
+export type ExtractionSearch = z.infer<typeof searchSchema>;
+export type ExtractionOutreach = z.infer<typeof outreachSchema>;
+export type ExtractionInsights = z.infer<typeof insightsSchema>;
+export type ExtractionResult = z.infer<typeof extractionResultSchema>;
+
 function formatTranscript(messages: UIMessage[]): string {
   const lines: string[] = [];
 
@@ -59,76 +64,18 @@ function formatTranscript(messages: UIMessage[]): string {
   return lines.join("\n\n");
 }
 
-/**
- * Run Opus extraction on interview transcript.
- * Returns structured data matching wizard-compatible shapes + richer insights.
- */
 export async function runExtractionFromTranscript(
   messages: UIMessage[],
 ): Promise<ExtractionResult> {
   const transcript = formatTranscript(messages);
 
-  const result = await runClaudeJson<ExtractionResult>({
+  const { object } = await generateObject({
+    model: anthropic("claude-opus-4-6"),
     system: EXTRACTION_SYSTEM_PROMPT,
     prompt: `<transcript>\n${transcript}\n</transcript>\n\nExtract the structured data from this interview transcript.`,
-    model: "claude-opus-4-6",
-    maxTokens: 4096,
+    schema: extractionResultSchema,
+    maxOutputTokens: 4096,
   });
 
-  // Validate and apply defaults for required fields
-  return {
-    profile: {
-      positioning: result.profile?.positioning ?? "",
-      careerHighlights: result.profile?.careerHighlights ?? "",
-      proofPoints: result.profile?.proofPoints ?? "",
-      technicalTools: result.profile?.technicalTools ?? "",
-    },
-    search: {
-      searchQueries: Array.isArray(result.search?.searchQueries)
-        ? result.search.searchQueries
-        : ["Software Engineer"],
-      searchLocations: Array.isArray(result.search?.searchLocations)
-        ? result.search.searchLocations
-        : ["Remote"],
-      scoreThreshold:
-        typeof result.search?.scoreThreshold === "number"
-          ? result.search.scoreThreshold
-          : 70,
-      dailySendCap:
-        typeof result.search?.dailySendCap === "number"
-          ? result.search.dailySendCap
-          : 10,
-    },
-    outreach: {
-      greenFlags: result.outreach?.greenFlags ?? "",
-      redFlags: result.outreach?.redFlags ?? "",
-      outreachTone:
-        result.outreach?.outreachTone &&
-        ["casual", "direct", "formal"].includes(result.outreach.outreachTone)
-          ? result.outreach.outreachTone
-          : "casual",
-      whatsWorked: result.outreach?.whatsWorked ?? "",
-      whatToAvoid: result.outreach?.whatToAvoid ?? "",
-    },
-    insights: {
-      career_narrative: result.insights?.career_narrative ?? "",
-      decision_drivers: Array.isArray(result.insights?.decision_drivers)
-        ? result.insights.decision_drivers
-        : [],
-      unstated_preferences: Array.isArray(result.insights?.unstated_preferences)
-        ? result.insights.unstated_preferences
-        : [],
-      strongest_stories: Array.isArray(result.insights?.strongest_stories)
-        ? result.insights.strongest_stories
-        : [],
-      positioning_alternatives: Array.isArray(
-        result.insights?.positioning_alternatives,
-      )
-        ? result.insights.positioning_alternatives
-        : [],
-      risk_tolerance: result.insights?.risk_tolerance ?? "",
-      communication_style_notes:
-        result.insights?.communication_style_notes ?? "",
-    },
-  };
+  return object;
 }
