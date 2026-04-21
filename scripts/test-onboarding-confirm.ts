@@ -265,6 +265,19 @@ async function assertExpectedDbState(userId: string, interviewId: string) {
     interview?.template_version === "v1",
     `onboarding_interviews.template_version unchanged at 'v1' (got ${interview?.template_version})`,
   );
+
+  // SPEC-3 Phase 3.a: confirm writes profiles.user_type from the template.
+  // job_search → 'job_seeker'. This asserts the write-timing rule: the
+  // persona is stamped exactly at confirm, nowhere earlier.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_type")
+    .eq("user_id", userId)
+    .single();
+  assert(
+    profile?.user_type === "job_seeker",
+    `profiles.user_type='job_seeker' (got ${profile?.user_type})`,
+  );
 }
 
 async function assertNoDuplicates(userId: string) {

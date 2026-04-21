@@ -108,6 +108,27 @@ export async function performConfirm(
       throw new Error(`Confirm status failed: ${confirmErr.message}`);
     }
 
+    // SPEC-3: write profiles.user_type from the template's declared persona.
+    // This is the canonical write per the hard constraint — only at the
+    // first successful confirm, never on persona-card click or pre-confirm
+    // template switch. Idempotent: re-confirming the same template doesn't
+    // change user_type; a different template (via reset flow, Phase 8) will
+    // overwrite.
+    const { error: personaErr } = await svc
+      .from("profiles")
+      .update({ user_type: template.userTypeOnConfirm })
+      .eq("user_id", userId);
+
+    if (personaErr) {
+      // Non-fatal: the interview is already marked 'confirmed' and outputs
+      // are written. user_type can be retried on the next /onboard visit
+      // via Phase 2.c's safety net. Log and succeed.
+      console.error(
+        `[performConfirm] profiles.user_type write failed for user ${userId}:`,
+        personaErr.message,
+      );
+    }
+
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Confirmation failed";
