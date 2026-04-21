@@ -85,9 +85,11 @@ export async function performConfirm(
       if (output.type === "pipeline_config") {
         const payload = output.transform({ edits: parsedEdits, extraction });
         if (payload === null) continue;
+        // Spread first, user_id last — a misconfigured template transform
+        // that emits user_id must never override the authenticated user.
         const { error } = await svc
           .from("pipeline_config")
-          .upsert({ user_id: userId, ...payload }, { onConflict: "user_id" });
+          .upsert({ ...payload, user_id: userId }, { onConflict: "user_id" });
         if (error) {
           throw new Error(`pipeline_config write failed: ${error.message}`);
         }

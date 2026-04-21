@@ -76,6 +76,7 @@ export default async function OnboardPage(props: {
       .from("onboarding_interviews")
       .select("*")
       .eq("user_id", user.id)
+      .eq("template_id", "job_search")
       .in("status", ["in_progress", "extracting", "review"])
       .maybeSingle(),
   ]);
