@@ -160,8 +160,39 @@ export async function extractAndReviewAction(
     return { ok: false, error: "Interview not found" };
   }
 
-  // If already in review/extracting, just return current state (idempotent)
+  // If already in review/extracting, just return current state (idempotent).
+  // Agentic safety net: if the chat route's onFinish didn't land before the
+  // client transitioned (rare — user disconnected mid-wrap-up), hydrate
+  // extracted_* from orchestrator_state here so the review UI has real
+  // initial values to render.
   if (interview.status === "review" || interview.status === "extracting") {
+    const template = getTemplate(interview.template_id);
+    const needsHydration =
+      template.agenticMode &&
+      interview.status === "review" &&
+      interview.extracted_profile === null &&
+      interview.orchestrator_state !== null;
+
+    if (needsHydration) {
+      const state = interview.orchestrator_state as OrchestratorState;
+      const { edits } = toJobSearchConfirmEdits(state);
+      const { data: hydrated } = await svc
+        .from("onboarding_interviews")
+        .update({
+          extracted_profile: edits.profile,
+          extracted_search: edits.search,
+          extracted_outreach: edits.outreach,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", interviewId)
+        .select("*")
+        .single();
+      return {
+        ok: true,
+        interview: (hydrated ?? interview) as OnboardingInterviewRow,
+      };
+    }
+
     return { ok: true, interview: interview as OnboardingInterviewRow };
   }
 

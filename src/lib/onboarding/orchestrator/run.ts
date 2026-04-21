@@ -44,7 +44,7 @@ const singleDimensionResultSchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
-async function loadSucceededArtifacts(
+async function loadArtifactsForInterview(
   svc: SupabaseClient,
   interviewId: string,
 ): Promise<OnboardingArtifactRow[]> {
@@ -52,7 +52,6 @@ async function loadSucceededArtifacts(
     .from("onboarding_artifacts")
     .select("*")
     .eq("interview_id", interviewId)
-    .eq("status", "succeeded")
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(`Failed to load artifacts: ${error.message}`);
@@ -82,13 +81,22 @@ function buildDimensionsBlock(dimensions: readonly Dimension[]): string {
     .join("\n");
 }
 
+// Max times the interviewer can ask the same dimension. Bounded so an
+// ambiguous answer can still get a follow-up, but the interview can't loop
+// forever on one stubbornly-low-confidence dimension. When the cap is hit,
+// the dimension graduates even if still below threshold and the user
+// corrects it at review.
+const MAX_ASKS_PER_DIMENSION = 2;
+
 function computeNextKey(
   state: OrchestratorState,
   template: AgenticTemplate,
 ): string | null {
-  const asked = new Set(state.askedDimensionKeys);
   for (const dim of template.dimensions) {
-    if (asked.has(dim.key)) continue;
+    const askCount = state.askedDimensionKeys.filter(
+      (k) => k === dim.key,
+    ).length;
+    if (askCount >= MAX_ASKS_PER_DIMENSION) continue;
     const cur = state.dimensions[dim.key];
     if (!cur || cur.confidence < dim.confidenceThreshold) {
       return dim.key;
@@ -118,7 +126,9 @@ export async function analyzeArtifacts(
   template: AgenticTemplate,
   ctx: { isRefresh: boolean; existingProfile?: string },
 ): Promise<OrchestratorState> {
-  const artifacts = await loadSucceededArtifacts(svc, interviewId);
+  const allArtifacts = await loadArtifactsForInterview(svc, interviewId);
+  const succeeded = allArtifacts.filter((a) => a.status === "succeeded");
+  const failed = allArtifacts.filter((a) => a.status === "failed");
 
   // Load current state so we can preserve answered dimensions and the
   // asked-keys history across re-analyses.
@@ -141,7 +151,9 @@ export async function analyzeArtifacts(
     ...prior,
     templateId: template.id,
     status: "analyzing",
-    artifacts: artifacts.map((a) => ({
+    // Manifest includes ALL artifacts (succeeded + failed) so the status
+    // panel can surface failures after the user enters the chat phase.
+    artifacts: allArtifacts.map((a) => ({
       id: a.id,
       kind: a.kind,
       sourceType: a.source_type,
@@ -152,12 +164,14 @@ export async function analyzeArtifacts(
     })),
     metrics: {
       ...prior.metrics,
-      artifactSuccessCount: artifacts.length,
+      artifactSuccessCount: succeeded.length,
+      artifactFailureCount: failed.length,
     },
   };
 
-  if (artifacts.length === 0) {
-    // No artifacts, nothing to analyze. Interviewer will ask every dimension.
+  if (succeeded.length === 0) {
+    // No succeeded artifacts to analyze. Interviewer will ask every
+    // dimension. Failures are still in the manifest for UI visibility.
     next.status = "interviewing";
     next.nextDimensionKey = computeNextKey(next, template);
     await persistState(svc, interviewId, next);
@@ -165,7 +179,7 @@ export async function analyzeArtifacts(
   }
 
   const prompt = [
-    `<artifacts>\n${buildArtifactsBlock(artifacts)}\n</artifacts>`,
+    `<artifacts>\n${buildArtifactsBlock(succeeded)}\n</artifacts>`,
     `<dimensions>\n${buildDimensionsBlock(template.dimensions)}\n</dimensions>`,
     ctx.existingProfile
       ? `<existing_profile>\n${ctx.existingProfile}\n</existing_profile>`
