@@ -41,6 +41,29 @@ export async function checkInterviewStateAction(
   };
 }
 
+// ── Fetch Orchestrator State (agentic mode polling) ──
+
+export async function getOrchestratorStateAction(interviewId: string): Promise<{
+  orchestratorState: OrchestratorState | null;
+  interviewStatus: string;
+}> {
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
+
+  const { data } = await svc
+    .from("onboarding_interviews")
+    .select("orchestrator_state, status")
+    .eq("id", interviewId)
+    .eq("user_id", user.id)
+    .single();
+
+  return {
+    orchestratorState:
+      (data?.orchestrator_state as OrchestratorState | null) ?? null,
+    interviewStatus: (data?.status as string) ?? "in_progress",
+  };
+}
+
 // ── Get or Create Interview ──
 
 export async function getOrCreateInterviewAction(

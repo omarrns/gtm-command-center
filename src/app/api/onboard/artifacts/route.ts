@@ -6,6 +6,10 @@ import {
   ingestUrl,
   type IngestOptions,
 } from "@/lib/onboarding/artifacts/ingest";
+import { getTemplate } from "@/lib/onboarding/templates";
+import { analyzeArtifacts } from "@/lib/onboarding/orchestrator/run";
+import type { OnboardingArtifactRow } from "@/lib/supabase/types";
+import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 
 export const maxDuration = 120;
 
@@ -53,7 +57,8 @@ export async function POST(req: Request) {
     };
     const buffer = await file.arrayBuffer();
     const row = await ingestFile(buffer, file.name, file.type, opts, svc);
-    return Response.json({ artifact: row });
+    const orchestratorState = await maybeAnalyze(svc, interviewId, row);
+    return Response.json({ artifact: row, orchestratorState });
   }
 
   const body = (await req.json()) as ArtifactRequestBody;
@@ -77,18 +82,49 @@ export async function POST(req: Request) {
 
   if (body.url) {
     const row = await ingestUrl(body.url, opts, svc);
-    return Response.json({ artifact: row });
+    const orchestratorState = await maybeAnalyze(svc, opts.interviewId, row);
+    return Response.json({ artifact: row, orchestratorState });
   }
 
   if (body.text) {
     const row = await ingestText(body.text, opts, svc);
-    return Response.json({ artifact: row });
+    const orchestratorState = await maybeAnalyze(svc, opts.interviewId, row);
+    return Response.json({ artifact: row, orchestratorState });
   }
 
   return Response.json(
     { error: "Provide one of: url, text, or a multipart file." },
     { status: 400 },
   );
+}
+
+/**
+ * After a successful artifact landing, trigger orchestrator re-analysis for
+ * the interview's template (if it's agentic). Failed artifacts don't advance
+ * the orchestrator — the status panel will show the failure to the user.
+ */
+async function maybeAnalyze(
+  svc: ReturnType<typeof createSupabaseServiceClient>,
+  interviewId: string | null,
+  artifact: OnboardingArtifactRow,
+): Promise<OrchestratorState | null> {
+  if (!interviewId) return null;
+  if (artifact.status !== "succeeded") return null;
+
+  const { data: interview } = await svc
+    .from("onboarding_interviews")
+    .select("template_id, is_refresh")
+    .eq("id", interviewId)
+    .single();
+
+  if (!interview) return null;
+
+  const template = getTemplate(interview.template_id);
+  if (!template.agenticMode) return null;
+
+  return analyzeArtifacts(interviewId, svc, template, {
+    isRefresh: interview.is_refresh,
+  });
 }
 
 async function checkInterviewOwnership(
