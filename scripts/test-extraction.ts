@@ -7,6 +7,9 @@
  * Usage: npx tsx scripts/test-extraction.ts
  */
 
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import type { UIMessage } from "ai";
 
 // Inline transcript fixture (same as onboard-fixture.ts)
