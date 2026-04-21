@@ -240,10 +240,16 @@ export interface OnboardingInterviewRow {
   messages: unknown[];
   status: OnboardingInterviewStatus;
   ready_for_extraction: boolean;
+  // Legacy job_search-shaped extraction columns. Preserved via dual-write in
+  // Phase 1.b for rollback safety; dropped in a cleanup commit after Phase 3
+  // stabilises (tracked in docs/DEFERRED.md).
   extracted_profile: Record<string, unknown> | null;
   extracted_search: Record<string, unknown> | null;
   extracted_outreach: Record<string, unknown> | null;
   extracted_insights: Record<string, unknown> | null;
+  // Unified extraction payload. Shape is template-specific — readers must
+  // validate via the active template's extractionSchema, not a global type.
+  extracted: Record<string, unknown> | null;
   topics_covered: string[];
   is_refresh: boolean;
   template_id: string;
