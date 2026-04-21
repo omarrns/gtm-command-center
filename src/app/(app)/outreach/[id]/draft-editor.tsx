@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { saveEmailDraftAction } from "../actions";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DetailHeader } from "@/components/detail-header";
@@ -136,23 +137,19 @@ export function DraftEditor({
       </div>
 
       <div className="flex items-center gap-3 mt-5">
-        <button
-          type="button"
-          onClick={onSave}
-          className="btn-primary"
-          disabled={isPending}
-        >
+        <Button type="button" onClick={onSave} disabled={isPending}>
           {isPending ? "Saving…" : saved ? "Saved" : "Save Draft"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="xs"
           onClick={onCopy}
-          className="btn-ghost border border-[var(--color-border)] flex items-center gap-1.5 text-xs"
           aria-label="Copy to clipboard"
         >
           {copied ? <Check size={14} /> : <Copy size={14} />}
           {copied ? "Copied" : "Copy to clipboard"}
-        </button>
+        </Button>
       </div>
     </div>
   );

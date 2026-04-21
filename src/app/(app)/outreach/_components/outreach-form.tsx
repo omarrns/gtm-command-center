@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { generateEmailDraftAction } from "../actions";
 
@@ -82,9 +83,9 @@ export function OutreachForm({ prefill }: { prefill: Prefill }) {
       </div>
 
       <div className="flex items-center gap-3 pt-1">
-        <button type="submit" className="btn-primary" disabled={isPending}>
+        <Button type="submit" disabled={isPending}>
           {isPending ? "Generating…" : "Generate Draft"}
-        </button>
+        </Button>
         {isPending && (
           <span className="text-xs text-[var(--color-text-muted)]">
             Drafting (~8s)…

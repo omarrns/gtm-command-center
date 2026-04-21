@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
+import { buttonVariants } from "@/components/ui/button";
 
 interface DetailHeaderProps {
   backHref: string;
@@ -21,7 +22,7 @@ export function DetailHeader({
     <div className="flex items-center gap-3 mb-6">
       <Link
         href={backHref}
-        className="btn-ghost p-1.5 rounded-md"
+        className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
         aria-label={backLabel}
       >
         <ArrowLeft size={16} />

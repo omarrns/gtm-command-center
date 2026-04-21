@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { sendMagicLinkAction, signInWithGoogleAction } from "./actions";
 
@@ -49,13 +50,9 @@ export function LoginForm({ next, error }: { next?: string; error?: string }) {
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
-        <button
-          type="submit"
-          className="btn-primary w-full flex items-center justify-center"
-          disabled={isPending}
-        >
+        <Button type="submit" className="w-full" disabled={isPending}>
           {isPending ? "Sending…" : "Email me a magic link"}
-        </button>
+        </Button>
       </form>
 
       <div className="flex items-center gap-3 text-xs text-[var(--color-text-subtle)]">
@@ -64,14 +61,15 @@ export function LoginForm({ next, error }: { next?: string; error?: string }) {
         <div className="h-px flex-1 bg-[var(--color-border)]" />
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="outline"
+        className="w-full"
         onClick={onGoogle}
-        className="btn-ghost w-full border border-[var(--color-border)]"
         disabled={isPending}
       >
         Continue with Google
-      </button>
+      </Button>
 
       {message && (
         <p className="text-sm text-[var(--color-success)]">{message}</p>

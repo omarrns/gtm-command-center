@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ExternalLink, UserPen } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import type { UserScoringProfileRow } from "@/lib/supabase/types";
 import { SettingsGmailPanel } from "./settings-gmail-panel";
 import { SettingsSearchPanel } from "./settings-search-panel";
@@ -47,7 +48,7 @@ export function SettingsClient({
         </p>
         <Link
           href="/onboard?mode=refresh"
-          className="btn-ghost inline-flex items-center gap-1.5 text-sm"
+          className={buttonVariants({ variant: "ghost" })}
         >
           <ExternalLink size={13} />
           Edit Profile

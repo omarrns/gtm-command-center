@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { Mail, MailX, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { disconnectGmailAction } from "../actions";
 
 interface SettingsGmailPanelProps {
@@ -43,15 +44,17 @@ export function SettingsGmailPanel({
               <span className="font-medium">{gmailAddress ?? "unknown"}</span>
             </span>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={handleDisconnect}
             disabled={isPending}
-            className="btn-ghost flex items-center gap-1.5 text-xs text-[var(--color-danger)]"
+            className="text-[var(--color-danger)]"
           >
             <MailX size={13} />
             {isPending ? "Disconnecting..." : "Disconnect Gmail"}
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -59,10 +62,7 @@ export function SettingsGmailPanel({
             Connect your Gmail account to send approved outreach emails directly
             from the pipeline.
           </p>
-          <a
-            href="/api/auth/gmail"
-            className="btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2"
-          >
+          <a href="/api/auth/gmail" className={buttonVariants()}>
             <ExternalLink size={13} />
             Connect Gmail
           </a>

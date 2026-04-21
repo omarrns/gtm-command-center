@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { formatRelativeTime } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { DetailHeader } from "@/components/detail-header";
 import { StatusBanner } from "@/components/status-banner";
 import type { ResearchReportRow } from "@/lib/supabase/types";
@@ -162,7 +163,7 @@ function PersonCard({
               href={person.linkedin}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-ghost p-1 rounded"
+              className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
               aria-label={`${person.name} LinkedIn profile`}
             >
               <ExternalLink size={14} />

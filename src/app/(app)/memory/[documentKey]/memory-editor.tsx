@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Save, Check } from "lucide-react";
 import { toast } from "sonner";
 import { saveMemoryDocumentAction } from "./actions";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DetailHeader } from "@/components/detail-header";
 import type { MemoryDocumentRow } from "@/lib/supabase/types";
@@ -38,15 +39,10 @@ export function MemoryEditor({ doc }: { doc: MemoryDocumentRow }) {
         title=""
         subtitle={`${doc.document_key} · ${doc.origin}`}
       >
-        <button
-          type="button"
-          onClick={onSave}
-          className="btn-primary flex items-center gap-1.5"
-          disabled={isPending}
-        >
+        <Button type="button" onClick={onSave} disabled={isPending}>
           {saved ? <Check size={14} /> : <Save size={14} />}
           {isPending ? "Saving…" : saved ? "Saved" : "Save"}
-        </button>
+        </Button>
       </DetailHeader>
 
       {/* Inline title editor replaces the header title */}
