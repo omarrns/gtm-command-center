@@ -34,7 +34,17 @@ export type OutputMapping<E, X> =
   | OutputPipelineConfig<E, X>
   | OutputScoringProfileNormalize;
 
-export interface InterviewTemplate<E = unknown, X = unknown> {
+// Per-dimension rubric config used by the agentic orchestrator + interviewer.
+// `key` identifies the dimension across OrchestratorState.dimensions and the
+// template's rubricSchema top-level keys.
+export interface Dimension {
+  key: string;
+  label: string;
+  description: string;
+  confidenceThreshold: number;
+}
+
+interface BaseInterviewTemplate<E, X> {
   id: InterviewTemplateId;
   version: string;
 
@@ -50,7 +60,7 @@ export interface InterviewTemplate<E = unknown, X = unknown> {
   chatModel: string;
   chatMaxOutputTokens: number;
 
-  // Topic tracking
+  // Topic tracking (legacy)
   topics: readonly string[];
   topicLabels: Record<string, string>;
 
@@ -66,6 +76,26 @@ export interface InterviewTemplate<E = unknown, X = unknown> {
   outputs: readonly OutputMapping<E, X>[];
 }
 
+export interface InterviewerContext extends InterviewPromptContext {
+  nextDimension: Dimension;
+  currentHypothesis: string;
+}
+
+// A template either runs the legacy extract-then-review flow or the agentic
+// orchestrator+interviewer flow. Discriminated by `agenticMode` so callers
+// that need orchestrator-specific fields narrow cleanly.
+export type InterviewTemplate<E = unknown, X = unknown> =
+  | (BaseInterviewTemplate<E, X> & { agenticMode: false })
+  | (BaseInterviewTemplate<E, X> & {
+      agenticMode: true;
+      dimensions: readonly Dimension[];
+      rubricSchema: z.ZodType<unknown, z.ZodTypeDef, unknown>;
+      orchestratorModel: string;
+      orchestratorMaxOutputTokens: number;
+      orchestratorSystemPrompt: (ctx: InterviewPromptContext) => string;
+      interviewerSystemPrompt: (ctx: InterviewerContext) => string;
+    });
+
 // Client-safe projection. Client components cannot receive zod schemas,
 // functions, or tool definitions across the RSC boundary — only the plain
 // data they actually render.
@@ -75,4 +105,6 @@ export interface ClientInterviewTemplate {
   topicLabels: Record<string, string>;
   openingMessage: string;
   refreshOpeningMessage: string;
+  agenticMode: boolean;
+  dimensions: ReadonlyArray<{ key: string; label: string }>;
 }

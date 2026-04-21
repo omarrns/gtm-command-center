@@ -215,6 +215,10 @@ npm run test:onboarding-confirm # DB-integration regression test for the confirm
 npm run test:correctness       # Verify recent pipeline correctness guardrails
 ```
 
+## Plans
+
+When creating a plan, also write a human-readable copy to `.claude/plans/<feature-slug>.md` where the slug describes the build (e.g., `phase-2-icp-template.md`, `fix-scoring-weights.md`). Use the same content as the plan. The CLI may generate its own random-named file alongside it — that's fine, ignore it.
+
 ## Behavioral Principles
 
 These govern how you approach work. Follow them before touching any code.
