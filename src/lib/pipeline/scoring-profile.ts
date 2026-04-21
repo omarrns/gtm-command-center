@@ -10,6 +10,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadMemoryContext } from "@/lib/skills/context";
+import { extractSection } from "@/lib/onboarding/markdown";
 
 // ── Vocabularies ──
 
@@ -126,15 +127,6 @@ async function loadPipelineConfig(
     .eq("user_id", userId)
     .maybeSingle();
   return data;
-}
-
-/** Extract a named ## Section from markdown content. */
-function extractSection(content: string, heading: string): string {
-  const pattern = new RegExp(
-    `## ${heading}\\s*\\n\\n([\\s\\S]*?)(?=\\n## |\\n---\\n|$)`,
-  );
-  const match = content.match(pattern);
-  return match?.[1]?.trim() ?? "";
 }
 
 /**

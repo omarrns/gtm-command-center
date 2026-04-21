@@ -12,6 +12,7 @@
  */
 
 import type { MemoryContext } from "./context";
+import { extractSection } from "@/lib/onboarding/markdown";
 
 // ── Public interface ──
 
@@ -95,15 +96,6 @@ function extractFirstName(displayName?: string | null): string {
   const name = displayName?.trim();
   if (!name) return "there";
   return name.split(/\s+/)[0];
-}
-
-/** Extract a named ## Section from Phase 8 sectioned markdown content. */
-function extractSection(content: string, heading: string): string {
-  const pattern = new RegExp(
-    `## ${heading}\\s*\\n\\n([\\s\\S]*?)(?=\\n## |\\n---\\n|$)`,
-  );
-  const match = content.match(pattern);
-  return match?.[1]?.trim() ?? "";
 }
 
 function extractTools(profile: string): string[] {
