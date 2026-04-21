@@ -183,6 +183,8 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
   id: "job_search",
   version: "v1",
 
+  agenticMode: false,
+
   systemPrompt: (ctx) => buildInterviewPrompt(ctx),
   tools: interviewTools,
   openingMessage: OPENING_MESSAGE,

@@ -239,6 +239,37 @@ export interface OnboardingInterviewRow {
   is_refresh: boolean;
   template_id: string;
   template_version: string;
+  orchestrator_state: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Agentic onboarding artifacts (SPEC-2)
+// ---------------------------------------------------------------------------
+
+export type OnboardingArtifactSourceType = "url" | "file" | "text";
+export type OnboardingArtifactStatus =
+  | "pending"
+  | "processing"
+  | "succeeded"
+  | "failed";
+
+export interface OnboardingArtifactRow {
+  id: string;
+  user_id: string;
+  interview_id: string | null;
+  kind: string;
+  source_type: OnboardingArtifactSourceType;
+  source_label: string | null;
+  source_url: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  status: OnboardingArtifactStatus;
+  normalized_markdown: string | null;
+  error_message: string | null;
+  created_from_template_id: string;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

@@ -33,6 +33,10 @@ export function toClientTemplate(
     topicLabels: template.topicLabels,
     openingMessage: template.openingMessage,
     refreshOpeningMessage: template.refreshOpeningMessage,
+    agenticMode: template.agenticMode,
+    dimensions: template.agenticMode
+      ? template.dimensions.map((d) => ({ key: d.key, label: d.label }))
+      : [],
   };
 }
 
