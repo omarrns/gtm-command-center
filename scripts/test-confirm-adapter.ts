@@ -260,9 +260,13 @@ async function main() {
     byKey.has("feedback_outreach_style"),
     "feedback_outreach_style memory_doc written",
   );
+  // The direct adapter + performConfirm path does NOT synthesize insights —
+  // that runs one layer up in confirmInterviewAction (the server action),
+  // which invokes runExtractionFromTranscript before calling performConfirm.
+  // This test exercises the adapter layer only.
   assert(
     !byKey.has("interview_insights"),
-    "interview_insights SKIPPED (orchestrator produces no insights)",
+    "interview_insights skipped at this layer (synthesized in confirmInterviewAction, not performConfirm)",
   );
 
   const profile = byKey.get("user_profile") ?? "";

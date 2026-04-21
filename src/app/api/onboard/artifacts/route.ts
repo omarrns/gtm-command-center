@@ -99,17 +99,18 @@ export async function POST(req: Request) {
 }
 
 /**
- * After a successful artifact landing, trigger orchestrator re-analysis for
- * the interview's template (if it's agentic). Failed artifacts don't advance
- * the orchestrator — the status panel will show the failure to the user.
+ * After any artifact lands (succeeded OR failed), sync orchestrator_state.
+ * Failed artifacts don't produce new dimension inferences — analyzeArtifacts
+ * short-circuits the Opus call when zero-succeeded — but they DO need to
+ * land in orchestrator_state.artifacts so the status panel (which reads
+ * from saved state during the chat phase) stays visible.
  */
 async function maybeAnalyze(
   svc: ReturnType<typeof createSupabaseServiceClient>,
   interviewId: string | null,
-  artifact: OnboardingArtifactRow,
+  _artifact: OnboardingArtifactRow,
 ): Promise<OrchestratorState | null> {
   if (!interviewId) return null;
-  if (artifact.status !== "succeeded") return null;
 
   const { data: interview } = await svc
     .from("onboarding_interviews")
