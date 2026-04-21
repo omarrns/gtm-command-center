@@ -6,6 +6,11 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { runExtractionFromTranscript } from "@/lib/onboarding/extraction";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
+import { toJobSearchConfirmEdits } from "@/lib/onboarding/orchestrator/to-confirm-edits";
+import {
+  emptyOrchestratorState,
+  type OrchestratorState,
+} from "@/lib/onboarding/orchestrator/types";
 import { performConfirm, type ConfirmEdits } from "./confirm-logic";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { UIMessage } from "ai";
@@ -213,6 +218,53 @@ export async function confirmInterviewAction(
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
 
+  // Agentic mode: run the orchestrator state + user-edits through the
+  // adapter, persist metrics.reviewEdits into orchestrator_state before
+  // confirming, then delegate to the unchanged performConfirm pathway.
+  const { data: row } = await svc
+    .from("onboarding_interviews")
+    .select("template_id, orchestrator_state")
+    .eq("id", interviewId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (row) {
+    const template = getTemplate(row.template_id);
+    if (template.agenticMode) {
+      const state =
+        (row.orchestrator_state as OrchestratorState | null) ??
+        emptyOrchestratorState(template.id);
+      const { edits: finalEdits, reviewEdits } = toJobSearchConfirmEdits(
+        state,
+        edits,
+      );
+
+      await svc
+        .from("onboarding_interviews")
+        .update({
+          orchestrator_state: {
+            ...state,
+            metrics: { ...state.metrics, reviewEdits },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", interviewId);
+
+      const agenticResult = await performConfirm(
+        svc,
+        user.id,
+        interviewId,
+        finalEdits,
+      );
+      if (agenticResult.ok) {
+        revalidatePath("/onboard");
+        revalidatePath("/");
+      }
+      return agenticResult;
+    }
+  }
+
+  // Legacy path
   const result = await performConfirm(svc, user.id, interviewId, edits);
 
   if (result.ok) {
