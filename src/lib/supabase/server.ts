@@ -48,7 +48,10 @@ export async function getCurrentUser() {
 export async function requireUser() {
   const user = await getCurrentUser();
 
-  if (process.env.NODE_ENV === "development") {
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.DISABLE_DEV_USER !== "true"
+  ) {
     return (
       user ??
       ({

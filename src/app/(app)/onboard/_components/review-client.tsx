@@ -2,14 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ChevronDown,
-  ChevronUp,
-  X,
-  Plus,
-  Sparkles,
-  ArrowLeft,
-} from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import {
   confirmInterviewAction,
@@ -23,10 +16,14 @@ import type {
   ExtractionInsights,
 } from "@/lib/onboarding/extraction";
 import {
+  extractSection,
+  extractTone,
   type OutreachTone,
-  extractSectionFromMarkdown,
-  inferToneFromMarkdown,
-} from "./review-helpers";
+} from "@/lib/onboarding/markdown";
+import { ReviewSectionProfile } from "./review-sections/review-section-profile";
+import { ReviewSectionSearch } from "./review-sections/review-section-search";
+import { ReviewSectionOutreach } from "./review-sections/review-section-outreach";
+import { ReviewSectionInsights } from "./review-sections/review-section-insights";
 
 interface ExistingData {
   config: {
@@ -65,17 +62,15 @@ export function ReviewClient({
   const extractedInsights = (interview.extracted_insights ??
     {}) as unknown as ExtractionInsights;
 
-  // In refresh mode, use topics_covered to decide whether to trust
-  // extracted values. If a topic wasn't covered in the interview, the
-  // extractor returns defaults that would clobber existing saved data.
+  // In refresh mode, use topics_covered to decide whether to trust extracted
+  // values. If a topic wasn't covered in the interview, the extractor returns
+  // defaults that would clobber existing saved data.
   const saved = existingData;
   const topics = new Set(interview.topics_covered);
   const searchCovered = topics.has("search_prefs");
   const outreachCovered = topics.has("outreach_style");
   const dealsCovered = topics.has("dealbreakers");
 
-  // ── Editable state ──
-  // Profile fields: always trust extraction (identity/career are always covered)
   const [positioning, setPositioning] = useState(
     extractedProfile.positioning ?? "",
   );
@@ -89,8 +84,6 @@ export function ReviewClient({
     extractedProfile.technicalTools ?? "",
   );
 
-  // Search fields: only trust extraction if search_prefs was covered,
-  // otherwise preserve existing saved config
   const [searchQueries, setSearchQueries] = useState<string[]>(
     searchCovered
       ? extractedSearch.searchQueries
@@ -113,47 +106,43 @@ export function ReviewClient({
       ? (extractedSearch.dailySendCap ?? 10)
       : (saved?.config?.dailySendCap ?? extractedSearch.dailySendCap ?? 10),
   );
-  const [queryInput, setQueryInput] = useState("");
-  const [locationInput, setLocationInput] = useState("");
 
-  // Outreach/dealbreaker fields: only trust extraction if the topic was covered
   const [greenFlags, setGreenFlags] = useState(
     dealsCovered
       ? (extractedOutreach.greenFlags ?? "")
-      : extractSectionFromMarkdown(saved?.dealbreakers, "Green Flags") ||
+      : extractSection(saved?.dealbreakers, "Green Flags") ||
           extractedOutreach.greenFlags ||
           "",
   );
   const [redFlags, setRedFlags] = useState(
     dealsCovered
       ? (extractedOutreach.redFlags ?? "")
-      : extractSectionFromMarkdown(saved?.dealbreakers, "Red Flags") ||
+      : extractSection(saved?.dealbreakers, "Red Flags") ||
           extractedOutreach.redFlags ||
           "",
   );
   const [outreachTone, setOutreachTone] = useState<OutreachTone>(
     outreachCovered
       ? (extractedOutreach.outreachTone ?? "casual")
-      : (inferToneFromMarkdown(saved?.outreach) ??
+      : (extractTone(saved?.outreach) ??
           extractedOutreach.outreachTone ??
           "casual"),
   );
   const [whatsWorked, setWhatsWorked] = useState(
     outreachCovered
       ? (extractedOutreach.whatsWorked ?? "")
-      : extractSectionFromMarkdown(saved?.outreach, "What's Worked") ||
+      : extractSection(saved?.outreach, "What's Worked") ||
           extractedOutreach.whatsWorked ||
           "",
   );
   const [whatToAvoid, setWhatToAvoid] = useState(
     outreachCovered
       ? (extractedOutreach.whatToAvoid ?? "")
-      : extractSectionFromMarkdown(saved?.outreach, "What to Avoid") ||
+      : extractSection(saved?.outreach, "What to Avoid") ||
           extractedOutreach.whatToAvoid ||
           "",
   );
 
-  // ── Section collapse state ──
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["profile", "search", "outreach"]),
   );
@@ -167,25 +156,6 @@ export function ReviewClient({
     });
   }
 
-  // ── Tag helpers ──
-  function addQuery() {
-    const trimmed = queryInput.trim();
-    if (!trimmed || trimmed.length > 100 || searchQueries.length >= 10) return;
-    if (searchQueries.includes(trimmed)) return;
-    setSearchQueries([...searchQueries, trimmed]);
-    setQueryInput("");
-  }
-
-  function addLocation() {
-    const trimmed = locationInput.trim();
-    if (!trimmed || trimmed.length > 100 || searchLocations.length >= 10)
-      return;
-    if (searchLocations.includes(trimmed)) return;
-    setSearchLocations([...searchLocations, trimmed]);
-    setLocationInput("");
-  }
-
-  // ── Confirm ──
   function handleConfirm() {
     startTransition(async () => {
       const result = await confirmInterviewAction(interview.id, {
@@ -212,7 +182,6 @@ export function ReviewClient({
 
       toast.success("Profile saved!");
 
-      // Refresh mode → back to settings. First-time → activation search.
       if (isRefresh) {
         router.push("/settings");
       } else {
@@ -221,7 +190,6 @@ export function ReviewClient({
     });
   }
 
-  // ── Back to interview ──
   function handleBack() {
     startTransition(async () => {
       const result = await backToInterviewAction(interview.id);
@@ -237,24 +205,6 @@ export function ReviewClient({
     });
   }
 
-  function renderSectionHeader(id: string, title: string) {
-    const isExpanded = expandedSections.has(id);
-    return (
-      <button
-        type="button"
-        onClick={() => toggleSection(id)}
-        className="flex items-center justify-between w-full py-2"
-      >
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {isExpanded ? (
-          <ChevronUp size={14} className="text-[var(--color-text-subtle)]" />
-        ) : (
-          <ChevronDown size={14} className="text-[var(--color-text-subtle)]" />
-        )}
-      </button>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-2xl p-6">
       <div className="mb-6">
@@ -267,315 +217,49 @@ export function ReviewClient({
         </p>
       </div>
 
-      {/* Profile Section */}
-      <div className="surface p-5 mb-4">
-        {renderSectionHeader("profile", "Profile")}
-        {expandedSections.has("profile") && (
-          <div className="space-y-4 mt-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Positioning</label>
-              <input
-                type="text"
-                value={positioning}
-                onChange={(e) => setPositioning(e.target.value)}
-                className="input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Career Highlights</label>
-              <textarea
-                rows={4}
-                value={careerHighlights}
-                onChange={(e) => setCareerHighlights(e.target.value)}
-                className="input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Proof Points</label>
-              <textarea
-                rows={3}
-                value={proofPoints}
-                onChange={(e) => setProofPoints(e.target.value)}
-                className="input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Technical Tools</label>
-              <input
-                type="text"
-                value={technicalTools}
-                onChange={(e) => setTechnicalTools(e.target.value)}
-                className="input"
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      <ReviewSectionProfile
+        isExpanded={expandedSections.has("profile")}
+        onToggle={() => toggleSection("profile")}
+        positioning={positioning}
+        onPositioningChange={setPositioning}
+        careerHighlights={careerHighlights}
+        onCareerHighlightsChange={setCareerHighlights}
+        proofPoints={proofPoints}
+        onProofPointsChange={setProofPoints}
+        technicalTools={technicalTools}
+        onTechnicalToolsChange={setTechnicalTools}
+      />
 
-      {/* Search Section */}
-      <div className="surface p-5 mb-4">
-        {renderSectionHeader("search", "Search Preferences")}
-        {expandedSections.has("search") && (
-          <div className="space-y-4 mt-2">
-            {/* Search Queries */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Search Queries</label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {searchQueries.map((q, i) => (
-                  <span
-                    key={i}
-                    className="badge inline-flex items-center gap-1"
-                  >
-                    {q}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSearchQueries(
-                          searchQueries.filter((_, j) => j !== i),
-                        )
-                      }
-                      className="hover:text-[var(--color-danger)] transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              {searchQueries.length < 10 && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={queryInput}
-                    onChange={(e) => setQueryInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addQuery();
-                      }
-                    }}
-                    placeholder="Add a search query..."
-                    maxLength={100}
-                    className="input flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={addQuery}
-                    disabled={!queryInput.trim()}
-                    className="btn-ghost flex items-center gap-1 text-xs"
-                  >
-                    <Plus size={14} />
-                    Add
-                  </button>
-                </div>
-              )}
-            </div>
+      <ReviewSectionSearch
+        isExpanded={expandedSections.has("search")}
+        onToggle={() => toggleSection("search")}
+        searchQueries={searchQueries}
+        onSearchQueriesChange={setSearchQueries}
+        searchLocations={searchLocations}
+        onSearchLocationsChange={setSearchLocations}
+        scoreThreshold={scoreThreshold}
+        onScoreThresholdChange={setScoreThreshold}
+        dailySendCap={dailySendCap}
+        onDailySendCapChange={setDailySendCap}
+      />
 
-            {/* Search Locations */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Locations</label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {searchLocations.map((loc, i) => (
-                  <span
-                    key={i}
-                    className="badge inline-flex items-center gap-1"
-                  >
-                    {loc}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSearchLocations(
-                          searchLocations.filter((_, j) => j !== i),
-                        )
-                      }
-                      className="hover:text-[var(--color-danger)] transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              {searchLocations.length < 10 && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={locationInput}
-                    onChange={(e) => setLocationInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addLocation();
-                      }
-                    }}
-                    placeholder="Add a location..."
-                    maxLength={100}
-                    className="input flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={addLocation}
-                    disabled={!locationInput.trim()}
-                    className="btn-ghost flex items-center gap-1 text-xs"
-                  >
-                    <Plus size={14} />
-                    Add
-                  </button>
-                </div>
-              )}
-            </div>
+      <ReviewSectionOutreach
+        isExpanded={expandedSections.has("outreach")}
+        onToggle={() => toggleSection("outreach")}
+        greenFlags={greenFlags}
+        onGreenFlagsChange={setGreenFlags}
+        redFlags={redFlags}
+        onRedFlagsChange={setRedFlags}
+        outreachTone={outreachTone}
+        onOutreachToneChange={setOutreachTone}
+        whatsWorked={whatsWorked}
+        onWhatsWorkedChange={setWhatsWorked}
+        whatToAvoid={whatToAvoid}
+        onWhatToAvoidChange={setWhatToAvoid}
+      />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Score Threshold</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={scoreThreshold}
-                  onChange={(e) =>
-                    setScoreThreshold(
-                      Math.max(0, Math.min(100, parseInt(e.target.value) || 0)),
-                    )
-                  }
-                  className="input w-24"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Daily Send Cap</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={50}
-                  value={dailySendCap}
-                  onChange={(e) =>
-                    setDailySendCap(
-                      Math.max(0, Math.min(50, parseInt(e.target.value) || 0)),
-                    )
-                  }
-                  className="input w-24"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      <ReviewSectionInsights insights={extractedInsights} />
 
-      {/* Outreach Section */}
-      <div className="surface p-5 mb-4">
-        {renderSectionHeader("outreach", "Outreach")}
-        {expandedSections.has("outreach") && (
-          <div className="space-y-4 mt-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Green Flags</label>
-              <textarea
-                rows={3}
-                value={greenFlags}
-                onChange={(e) => setGreenFlags(e.target.value)}
-                className="input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Red Flags</label>
-              <textarea
-                rows={3}
-                value={redFlags}
-                onChange={(e) => setRedFlags(e.target.value)}
-                className="input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Outreach Tone</label>
-              <div className="flex gap-2">
-                {(["casual", "direct", "formal"] as const).map((tone) => (
-                  <button
-                    key={tone}
-                    type="button"
-                    onClick={() => setOutreachTone(tone)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      outreachTone === tone
-                        ? "bg-[var(--color-blue)] text-white"
-                        : "bg-[var(--muted)] text-[var(--color-text-muted)] hover:bg-[var(--accent)]"
-                    }`}
-                  >
-                    {tone.charAt(0).toUpperCase() + tone.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">What&apos;s Worked</label>
-              <textarea
-                rows={2}
-                value={whatsWorked}
-                onChange={(e) => setWhatsWorked(e.target.value)}
-                className="input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">What to Avoid</label>
-              <textarea
-                rows={2}
-                value={whatToAvoid}
-                onChange={(e) => setWhatToAvoid(e.target.value)}
-                className="input"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Coach Notes (read-only) */}
-      {extractedInsights.career_narrative && (
-        <div className="surface p-5 mb-4">
-          <div className="flex items-center gap-1.5 mb-3">
-            <Sparkles size={14} className="text-[var(--color-blue)]" />
-            <h3 className="text-sm font-semibold">Coach Notes</h3>
-          </div>
-          <div className="space-y-3 text-sm text-[var(--color-text-muted)]">
-            {extractedInsights.career_narrative && (
-              <div>
-                <p className="text-xs font-medium text-[var(--color-text)] mb-1">
-                  Career Narrative
-                </p>
-                <p>{extractedInsights.career_narrative}</p>
-              </div>
-            )}
-            {extractedInsights.strongest_stories?.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-[var(--color-text)] mb-1">
-                  Strongest Stories
-                </p>
-                <ul className="list-disc pl-4 space-y-0.5">
-                  {extractedInsights.strongest_stories.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {extractedInsights.decision_drivers?.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-[var(--color-text)] mb-1">
-                  Decision Drivers
-                </p>
-                <ul className="list-disc pl-4 space-y-0.5">
-                  {extractedInsights.decision_drivers.map((d, i) => (
-                    <li key={i}>{d}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {extractedInsights.communication_style_notes && (
-              <div>
-                <p className="text-xs font-medium text-[var(--color-text)] mb-1">
-                  Communication Style
-                </p>
-                <p>{extractedInsights.communication_style_notes}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Actions */}
       <div className="flex items-center justify-between">
         <button
           type="button"

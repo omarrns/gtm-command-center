@@ -5,7 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpportunityStage } from "@/lib/supabase/types";
-import type { DashboardMetrics } from "../_components/today-client";
+import type { DashboardMetrics } from "../_components/today-helpers";
 
 const FUNNEL_STAGES: OpportunityStage[] = [
   "discovered",
