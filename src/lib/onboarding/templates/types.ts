@@ -1,7 +1,13 @@
 import type { ToolSet } from "ai";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { z } from "zod";
 
 export type InterviewTemplateId = "job_search";
+
+export interface CompletionStatus {
+  complete: boolean;
+  completedSteps: number[];
+}
 
 export interface InterviewPromptContext {
   isRefresh: boolean;
@@ -74,6 +80,15 @@ interface BaseInterviewTemplate<E, X> {
   // Confirm phase
   editsSchema: z.ZodType<E, z.ZodTypeDef, unknown>;
   outputs: readonly OutputMapping<E, X>[];
+
+  // Onboarding completion gate — template-owned so each persona can define
+  // its own "confirmed enough to leave /onboard" criteria. job_search
+  // checks three specific memory docs + pipeline_config; ICP will check
+  // its own ICP-shaped memory docs + icp_rubric.
+  completionCheck: (
+    svc: SupabaseClient,
+    userId: string,
+  ) => Promise<CompletionStatus>;
 }
 
 export interface InterviewerContext extends InterviewPromptContext {

@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import {
   buildInterviewPrompt,
@@ -7,7 +8,44 @@ import {
   REFRESH_OPENING_MESSAGE,
 } from "@/lib/onboarding/interview-prompt";
 import { EXTRACTION_SYSTEM_PROMPT } from "@/lib/onboarding/extraction-prompt";
-import type { Dimension, InterviewTemplate, OutputMapping } from "./types";
+import type {
+  CompletionStatus,
+  Dimension,
+  InterviewTemplate,
+  OutputMapping,
+} from "./types";
+
+async function completionCheck(
+  svc: SupabaseClient,
+  userId: string,
+): Promise<CompletionStatus> {
+  const [profileRes, configRes, outreachRes] = await Promise.all([
+    svc
+      .from("memory_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("document_key", "user_profile"),
+    svc
+      .from("pipeline_config")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    svc
+      .from("memory_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("document_key", "feedback_outreach_style"),
+  ]);
+
+  const completedSteps: number[] = [];
+  if ((profileRes.count ?? 0) > 0) completedSteps.push(1);
+  if ((configRes.count ?? 0) > 0) completedSteps.push(2);
+  if ((outreachRes.count ?? 0) > 0) completedSteps.push(3);
+
+  return {
+    complete: completedSteps.length === 3,
+    completedSteps,
+  };
+}
 
 const editsSchema = z.object({
   profile: z.object({
@@ -422,4 +460,5 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
 
   editsSchema,
   outputs,
+  completionCheck,
 };
