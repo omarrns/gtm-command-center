@@ -1,27 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeScoringProfile } from "@/lib/pipeline/scoring-profile";
+import { getTemplate } from "@/lib/onboarding/templates";
+import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
 
-export interface ConfirmEdits {
-  profile: {
-    positioning: string;
-    careerHighlights: string;
-    proofPoints: string;
-    technicalTools: string;
-  };
-  search: {
-    searchQueries: string[];
-    searchLocations: string[];
-    scoreThreshold: number;
-    dailySendCap: number;
-  };
-  outreach: {
-    greenFlags: string;
-    redFlags: string;
-    outreachTone: "casual" | "direct" | "formal";
-    whatsWorked: string;
-    whatToAvoid: string;
-  };
-}
+// The ConfirmEdits shape is job_search-specific today. When ICP/positioning
+// lands, this will become a discriminated union keyed by template_id — but
+// for Phase 1 there is only one template.
+export type ConfirmEdits = JobSearchEdits;
 
 export interface ConfirmResult {
   ok: boolean;
@@ -39,7 +24,9 @@ export async function performConfirm(
 ): Promise<ConfirmResult> {
   const { data: interview, error: fetchErr } = await svc
     .from("onboarding_interviews")
-    .select("id, user_id, status, extracted_insights")
+    .select(
+      "id, user_id, status, template_id, extracted_profile, extracted_search, extracted_outreach, extracted_insights",
+    )
     .eq("id", interviewId)
     .single();
 
@@ -51,203 +38,75 @@ export async function performConfirm(
     return { ok: false, error: "Interview is not in review" };
   }
 
+  const template = getTemplate(interview.template_id);
+
+  const parsedEdits = template.editsSchema.parse(edits);
+
+  // Reassemble the extraction shape from the 4 legacy columns. Phase 2 will
+  // introduce a unified `extracted` JSONB column when a second template needs
+  // a different schema shape; for now job_search's extraction decomposes
+  // naturally into these 4 top-level keys.
+  const extraction = {
+    profile: interview.extracted_profile,
+    search: interview.extracted_search,
+    outreach: interview.extracted_outreach,
+    insights: interview.extracted_insights,
+  };
+
   try {
-    // Sequential idempotent writes — each is an upsert, safe to retry
+    for (const output of template.outputs) {
+      if (output.type === "scoring_profile_normalize") {
+        await normalizeScoringProfile(svc, userId);
+        continue;
+      }
 
-    // 1. Upsert memory documents: user_profile + user_positioning
-    const profileContent = [
-      `## Positioning\n\n${edits.profile.positioning.trim()}`,
-      `## Career Highlights\n\n${edits.profile.careerHighlights.trim()}`,
-      `## Top Proof Points\n\n${edits.profile.proofPoints.trim()}`,
-      edits.profile.technicalTools.trim()
-        ? `## Technical Tools\n\n${edits.profile.technicalTools.trim()}`
-        : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n---\n\n");
+      if (output.type === "memory_doc") {
+        const content = output.transform({ edits: parsedEdits, extraction });
+        if (content === null) continue;
+        const { error } = await svc.from("memory_documents").upsert(
+          {
+            user_id: userId,
+            document_key: output.key,
+            title: output.title,
+            origin: "onboarding",
+            content,
+            metadata: {},
+          },
+          { onConflict: "user_id,document_key" },
+        );
+        if (error) {
+          throw new Error(
+            `memory_doc[${output.key}] write failed: ${error.message}`,
+          );
+        }
+        continue;
+      }
 
-    const positioningContent = [
-      `## Positioning Statement\n\n${edits.profile.positioning.trim()}`,
-      `## What Makes Me Distinct\n\n${edits.profile.proofPoints.trim()}`,
-    ].join("\n\n---\n\n");
-
-    const { error: profileErr } = await svc.from("memory_documents").upsert(
-      [
-        {
-          user_id: userId,
-          document_key: "user_profile",
-          title: "User Profile",
-          origin: "onboarding",
-          content: profileContent,
-          metadata: {},
-        },
-        {
-          user_id: userId,
-          document_key: "user_positioning",
-          title: "User Positioning",
-          origin: "onboarding",
-          content: positioningContent,
-          metadata: {},
-        },
-      ],
-      { onConflict: "user_id,document_key" },
-    );
-    if (profileErr)
-      throw new Error(`Profile write failed: ${profileErr.message}`);
-
-    // 2. Upsert pipeline_config
-    const { error: configErr } = await svc.from("pipeline_config").upsert(
-      {
-        user_id: userId,
-        score_threshold: edits.search.scoreThreshold,
-        search_queries: edits.search.searchQueries,
-        search_locations: edits.search.searchLocations,
-        daily_send_cap: edits.search.dailySendCap,
-      },
-      { onConflict: "user_id" },
-    );
-    if (configErr) throw new Error(`Config write failed: ${configErr.message}`);
-
-    // 3. Upsert dealbreakers + outreach style memory documents
-    const toneLabels = { casual: "Casual", direct: "Direct", formal: "Formal" };
-    const toneDescriptions = {
-      casual: "conversational, internet-native, fewer bullets",
-      direct: "straight to the point, no fluff",
-      formal: "professional, structured, polished",
-    };
-
-    const dealbreakersContent = [
-      edits.outreach.greenFlags.trim()
-        ? `## Green Flags\n\n${edits.outreach.greenFlags.trim()}`
-        : "",
-      edits.outreach.redFlags.trim()
-        ? `## Red Flags\n\n${edits.outreach.redFlags.trim()}`
-        : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n---\n\n");
-
-    const outreachContent = [
-      `## Outreach Tone\n\n${toneLabels[edits.outreach.outreachTone]} — ${toneDescriptions[edits.outreach.outreachTone]}`,
-      edits.outreach.whatsWorked.trim()
-        ? `## What's Worked\n\n${edits.outreach.whatsWorked.trim()}`
-        : "",
-      edits.outreach.whatToAvoid.trim()
-        ? `## What to Avoid\n\n${edits.outreach.whatToAvoid.trim()}`
-        : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n---\n\n");
-
-    const { error: outreachErr } = await svc.from("memory_documents").upsert(
-      [
-        {
-          user_id: userId,
-          document_key: "user_dealbreakers",
-          title: "User Dealbreakers",
-          origin: "onboarding",
-          content: dealbreakersContent,
-          metadata: {},
-        },
-        {
-          user_id: userId,
-          document_key: "feedback_outreach_style",
-          title: "Outreach Style",
-          origin: "onboarding",
-          content: outreachContent,
-          metadata: {},
-        },
-      ],
-      { onConflict: "user_id,document_key" },
-    );
-    if (outreachErr)
-      throw new Error(`Outreach write failed: ${outreachErr.message}`);
-
-    // 4. Persist interview_insights as memory document
-    if (interview.extracted_insights) {
-      const insightsContent = formatInsightsAsMarkdown(
-        interview.extracted_insights as Record<string, unknown>,
-      );
-      const { error: insightsErr } = await svc.from("memory_documents").upsert(
-        {
-          user_id: userId,
-          document_key: "interview_insights",
-          title: "Interview Insights",
-          origin: "onboarding",
-          content: insightsContent,
-          metadata: {},
-        },
-        { onConflict: "user_id,document_key" },
-      );
-      if (insightsErr)
-        throw new Error(`Insights write failed: ${insightsErr.message}`);
+      if (output.type === "pipeline_config") {
+        const payload = output.transform({ edits: parsedEdits, extraction });
+        if (payload === null) continue;
+        const { error } = await svc
+          .from("pipeline_config")
+          .upsert({ user_id: userId, ...payload }, { onConflict: "user_id" });
+        if (error) {
+          throw new Error(`pipeline_config write failed: ${error.message}`);
+        }
+        continue;
+      }
     }
 
-    // 5. Normalize scoring profile (single call, not triple-fired)
-    await normalizeScoringProfile(svc, userId);
-
-    // 6. Mark interview as confirmed — only after all writes succeed
     const { error: confirmErr } = await svc
       .from("onboarding_interviews")
       .update({ status: "confirmed", updated_at: new Date().toISOString() })
       .eq("id", interviewId);
 
-    if (confirmErr)
+    if (confirmErr) {
       throw new Error(`Confirm status failed: ${confirmErr.message}`);
+    }
 
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Confirmation failed";
     return { ok: false, error: msg };
   }
-}
-
-function formatInsightsAsMarkdown(insights: Record<string, unknown>): string {
-  const sections: string[] = [];
-
-  if (insights.career_narrative) {
-    sections.push(`## Career Narrative\n\n${insights.career_narrative}`);
-  }
-  if (
-    Array.isArray(insights.decision_drivers) &&
-    insights.decision_drivers.length > 0
-  ) {
-    sections.push(
-      `## Decision Drivers\n\n${insights.decision_drivers.map((d: unknown) => `- ${d}`).join("\n")}`,
-    );
-  }
-  if (
-    Array.isArray(insights.unstated_preferences) &&
-    insights.unstated_preferences.length > 0
-  ) {
-    sections.push(
-      `## Unstated Preferences\n\n${insights.unstated_preferences.map((p: unknown) => `- ${p}`).join("\n")}`,
-    );
-  }
-  if (
-    Array.isArray(insights.strongest_stories) &&
-    insights.strongest_stories.length > 0
-  ) {
-    sections.push(
-      `## Strongest Stories\n\n${insights.strongest_stories.map((s: unknown) => `- ${s}`).join("\n")}`,
-    );
-  }
-  if (
-    Array.isArray(insights.positioning_alternatives) &&
-    insights.positioning_alternatives.length > 0
-  ) {
-    sections.push(
-      `## Positioning Alternatives\n\n${insights.positioning_alternatives.map((a: unknown) => `- ${a}`).join("\n")}`,
-    );
-  }
-  if (insights.risk_tolerance) {
-    sections.push(`## Risk Tolerance\n\n${insights.risk_tolerance}`);
-  }
-  if (insights.communication_style_notes) {
-    sections.push(
-      `## Communication Style\n\n${insights.communication_style_notes}`,
-    );
-  }
-
-  return sections.join("\n\n---\n\n");
 }
