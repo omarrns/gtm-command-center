@@ -43,6 +43,19 @@ async function main() {
     process.exit(1);
   }
 
+  // Delete onboarding_artifacts first (SPEC-2). interview_id cascades when
+  // the interview row is deleted, but artifacts with no interview_id
+  // (unlikely but possible) won't — hit both for completeness.
+  const { count: artifactCount, error: artifactError } = await supabase
+    .from("onboarding_artifacts")
+    .delete({ count: "exact" })
+    .eq("user_id", userId);
+
+  if (artifactError) {
+    console.error("Failed to delete artifacts:", artifactError.message);
+    process.exit(1);
+  }
+
   // Delete onboarding interviews (Phase 10)
   const { count: interviewCount, error: interviewError } = await supabase
     .from("onboarding_interviews")
@@ -89,7 +102,7 @@ async function main() {
   }
 
   console.log(
-    `Reset complete: ${interviewCount ?? 0} interviews, ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted`,
+    `Reset complete: ${artifactCount ?? 0} artifacts, ${interviewCount ?? 0} interviews, ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted`,
   );
 }
 
