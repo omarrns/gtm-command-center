@@ -98,6 +98,12 @@ interface BaseInterviewTemplate<E, X> {
     svc: SupabaseClient,
     userId: string,
   ) => Promise<void>;
+
+  // The persona this template confirms the user into. Written to
+  // profiles.user_type exactly once — at the first successful confirm —
+  // per SPEC-3's write-timing rule. job_search → 'job_seeker',
+  // icp_definition → 'gtm'.
+  userTypeOnConfirm: "job_seeker" | "gtm";
 }
 
 export interface InterviewerContext extends InterviewPromptContext {

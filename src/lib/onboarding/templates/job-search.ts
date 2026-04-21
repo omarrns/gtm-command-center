@@ -650,4 +650,5 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
   outputs,
   completionCheck,
   normalizeScoringProfile,
+  userTypeOnConfirm: "job_seeker",
 };
