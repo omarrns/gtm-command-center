@@ -21,7 +21,39 @@ export default async function OnboardPage(props: {
   //   ?step=4 (Gmail OAuth callback returning to the wizard)
   const isRefresh = searchParams.mode === "refresh";
   const isGmailReturn = searchParams.step === "4";
-  const onboarding = await isOnboardingComplete(svc, user.id);
+
+  // Load the user's persona + onboarding state together. user_type is the
+  // app-wide persona discriminator (null pre-confirm, 'job_seeker'|'gtm'
+  // post-confirm). See SPEC-3 §Proposed architecture.
+  const [{ data: profileRow }, onboarding] = await Promise.all([
+    svc
+      .from("profiles")
+      .select("user_type")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    isOnboardingComplete(svc, user.id),
+  ]);
+
+  // SPEC-3 Phase 2.c backfill safety net. Phase 2.a's migration wrote
+  // user_type='job_seeker' for every user with a pipeline_config row.
+  // Any confirmed user whose user_type is still NULL (e.g., confirmed
+  // after the migration ran but before this code shipped, or an edge
+  // data state the migration didn't anticipate) gets the write here on
+  // their next /onboard visit. This is the ONLY site outside
+  // performConfirm that writes user_type — guarded by the
+  // isOnboardingComplete(job_seeker) gate so we never mis-classify.
+  if (
+    onboarding.complete &&
+    !profileRow?.user_type &&
+    !isRefresh &&
+    !isGmailReturn
+  ) {
+    await svc
+      .from("profiles")
+      .update({ user_type: "job_seeker" })
+      .eq("user_id", user.id);
+  }
+
   if (onboarding.complete && !isRefresh && !isGmailReturn) {
     redirect("/");
   }
