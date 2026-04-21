@@ -1,15 +1,14 @@
 import { JOB_SEARCH_TEMPLATE } from "./job-search";
+import { ICP_DEFINITION_TEMPLATE } from "./icp-definition";
 import type {
   ClientInterviewTemplate,
   InterviewTemplate,
   InterviewTemplateId,
 } from "./types";
 
-// Partial registry — new templates land incrementally. `getTemplate` throws
-// on unknown ids, so callers get a clear error if they reference a template
-// that isn't registered yet. icp_definition is registered in Phase 3.
-const REGISTRY: Partial<Record<InterviewTemplateId, InterviewTemplate>> = {
+const REGISTRY: Record<InterviewTemplateId, InterviewTemplate> = {
   job_search: JOB_SEARCH_TEMPLATE as InterviewTemplate,
+  icp_definition: ICP_DEFINITION_TEMPLATE as InterviewTemplate,
 };
 
 export function getTemplate(id: string): InterviewTemplate {
