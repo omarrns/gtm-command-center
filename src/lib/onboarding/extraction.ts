@@ -2,7 +2,6 @@ import type { UIMessage } from "ai";
 import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
-import { EXTRACTION_SYSTEM_PROMPT } from "./extraction-prompt";
 import type { InterviewTemplate } from "./templates/types";
 
 const profileSchema = z.object({

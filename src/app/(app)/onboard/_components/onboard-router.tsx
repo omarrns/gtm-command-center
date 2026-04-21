@@ -11,9 +11,11 @@ import {
   extractAndReviewAction,
 } from "../interview-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
+import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 
 interface OnboardRouterProps {
   interview: OnboardingInterviewRow | null;
+  clientTemplate: ClientInterviewTemplate;
   isRefresh: boolean;
   gmailConnected: boolean;
   // Props forwarded to OnboardClient (manual mode)
@@ -35,6 +37,7 @@ type Mode = "choice" | "interview" | "manual";
 
 export function OnboardRouter({
   interview: initialInterview,
+  clientTemplate,
   isRefresh,
   gmailConnected,
   completedSteps,
@@ -94,6 +97,7 @@ export function OnboardRouter({
     return (
       <ReviewClient
         interview={interview}
+        clientTemplate={clientTemplate}
         isRefresh={isRefresh}
         existingData={{
           config: existingConfig,
@@ -112,6 +116,7 @@ export function OnboardRouter({
     return (
       <InterviewClient
         interview={interview}
+        clientTemplate={clientTemplate}
         onExtracted={(updated) => {
           setInterview(updated);
         }}
