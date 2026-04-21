@@ -2,7 +2,7 @@ import type { ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { z } from "zod";
 
-export type InterviewTemplateId = "job_search";
+export type InterviewTemplateId = "job_search" | "icp_definition";
 
 export interface CompletionStatus {
   complete: boolean;

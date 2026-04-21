@@ -5,7 +5,10 @@ import type {
   InterviewTemplateId,
 } from "./types";
 
-const REGISTRY: Record<InterviewTemplateId, InterviewTemplate> = {
+// Partial registry — new templates land incrementally. `getTemplate` throws
+// on unknown ids, so callers get a clear error if they reference a template
+// that isn't registered yet. icp_definition is registered in Phase 3.
+const REGISTRY: Partial<Record<InterviewTemplateId, InterviewTemplate>> = {
   job_search: JOB_SEARCH_TEMPLATE as InterviewTemplate,
 };
 
