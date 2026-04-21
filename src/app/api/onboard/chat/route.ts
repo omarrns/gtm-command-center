@@ -10,8 +10,31 @@ import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { getTemplate } from "@/lib/onboarding/templates";
+import type { InterviewTemplate } from "@/lib/onboarding/templates/types";
+import {
+  nextDimensionToAsk,
+  updateDimensionFromAnswer,
+} from "@/lib/onboarding/orchestrator/run";
+import {
+  emptyOrchestratorState,
+  type OrchestratorState,
+} from "@/lib/onboarding/orchestrator/types";
 
 export const maxDuration = 120;
+
+type AgenticTemplate = Extract<InterviewTemplate, { agenticMode: true }>;
+type LegacyTemplate = Extract<InterviewTemplate, { agenticMode: false }>;
+
+type Svc = ReturnType<typeof createSupabaseServiceClient>;
+
+interface InterviewRow {
+  id: string;
+  user_id: string;
+  is_refresh: boolean;
+  status: string;
+  template_id: string;
+  orchestrator_state: Record<string, unknown> | null;
+}
 
 export async function POST(req: Request) {
   const user = await requireUser();
@@ -22,10 +45,9 @@ export async function POST(req: Request) {
 
   const svc = createSupabaseServiceClient();
 
-  // Load interview row — verify ownership and status
   const { data: interview, error: fetchErr } = await svc
     .from("onboarding_interviews")
-    .select("id, user_id, is_refresh, status, template_id")
+    .select("id, user_id, is_refresh, status, template_id, orchestrator_state")
     .eq("id", interviewId)
     .single();
 
@@ -38,11 +60,161 @@ export async function POST(req: Request) {
   }
 
   const template = getTemplate(interview.template_id);
+
+  if (template.agenticMode) {
+    return handleAgenticTurn(
+      messages,
+      interview as InterviewRow,
+      template,
+      svc,
+      user.id,
+    );
+  }
+
+  return handleLegacyTurn(messages, interview as InterviewRow, template, svc);
+}
+
+async function handleAgenticTurn(
+  messages: UIMessage[],
+  interview: InterviewRow,
+  template: AgenticTemplate,
+  svc: Svc,
+  userId: string,
+): Promise<Response> {
+  let state =
+    (interview.orchestrator_state as OrchestratorState | null) ??
+    emptyOrchestratorState(template.id);
+
+  // Step 1: if a dimension was being asked, attribute the latest user message
+  // to it and let the orchestrator update confidence + provenance.
+  if (state.activeDimensionKey) {
+    const latest = latestUserMessageText(messages);
+    if (latest) {
+      state = await updateDimensionFromAnswer(
+        interview.id,
+        state.activeDimensionKey,
+        latest.text,
+        latest.id,
+        svc,
+        template,
+      );
+    }
+  }
+
+  // Refresh-mode context (loaded per request)
+  let existingProfile: string | undefined;
+  if (interview.is_refresh) {
+    const ctx = await loadMemoryContext(userId, svc);
+    existingProfile = formatMemoryForPrompt(ctx);
+  }
+
+  // Step 2: compute next dimension to ask (or null = done)
+  const next = nextDimensionToAsk(state, template);
+
+  if (next === null) {
+    // Interview is done — set the interview to review status and return a
+    // short wrap-up stream. No dimension to ask; the review UI takes over.
+    const finalState: OrchestratorState = {
+      ...state,
+      status: "ready_for_review",
+      activeDimensionKey: null,
+      nextDimensionKey: null,
+    };
+
+    const wrapUpSystem = `You are wrapping up an interview. Briefly thank the user and tell them the review screen is next. Keep it to 1–2 sentences. End with ${template.completionMarker} on its own line. Do NOT ask questions.`;
+
+    const result = streamText({
+      model: anthropic(template.chatModel),
+      system: wrapUpSystem,
+      messages: await convertToModelMessages(messages),
+      maxOutputTokens: 256,
+    });
+
+    return result.toUIMessageStreamResponse({
+      sendReasoning: false,
+      originalMessages: messages,
+      onFinish: async ({ messages: finalMessages }) => {
+        await svc
+          .from("onboarding_interviews")
+          .update({
+            messages: finalMessages,
+            orchestrator_state: finalState,
+            status: "review",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", interview.id);
+      },
+    });
+  }
+
+  // Step 3: ask the next low-confidence dimension.
+  const hypothesis =
+    state.dimensions[next.key]?.summary ??
+    "(no prior inference — artifacts yielded nothing for this dimension)";
+
+  const interviewerSystem = template.interviewerSystemPrompt({
+    isRefresh: interview.is_refresh,
+    existingProfile,
+    nextDimension: next,
+    currentHypothesis: hypothesis,
+  });
+
+  const pendingState: OrchestratorState = {
+    ...state,
+    status: "interviewing",
+    activeDimensionKey: next.key,
+    nextDimensionKey: next.key,
+    askedDimensionKeys: state.askedDimensionKeys.includes(next.key)
+      ? state.askedDimensionKeys
+      : [...state.askedDimensionKeys, next.key],
+    metrics: {
+      ...state.metrics,
+      questionCount: state.metrics.questionCount + 1,
+    },
+  };
+
+  // Persist BEFORE streaming so a crash mid-stream still leaves us able to
+  // pick up the conversation on reload.
+  await svc
+    .from("onboarding_interviews")
+    .update({
+      orchestrator_state: pendingState,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", interview.id);
+
+  const result = streamText({
+    model: anthropic(template.chatModel),
+    system: interviewerSystem,
+    messages: await convertToModelMessages(messages),
+    maxOutputTokens: template.chatMaxOutputTokens,
+  });
+
+  return result.toUIMessageStreamResponse({
+    sendReasoning: false,
+    originalMessages: messages,
+    onFinish: async ({ messages: finalMessages }) => {
+      await svc
+        .from("onboarding_interviews")
+        .update({
+          messages: finalMessages,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", interview.id);
+    },
+  });
+}
+
+async function handleLegacyTurn(
+  messages: UIMessage[],
+  interview: InterviewRow,
+  template: LegacyTemplate,
+  svc: Svc,
+): Promise<Response> {
   const MAX_ASSISTANT_MESSAGES = template.maxAssistantMessages;
   const assistantCount = messages.filter((m) => m.role === "assistant").length;
 
   if (assistantCount >= MAX_ASSISTANT_MESSAGES) {
-    // Already at cap — force extraction without generating more
     await svc
       .from("onboarding_interviews")
       .update({
@@ -50,15 +222,14 @@ export async function POST(req: Request) {
         ready_for_extraction: true,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", interviewId);
+      .eq("id", interview.id);
 
     return new Response("Interview cap reached", { status: 200 });
   }
 
-  // For refresh mode, load existing profile for system prompt context
   let existingProfile: string | undefined;
   if (interview.is_refresh) {
-    const ctx = await loadMemoryContext(user.id, svc);
+    const ctx = await loadMemoryContext(interview.user_id, svc);
     existingProfile = formatMemoryForPrompt(ctx);
   }
 
@@ -79,7 +250,7 @@ export async function POST(req: Request) {
     maxOutputTokens: template.chatMaxOutputTokens,
   });
 
-  const response = result.toUIMessageStreamResponse({
+  return result.toUIMessageStreamResponse({
     sendReasoning: false,
     originalMessages: messages,
     onFinish: async ({ messages: finalMessages }) => {
@@ -103,7 +274,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // Check for completion in the last assistant message
       const lastAssistant = [...finalMessages]
         .reverse()
         .find((m) => m.role === "assistant");
@@ -121,9 +291,7 @@ export async function POST(req: Request) {
         }
 
         // Fallback: if the threshold topics are covered and the last message
-        // looks like a wrap-up (no question mark = not asking another
-        // question), treat it as complete. Catches cases where the model
-        // wraps up conversationally without the exact marker.
+        // looks like a wrap-up (no question mark), treat it as complete.
         if (
           !isComplete &&
           topicSet.size >= template.completionTopicThreshold &&
@@ -138,7 +306,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // Persist messages and update state
       const updateData: Record<string, unknown> = {
         messages: finalMessages,
         topics_covered: [...topicSet],
@@ -152,9 +319,23 @@ export async function POST(req: Request) {
       await svc
         .from("onboarding_interviews")
         .update(updateData)
-        .eq("id", interviewId);
+        .eq("id", interview.id);
     },
   });
+}
 
-  return response;
+function latestUserMessageText(
+  messages: UIMessage[],
+): { id: string; text: string } | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "user") continue;
+    const text = m.parts
+      .filter((p): p is { type: "text"; text: string } => p.type === "text")
+      .map((p) => p.text)
+      .join("\n");
+    if (!text.trim()) return null;
+    return { id: m.id, text };
+  }
+  return null;
 }
