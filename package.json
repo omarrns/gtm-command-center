@@ -18,6 +18,7 @@
     "onboard:fixture": "tsx scripts/onboard-fixture.ts",
     "test:sender-identity": "tsx scripts/test-sender-identity.ts",
     "test:extraction": "tsx scripts/test-extraction.ts",
+    "test:onboarding-confirm": "tsx scripts/test-onboarding-confirm.ts",
     "test:correctness": "tsx scripts/test-correctness-fixes.ts"
   },
   "dependencies": {
