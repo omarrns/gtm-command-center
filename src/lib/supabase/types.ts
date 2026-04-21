@@ -237,6 +237,8 @@ export interface OnboardingInterviewRow {
   extracted_insights: Record<string, unknown> | null;
   topics_covered: string[];
   is_refresh: boolean;
+  template_id: string;
+  template_version: string;
   created_at: string;
   updated_at: string;
 }

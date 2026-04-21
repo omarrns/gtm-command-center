@@ -411,6 +411,8 @@ async function seedInterview(userId: string, state: InterviewState) {
   const row: Record<string, unknown> = {
     user_id: userId,
     is_refresh: false,
+    template_id: "job_search",
+    template_version: "v1",
     topics_covered: [
       "identity",
       "career",

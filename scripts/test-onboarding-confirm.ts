@@ -103,6 +103,8 @@ async function seedReviewInterview(userId: string): Promise<string> {
     .insert({
       user_id: userId,
       is_refresh: false,
+      template_id: "job_search",
+      template_version: "v1",
       status: "review",
       messages: [],
       topics_covered: [
