@@ -20,6 +20,8 @@
     "test:extraction": "tsx scripts/test-extraction.ts",
     "test:onboarding-confirm": "tsx scripts/test-onboarding-confirm.ts",
     "test:confirm-adapter": "tsx scripts/test-confirm-adapter.ts",
+    "test:onboarding-complete-per-template": "tsx scripts/test-onboarding-complete-per-template.ts",
+    "test:scoring-normalize-per-template": "tsx scripts/test-scoring-normalize-per-template.ts",
     "test:correctness": "tsx scripts/test-correctness-fixes.ts"
   },
   "dependencies": {

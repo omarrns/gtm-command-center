@@ -243,16 +243,27 @@ async function assertExpectedDbState(userId: string, interviewId: string) {
     );
   }
 
-  // onboarding_interviews status
+  // onboarding_interviews status + template identity
   const { data: interview } = await supabase
     .from("onboarding_interviews")
-    .select("status")
+    .select("status, template_id, template_version")
     .eq("id", interviewId)
     .single();
 
   assert(
     interview?.status === "confirmed",
     "onboarding_interviews.status='confirmed'",
+  );
+  // SPEC-3 Phase 0 guardrail: confirm must not mutate template identity.
+  // If Phase 1+ changes anything here, we'll know before the persona picker
+  // ships.
+  assert(
+    interview?.template_id === "job_search",
+    `onboarding_interviews.template_id unchanged at 'job_search' (got ${interview?.template_id})`,
+  );
+  assert(
+    interview?.template_version === "v1",
+    `onboarding_interviews.template_version unchanged at 'v1' (got ${interview?.template_version})`,
   );
 }
 
