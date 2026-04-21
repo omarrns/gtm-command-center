@@ -1,5 +1,5 @@
 import { Sparkles } from "lucide-react";
-import type { ExtractionInsights } from "@/lib/onboarding/extraction";
+import type { ExtractionInsights } from "@/lib/onboarding/templates/job-search";
 
 interface ReviewSectionInsightsProps {
   insights: ExtractionInsights;
