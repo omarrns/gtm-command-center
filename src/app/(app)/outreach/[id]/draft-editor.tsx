@@ -5,6 +5,7 @@ import { Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { saveEmailDraftAction } from "../actions";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { DetailHeader } from "@/components/detail-header";
 import type { EmailDraftRow } from "@/lib/supabase/types";
 
@@ -63,9 +64,9 @@ export function DraftEditor({
         backLabel="Back to outreach"
         title={`${draft.recipient_name} @ ${draft.company_name}`}
         subtitle={
-          <span className="badge">
+          <Badge variant="muted">
             {draft.draft_type.replace("email-", "")}
-          </span>
+          </Badge>
         }
       />
 

@@ -1,3 +1,8 @@
+import { Badge, type badgeVariants } from "@/components/ui/badge";
+import type { VariantProps } from "class-variance-authority";
+
+type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+
 interface FlagItem {
   rating: "green" | "orange" | "red";
   note: string;
@@ -28,12 +33,12 @@ export function FlagCallout({ flags }: { flags: Flags }) {
           // Array flags (green/red/orange lists)
           if (Array.isArray(value)) {
             if (!value.length) return null;
-            const color =
+            const variant: BadgeVariant =
               key === "green"
-                ? "badge-success"
+                ? "success"
                 : key === "red"
-                  ? "badge-danger"
-                  : "badge-warning";
+                  ? "destructive"
+                  : "warning";
             return (
               <div key={key}>
                 <div className="text-xs font-medium mb-1.5">
@@ -41,9 +46,9 @@ export function FlagCallout({ flags }: { flags: Flags }) {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {value.map((v, i) => (
-                    <span key={i} className={`badge ${color}`}>
+                    <Badge key={i} variant={variant}>
                       {v}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               </div>
@@ -52,18 +57,18 @@ export function FlagCallout({ flags }: { flags: Flags }) {
 
           // Object flags (rating + note)
           const flag = value as FlagItem;
-          const color =
+          const variant: BadgeVariant =
             flag.rating === "green"
-              ? "badge-success"
+              ? "success"
               : flag.rating === "red"
-                ? "badge-danger"
-                : "badge-warning";
+                ? "destructive"
+                : "warning";
 
           return (
             <div key={key} className="flex items-start gap-2.5">
-              <span className={`badge ${color} shrink-0 mt-0.5`}>
+              <Badge variant={variant} className="shrink-0 mt-0.5">
                 {flag.rating.toUpperCase()}
-              </span>
+              </Badge>
               <div>
                 <div className="text-xs font-medium">
                   {FLAG_LABELS[key] ?? key}
