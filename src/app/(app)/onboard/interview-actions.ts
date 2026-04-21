@@ -1,16 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { nanoid } from "nanoid";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { runExtractionFromTranscript } from "@/lib/onboarding/extraction";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
+import { nextDimensionToAsk } from "@/lib/onboarding/orchestrator/run";
 import { toJobSearchConfirmEdits } from "@/lib/onboarding/orchestrator/to-confirm-edits";
 import {
   emptyOrchestratorState,
   type OrchestratorState,
 } from "@/lib/onboarding/orchestrator/types";
+import { runClaudeText } from "@/lib/ai/anthropic";
+import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { performConfirm, type ConfirmEdits } from "./confirm-logic";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { UIMessage } from "ai";
@@ -404,4 +408,123 @@ export async function backToInterviewAction(
 
   revalidatePath("/onboard");
   return { ok: true };
+}
+
+// ── Start Agentic Interview (kickoff first orchestrator-driven question) ──
+
+export type StartAgenticInterviewResult =
+  | { ok: true; message: UIMessage }
+  | { ok: true; ready: true; interview: OnboardingInterviewRow }
+  | { ok: false; error: string };
+
+export async function startAgenticInterviewAction(
+  interviewId: string,
+): Promise<StartAgenticInterviewResult> {
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
+
+  const { data: interview, error } = await svc
+    .from("onboarding_interviews")
+    .select("*")
+    .eq("id", interviewId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !interview) return { ok: false, error: "Interview not found" };
+
+  const template = getTemplate(interview.template_id as InterviewTemplateId);
+  if (!template.agenticMode) {
+    return { ok: false, error: "Not an agentic interview" };
+  }
+
+  const state =
+    (interview.orchestrator_state as OrchestratorState | null) ??
+    emptyOrchestratorState(template.id);
+
+  const messages = (interview.messages as UIMessage[]) ?? [];
+  const latest = messages.at(-1);
+
+  // Idempotency: if a prior kickoff already asked a dimension AND the latest
+  // transcript entry is an assistant message, return that existing message.
+  // Covers rapid double-click on Start Interview and resume-after-kickoff.
+  if (state.activeDimensionKey && latest?.role === "assistant") {
+    return { ok: true, message: latest };
+  }
+
+  const next = nextDimensionToAsk(state, template);
+
+  // No dimension below threshold → advance straight to review. Mirrors
+  // extractAndReviewAction's agentic hydration path: populate extracted_*
+  // from orchestrator state, set status='review', revalidatePath. /onboard
+  // routes on interview.status — there is no /onboard/review route.
+  if (!next) {
+    const { edits } = toJobSearchConfirmEdits(state);
+    const { data: hydrated } = await svc
+      .from("onboarding_interviews")
+      .update({
+        status: "review",
+        extracted_profile: edits.profile,
+        extracted_search: edits.search,
+        extracted_outreach: edits.outreach,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", interviewId)
+      .select("*")
+      .single();
+    revalidatePath("/onboard");
+    return {
+      ok: true,
+      ready: true,
+      interview: (hydrated ?? interview) as OnboardingInterviewRow,
+    };
+  }
+
+  const existingProfile = interview.is_refresh
+    ? formatMemoryForPrompt(await loadMemoryContext(user.id, svc))
+    : undefined;
+
+  const systemPrompt = template.interviewerSystemPrompt({
+    isRefresh: interview.is_refresh,
+    existingProfile,
+    nextDimension: next,
+    currentHypothesis: state.dimensions[next.key]?.summary ?? "",
+  });
+
+  const text = await runClaudeText({
+    system: systemPrompt,
+    prompt:
+      "Ask the first onboarding question now, following the instructions in your system prompt.",
+    model: template.chatModel,
+    maxTokens: template.chatMaxOutputTokens,
+  });
+
+  const assistantMessage: UIMessage = {
+    id: nanoid(),
+    role: "assistant",
+    parts: [{ type: "text", text }],
+  };
+
+  const newState: OrchestratorState = {
+    ...state,
+    activeDimensionKey: next.key,
+    nextDimensionKey: next.key,
+    askedDimensionKeys: [...state.askedDimensionKeys, next.key],
+    metrics: {
+      ...state.metrics,
+      questionCount: state.metrics.questionCount + 1,
+    },
+  };
+
+  const { error: updateError } = await svc
+    .from("onboarding_interviews")
+    .update({
+      messages: [...messages, assistantMessage],
+      orchestrator_state: newState,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", interviewId);
+
+  if (updateError) return { ok: false, error: updateError.message };
+
+  return { ok: true, message: assistantMessage };
 }
