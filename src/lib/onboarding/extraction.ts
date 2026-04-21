@@ -3,6 +3,7 @@ import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { EXTRACTION_SYSTEM_PROMPT } from "./extraction-prompt";
+import type { InterviewTemplate } from "./templates/types";
 
 const profileSchema = z.object({
   positioning: z.string().default(""),
@@ -66,16 +67,18 @@ function formatTranscript(messages: UIMessage[]): string {
 
 export async function runExtractionFromTranscript(
   messages: UIMessage[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  template: InterviewTemplate<any, any>,
 ): Promise<ExtractionResult> {
   const transcript = formatTranscript(messages);
 
   const { object } = await generateObject({
-    model: anthropic("claude-opus-4-6"),
-    system: EXTRACTION_SYSTEM_PROMPT,
+    model: anthropic(template.extractionModel),
+    system: template.extractionSystemPrompt,
     prompt: `<transcript>\n${transcript}\n</transcript>\n\nExtract the structured data from this interview transcript.`,
-    schema: extractionResultSchema,
-    maxOutputTokens: 4096,
+    schema: template.extractionSchema,
+    maxOutputTokens: template.extractionMaxOutputTokens,
   });
 
-  return object;
+  return object as ExtractionResult;
 }
