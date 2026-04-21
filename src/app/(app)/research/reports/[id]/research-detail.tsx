@@ -5,6 +5,7 @@ import { ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { formatRelativeTime } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { DetailHeader } from "@/components/detail-header";
 import { StatusBanner } from "@/components/status-banner";
 import type { ResearchReportRow } from "@/lib/supabase/types";
@@ -50,7 +51,7 @@ export function ResearchDetail({
         title={`${initial.company_name} — ${initial.role_title}`}
         subtitle={
           <>
-            <span className="badge">{initial.research_type}</span>{" "}
+            <Badge variant="muted">{initial.research_type}</Badge>{" "}
             {formatRelativeTime(initial.created_at)}
           </>
         }
@@ -127,7 +128,9 @@ function PersonCard({
         <p className="text-xs text-[var(--color-text-muted)]">
           Not identified with sufficient confidence.
         </p>
-        <span className="badge badge-warning mt-2">{person.confidence}</span>
+        <Badge variant="warning" className="mt-2">
+          {person.confidence}
+        </Badge>
       </div>
     );
   }
@@ -143,17 +146,17 @@ function PersonCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span
-            className={`badge ${
+          <Badge
+            variant={
               person.confidence === "high"
-                ? "badge-success"
+                ? "success"
                 : person.confidence === "medium"
-                  ? "badge-warning"
-                  : "badge-danger"
-            }`}
+                  ? "warning"
+                  : "destructive"
+            }
           >
             {person.confidence}
-          </span>
+          </Badge>
           {person.linkedin && (
             <a
               href={person.linkedin}
@@ -189,9 +192,9 @@ function PersonCard({
             </div>
             <div className="flex flex-wrap gap-1.5">
               {person.public_writing_themes.map((t, i) => (
-                <span key={i} className="badge">
+                <Badge key={i} variant="muted">
                   {t}
-                </span>
+                </Badge>
               ))}
             </div>
           </div>

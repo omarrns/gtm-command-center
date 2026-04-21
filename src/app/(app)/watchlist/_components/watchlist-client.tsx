@@ -3,9 +3,11 @@
 import { useId, useState, useTransition } from "react";
 import { ChevronDown, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge, type badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import type { VariantProps } from "class-variance-authority";
 import type {
   WatchlistRow,
   WatchlistAlertRow,
@@ -17,19 +19,18 @@ import { addWatchlistAction, removeWatchlistAction } from "../actions";
 // Alert type badge config
 // ---------------------------------------------------------------------------
 
+type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+
 const ALERT_TYPE_CONFIG: Record<
   WatchlistAlertType,
-  { label: string; className: string }
+  { label: string; variant: BadgeVariant }
 > = {
-  funding: { label: "Funding", className: "badge badge-success" },
-  hire: { label: "Hiring", className: "badge badge-accent" },
-  launch: { label: "Launch", className: "badge badge-accent" },
-  press: { label: "Press", className: "badge" },
-  job_posting: { label: "Job Posting", className: "badge badge-warning" },
-  leadership_change: {
-    label: "Leadership",
-    className: "badge badge-danger",
-  },
+  funding: { label: "Funding", variant: "success" },
+  hire: { label: "Hiring", variant: "accent" },
+  launch: { label: "Launch", variant: "accent" },
+  press: { label: "Press", variant: "muted" },
+  job_posting: { label: "Job Posting", variant: "warning" },
+  leadership_change: { label: "Leadership", variant: "destructive" },
 };
 
 // ---------------------------------------------------------------------------
@@ -160,7 +161,7 @@ function WatchlistCard({ entry }: { entry: WatchlistEntry }) {
             <h3 className="text-base font-semibold truncate text-[var(--color-text)]">
               {entry.company_name}
             </h3>
-            {isManualSource && <span className="badge">Manual</span>}
+            {isManualSource && <Badge variant="muted">Manual</Badge>}
             {!entry.webset_id && (
               <span className="text-[10px] text-[var(--color-text-subtle)] uppercase tracking-wider">
                 No monitor
@@ -270,7 +271,7 @@ function AlertCard({ alert }: { alert: WatchlistAlertRow }) {
   return (
     <article className="surface-muted p-3 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <span className={typeInfo.className}>{typeInfo.label}</span>
+        <Badge variant={typeInfo.variant}>{typeInfo.label}</Badge>
         <span className="text-[11px] text-[var(--color-text-subtle)] tabular-nums">
           {formatRelativeTime(alert.detected_at)}
         </span>

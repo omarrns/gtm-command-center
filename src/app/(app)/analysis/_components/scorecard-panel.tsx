@@ -1,4 +1,8 @@
+import { Badge, type badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { VariantProps } from "class-variance-authority";
+
+type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
 
 interface ScorecardDimension {
   score: number;
@@ -34,13 +38,11 @@ function scoreColor(score: number): string {
   return "text-[var(--color-danger)]";
 }
 
-function verdictBadge(verdict: string) {
+function verdictVariant(verdict: string): BadgeVariant {
   const lower = verdict.toLowerCase();
-  if (lower.includes("strong") || lower.includes("pursue"))
-    return "badge-success";
-  if (lower.includes("stretch") || lower.includes("skip"))
-    return "badge-danger";
-  return "badge-warning";
+  if (lower.includes("strong") || lower.includes("pursue")) return "success";
+  if (lower.includes("stretch") || lower.includes("skip")) return "destructive";
+  return "warning";
 }
 
 export function ScorecardPanel({
@@ -64,7 +66,7 @@ export function ScorecardPanel({
               /{maxScore}
             </span>
           </span>
-          <span className={`badge ${verdictBadge(verdict)}`}>{verdict}</span>
+          <Badge variant={verdictVariant(verdict)}>{verdict}</Badge>
         </div>
       </div>
       <div className="space-y-3">

@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import type { Obj } from "../result-guards";
 
 export function ImportedMarkdownView({ result }: { result: Obj }) {
@@ -8,10 +9,10 @@ export function ImportedMarkdownView({ result }: { result: Obj }) {
       {result.score != null || result.verdict != null ? (
         <div className="flex items-center gap-3">
           {result.score != null ? (
-            <span className="badge">Score: {String(result.score)}</span>
+            <Badge variant="muted">Score: {String(result.score)}</Badge>
           ) : null}
           {result.verdict != null ? (
-            <span className="badge">{String(result.verdict)}</span>
+            <Badge variant="muted">{String(result.verdict)}</Badge>
           ) : null}
         </div>
       ) : null}

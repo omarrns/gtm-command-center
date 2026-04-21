@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { updateScoringWeightsAction } from "../actions";
 import type { UserScoringProfileRow } from "@/lib/supabase/types";
 
@@ -158,9 +159,9 @@ function TagRow({ label, items }: { label: string; items: string[] }) {
       </div>
       <div className="flex flex-wrap gap-1.5">
         {items.map((item) => (
-          <span key={item} className="badge text-xs">
+          <Badge key={item} variant="muted">
             {item}
-          </span>
+          </Badge>
         ))}
       </div>
     </div>

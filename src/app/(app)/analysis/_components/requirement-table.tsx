@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/badge";
+
 interface RequirementMatch {
   requirement: string;
   status: "STRONG MATCH" | "PARTIAL MATCH" | "GAP";
@@ -20,17 +22,18 @@ export function RequirementTable({ matches }: { matches: RequirementMatch[] }) {
               <div className="text-xs font-medium leading-relaxed flex-1">
                 {m.requirement}
               </div>
-              <span
-                className={`badge shrink-0 ${
+              <Badge
+                className="shrink-0"
+                variant={
                   m.status === "STRONG MATCH"
-                    ? "badge-success"
+                    ? "success"
                     : m.status === "PARTIAL MATCH"
-                      ? "badge-warning"
-                      : "badge-danger"
-                }`}
+                      ? "warning"
+                      : "destructive"
+                }
               >
                 {m.status}
-              </span>
+              </Badge>
             </div>
             {m.evidence && (
               <div className="text-xs text-[var(--color-text-muted)] mt-1.5 leading-relaxed">

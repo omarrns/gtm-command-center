@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { formatRelativeTime } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { DetailHeader } from "@/components/detail-header";
 import { StatusBanner } from "@/components/status-banner";
 import type { AnalysisRow } from "@/lib/supabase/types";
@@ -43,7 +44,7 @@ export function AnalysisDetail({
         title={`${initial.company_name ?? "Analysis"} ${initial.role_title ? `— ${initial.role_title}` : ""}`}
         subtitle={
           <>
-            <span className="badge">{initial.skill_slug}</span>{" "}
+            <Badge variant="muted">{initial.skill_slug}</Badge>{" "}
             {formatRelativeTime(initial.created_at)}
           </>
         }

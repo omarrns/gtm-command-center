@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface TagInputProps {
   values: string[];
@@ -66,7 +67,7 @@ export function TagInput({
       <p className="text-xs text-[var(--color-text-subtle)]">{description}</p>
       <div className="flex flex-wrap gap-1.5 mb-2">
         {values.map((value, i) => (
-          <span key={i} className="badge inline-flex items-center gap-1">
+          <Badge key={i} variant="muted">
             {value}
             <button
               type="button"
@@ -75,7 +76,7 @@ export function TagInput({
             >
               <X size={12} />
             </button>
-          </span>
+          </Badge>
         ))}
       </div>
       {values.length < maxCount && (
