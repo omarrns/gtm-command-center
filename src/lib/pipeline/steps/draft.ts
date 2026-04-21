@@ -111,7 +111,7 @@ Never mention internal scoring, dealbreakers, or strategy notes.`;
     companyName: opp.company_name,
     recipientName: opp.recipient_name ?? "Hiring Manager",
     recipientTitle: opp.recipient_title ?? "Unknown",
-    roleTitle: opp.role_title,
+    roleTitle: opp.role_title ?? undefined,
     analysisContext,
     senderProfile: formatMemoryForPrompt(memoryCtx, [
       "user_profile",

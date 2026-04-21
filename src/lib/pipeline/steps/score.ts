@@ -52,7 +52,7 @@ export async function scoreOneOpportunity(
 ): Promise<ScoreOneResult> {
   const scoring = await scoreOpportunity(
     opp.company_name,
-    opp.role_title,
+    opp.role_title ?? "",
     opp.job_description ?? "",
     userId,
     svc,

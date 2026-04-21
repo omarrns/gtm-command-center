@@ -3,11 +3,18 @@
 
 export type JobStatus = "pending" | "running" | "complete" | "failed";
 
+export type UserType = "job_seeker" | "gtm";
+
 export interface ProfileRow {
   user_id: string;
   email: string | null;
   display_name: string | null;
   is_enabled: boolean;
+  // Set only at the first successful onboarding confirm. Pre-confirm, the
+  // in-progress template lives on onboarding_interviews.template_id
+  // exclusively so downstream surfaces don't fork off an unconfirmed
+  // choice.
+  user_type: UserType | null;
   created_at: string;
   updated_at: string;
 }
@@ -157,7 +164,15 @@ export interface OpportunityRow {
   source: OpportunitySource;
   external_id: string;
   company_name: string;
-  role_title: string;
+  // Nullable under GTM — target accounts don't have roles. Non-null for
+  // job_seeker rows in practice (the job_search pipeline writes it).
+  role_title: string | null;
+  // GTM shape (populated for user_type='gtm' rows; null for job_seeker).
+  // No code reads these in SPEC-3 v1 — schema reserved for the future
+  // GTM pipeline surface. See docs/DEFERRED.md.
+  company_domain: string | null;
+  trigger_signals: Record<string, unknown>[] | null;
+  buyer_personas: Record<string, unknown>[] | null;
   job_url: string | null;
   job_description: string | null;
   stage: OpportunityStage;
