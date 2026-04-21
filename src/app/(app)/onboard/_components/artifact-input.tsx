@@ -1,18 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import {
   CheckCircle2,
   AlertCircle,
-  Link as LinkIcon,
-  FileText,
-  Upload,
+  Paperclip,
+  ArrowUp,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type {
   OnboardingArtifactRow,
   OnboardingArtifactStatus,
@@ -35,7 +33,7 @@ async function readArtifactResponse(res: Response): Promise<ArtifactResponse> {
       const body = (await res.json()) as Partial<ErrorResponse>;
       if (body.error) message = body.error;
     } catch {
-      // fall through — the status-code message is still useful
+      // fall through
     }
     throw new Error(message);
   }
@@ -59,26 +57,38 @@ type ArtifactListItem = Pick<
   | "error_message"
 >;
 
+function isUrl(value: string): boolean {
+  return /^https?:\/\//.test(value.trim());
+}
+
 function detectKindFromUrl(url: string): string {
-  const lower = url.toLowerCase();
-  if (lower.includes("linkedin.com")) return "linkedin";
-  return "website";
+  return url.toLowerCase().includes("linkedin.com") ? "linkedin" : "website";
 }
 
 function statusIcon(status: OnboardingArtifactStatus) {
   if (status === "succeeded")
-    return <CheckCircle2 size={14} className="text-[var(--color-success)]" />;
+    return (
+      <CheckCircle2
+        size={12}
+        className="text-[var(--color-success)] shrink-0"
+      />
+    );
   if (status === "failed")
-    return <AlertCircle size={14} className="text-[var(--color-danger)]" />;
+    return (
+      <AlertCircle size={12} className="text-[var(--color-danger)] shrink-0" />
+    );
   return (
-    <Loader2 size={14} className="animate-spin text-[var(--color-blue)]" />
+    <Loader2
+      size={12}
+      className="animate-spin text-[var(--color-blue)] shrink-0"
+    />
   );
 }
 
 function artifactLabel(a: ArtifactListItem): string {
   if (a.source_url) return a.source_url;
   if (a.file_name) return a.file_name;
-  return `${a.kind} (text paste)`;
+  return `${a.kind} (text)`;
 }
 
 export function ArtifactInput({
@@ -86,60 +96,41 @@ export function ArtifactInput({
   onStateUpdated,
   onReadyToChat,
 }: ArtifactInputProps) {
-  const [urlValue, setUrlValue] = useState("");
-  const [textValue, setTextValue] = useState("");
-  const [textKind, setTextKind] = useState<"resume" | "pasted_text">(
-    "pasted_text",
-  );
+  const [inputValue, setInputValue] = useState("");
   const [artifacts, setArtifacts] = useState<ArtifactListItem[]>([]);
   const [isUploading, startUpload] = useTransition();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  async function submitUrl() {
-    const url = urlValue.trim();
-    if (!url || isUploading) return;
+  function autoResize() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }
+
+  async function submit() {
+    const value = inputValue.trim();
+    if (!value || isUploading) return;
     startUpload(async () => {
       try {
+        const body = isUrl(value)
+          ? { interviewId, kind: detectKindFromUrl(value), url: value }
+          : { interviewId, kind: "pasted_text", text: value };
+
         const res = await fetch("/api/onboard/artifacts", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            interviewId,
-            kind: detectKindFromUrl(url),
-            url,
-          }),
+          body: JSON.stringify(body),
         });
         const data = await readArtifactResponse(res);
         setArtifacts((prev) => [...prev, data.artifact]);
-        setUrlValue("");
+        setInputValue("");
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
         if (data.orchestratorState) onStateUpdated(data.orchestratorState);
         if (data.artifact.status === "failed" && data.artifact.error_message) {
           toast.warning(data.artifact.error_message);
         }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Upload failed";
-        toast.error(msg);
-      }
-    });
-  }
-
-  async function submitText() {
-    const text = textValue.trim();
-    if (!text || isUploading) return;
-    startUpload(async () => {
-      try {
-        const res = await fetch("/api/onboard/artifacts", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            interviewId,
-            kind: textKind,
-            text,
-          }),
-        });
-        const data = await readArtifactResponse(res);
-        setArtifacts((prev) => [...prev, data.artifact]);
-        setTextValue("");
-        if (data.orchestratorState) onStateUpdated(data.orchestratorState);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
         toast.error(msg);
@@ -160,7 +151,6 @@ export function ArtifactInput({
             ? "resume"
             : "uploaded_file",
         );
-
         const res = await fetch("/api/onboard/artifacts", {
           method: "POST",
           body: form,
@@ -178,146 +168,152 @@ export function ArtifactInput({
     });
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
+  }
+
   const hasAnySuccess = artifacts.some((a) => a.status === "succeeded");
 
+  const pills: Array<{ label: string; hint?: string; action?: () => void }> = [
+    { label: "LinkedIn URL", hint: "https://linkedin.com/in/" },
+    { label: "Paste resume", hint: "" },
+    { label: "Upload PDF", action: () => fileRef.current?.click() },
+  ];
+
   return (
-    <div className="mx-auto max-w-2xl w-full space-y-6 py-8">
-      <div>
-        <h2 className="text-xl font-bold tracking-tight">
-          Drop in what you&apos;ve got
-        </h2>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Paste a LinkedIn URL, your personal site, upload a resume — anything
-          that helps the agent skip the obvious questions and get to what&apos;s
-          actually interesting about you.
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 py-12">
+      {/* Hero heading */}
+      <div className="text-center mb-10">
+        <h1 className="text-3xl font-bold tracking-tight mb-3">
+          Help me, help you.
+        </h1>
+        <p className="text-sm text-[var(--color-text-muted)] max-w-sm leading-relaxed">
+          Drop a LinkedIn URL, paste your resume, or upload a PDF. The more
+          context you share, the smarter the agent gets before it asks you
+          anything.
         </p>
       </div>
 
-      {/* URL */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-[var(--color-text-muted)] flex items-center gap-1.5">
-          <LinkIcon size={12} /> URL
-        </label>
-        <div className="flex gap-2">
-          <Input
-            value={urlValue}
-            onChange={(e) => setUrlValue(e.target.value)}
-            placeholder="https://linkedin.com/in/you  — or any site that represents you"
-            disabled={isUploading}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                submitUrl();
-              }
-            }}
-          />
-          <Button
-            type="button"
-            onClick={submitUrl}
-            disabled={!urlValue.trim() || isUploading}
-          >
-            Add
-          </Button>
-        </div>
-      </div>
-
-      {/* Text paste */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-[var(--color-text-muted)] flex items-center gap-1.5">
-          <FileText size={12} /> Paste text
-        </label>
-        <div className="flex gap-2 mb-2">
-          <button
-            type="button"
-            onClick={() => setTextKind("resume")}
-            className={`text-xs px-2 py-1 rounded ${textKind === "resume" ? "bg-[var(--color-blue-muted)] text-[var(--color-blue)]" : "text-[var(--color-text-subtle)]"}`}
-          >
-            Resume
-          </button>
-          <button
-            type="button"
-            onClick={() => setTextKind("pasted_text")}
-            className={`text-xs px-2 py-1 rounded ${textKind === "pasted_text" ? "bg-[var(--color-blue-muted)] text-[var(--color-blue)]" : "text-[var(--color-text-subtle)]"}`}
-          >
-            Freeform
-          </button>
-        </div>
-        <Textarea
-          value={textValue}
-          onChange={(e) => setTextValue(e.target.value)}
-          placeholder={
-            textKind === "resume"
-              ? "Paste your resume text here..."
-              : "Anything: positioning doc, bio, bullets, a paragraph about what you're looking for..."
-          }
-          rows={4}
-          disabled={isUploading}
-        />
-        <Button
-          type="button"
-          onClick={submitText}
-          disabled={!textValue.trim() || isUploading}
-          size="sm"
-        >
-          Add text
-        </Button>
-      </div>
-
-      {/* File upload */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-[var(--color-text-muted)] flex items-center gap-1.5">
-          <Upload size={12} /> Upload PDF
-        </label>
-        <input
-          type="file"
-          accept="application/pdf,.pdf"
-          disabled={isUploading}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) submitFile(file);
-            e.target.value = "";
-          }}
-          className="text-xs text-[var(--color-text-muted)] file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-[var(--color-border-strong)] file:bg-[var(--color-surface)] file:text-xs file:cursor-pointer"
-        />
-      </div>
-
-      {/* Artifact list */}
+      {/* Artifact chips */}
       {artifacts.length > 0 && (
-        <div className="space-y-1.5 pt-2 border-t border-[var(--border)]">
-          <p className="text-xs font-medium text-[var(--color-text-muted)]">
-            Added
-          </p>
+        <div className="flex flex-wrap gap-2 mb-3 w-full max-w-lg">
           {artifacts.map((a) => (
-            <div key={a.id} className="flex items-start gap-2 text-xs py-1.5">
+            <div
+              key={a.id}
+              className="flex items-center gap-1.5 text-xs bg-[var(--color-surface-muted)] border border-[var(--border)] rounded-full px-3 py-1.5 max-w-[280px]"
+            >
               {statusIcon(a.status)}
-              <div className="flex-1 min-w-0">
-                <div className="truncate">{artifactLabel(a)}</div>
-                {a.status === "failed" && a.error_message && (
-                  <div className="text-[var(--color-danger)] mt-0.5">
-                    {a.error_message}
-                  </div>
-                )}
-              </div>
+              <span className="truncate">{artifactLabel(a)}</span>
+              {a.status === "failed" && a.error_message && (
+                <span className="text-[var(--color-danger)] ml-1 truncate">
+                  — {a.error_message}
+                </span>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Proceed */}
-      <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
-        <button
-          type="button"
-          onClick={onReadyToChat}
-          className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
-        >
-          Continue without artifacts →
-        </button>
+      {/* Unified input box */}
+      <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--color-surface)] shadow-sm focus-within:border-[var(--color-blue)] transition-colors">
+        <textarea
+          ref={textareaRef}
+          value={inputValue}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            autoResize();
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder="Drop a LinkedIn URL, paste your resume, or describe what you're looking for…"
+          disabled={isUploading}
+          rows={3}
+          className="w-full bg-transparent px-4 pt-4 pb-2 text-sm resize-none outline-none placeholder:text-[var(--color-text-subtle)] min-h-[88px] max-h-[200px]"
+        />
+        <div className="flex items-center justify-between px-3 pb-3 pt-1">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={isUploading}
+            title="Upload PDF"
+            className="p-1.5 rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] transition-colors"
+          >
+            <Paperclip size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!inputValue.trim() || isUploading}
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              inputValue.trim() && !isUploading
+                ? "bg-[var(--color-blue)] text-white hover:opacity-90"
+                : "bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] cursor-not-allowed",
+            )}
+          >
+            {isUploading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <ArrowUp size={16} />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="sr-only"
+        disabled={isUploading}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) submitFile(file);
+          e.target.value = "";
+        }}
+      />
+
+      {/* Quick action pills */}
+      <div className="flex items-center gap-2 mt-4 flex-wrap justify-center">
+        {pills.map((pill) => (
+          <button
+            key={pill.label}
+            type="button"
+            onClick={() => {
+              if (pill.action) {
+                pill.action();
+                return;
+              }
+              if (pill.hint !== undefined) {
+                setInputValue(pill.hint);
+                textareaRef.current?.focus();
+              }
+            }}
+            className="text-xs px-3 py-1.5 rounded-full border border-[var(--border)] text-[var(--color-text-muted)] hover:border-[var(--color-blue)] hover:text-[var(--color-blue)] transition-colors"
+          >
+            {pill.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Primary + escape-hatch actions */}
+      <div className="flex flex-col items-center gap-3 mt-8">
+        {hasAnySuccess && (
+          <Button type="button" onClick={onReadyToChat}>
+            Start interview
+          </Button>
+        )}
         <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={onReadyToChat}
-          disabled={!hasAnySuccess || isUploading}
+          className="text-[var(--color-text-subtle)]"
         >
-          Start interview
+          {hasAnySuccess ? "Skip to interview" : "Continue without context"}
         </Button>
       </div>
     </div>
