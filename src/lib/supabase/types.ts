@@ -181,6 +181,15 @@ export interface OpportunityRow {
   attempt_count: number;
   last_error: string | null;
   job_posted_at: string | null;
+  job_city: string | null;
+  job_state: string | null;
+  job_is_remote: boolean | null;
+  job_employment_type: string | null;
+  job_min_salary: number | null;
+  job_max_salary: number | null;
+  job_salary_currency: string | null;
+  job_salary_period: string | null;
+  job_required_skills: string[] | null;
   discovered_at: string;
   updated_at: string;
 }

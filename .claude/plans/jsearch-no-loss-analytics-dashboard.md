@@ -78,7 +78,8 @@ Key schema notes:
 return (body.data as JSearchResult[]) ?? [];
 
 // With:
-return (body.data ?? []).flatMap((raw: unknown) => {
+const rawRows = Array.isArray(body.data) ? body.data : [];
+return rawRows.flatMap((raw: unknown) => {
   const r = JSearchResultSchema.safeParse(raw);
   if (!r.success) {
     console.warn("[jsearch] Skipping malformed record:", r.error.issues[0]);
@@ -87,6 +88,10 @@ return (body.data ?? []).flatMap((raw: unknown) => {
   return [r.data];
 });
 ```
+
+The `Array.isArray` guard is required — `body.data ?? []` still throws if the API returns
+`{ data: {} }` or another non-array shape. The guard degrades to an empty result instead of
+crashing the batch.
 
 ---
 
@@ -230,9 +235,15 @@ Return the raw rows. All bucketing, grouping, and top-N logic happens in the das
 client so it stays in one place and is easy to adjust without touching the loader.
 
 **Salary normalization note:** the salary chart should only include rows where
-`job_salary_period = 'YEAR'` and `job_salary_currency = 'USD'` (or your target currency).
-Mixing hourly and annual values in the same buckets produces meaningless data. Show a
-"salary data available for X of Y roles" coverage note so null/excluded coverage is visible.
+`job_salary_period` matches the annual value and `job_salary_currency = 'USD'`. Mixing
+hourly and annual values in the same buckets produces meaningless data. Show a "salary data
+available for X of Y roles" coverage note so null/excluded coverage is visible.
+
+**Before hard-coding the period filter:** log real `job_salary_period` values from a live
+JSearch response to confirm the exact string. JSearch may return `'YEAR'`, `'YEARLY'`,
+`'annual'`, or another variant — guessing wrong silently excludes all valid salary rows. Add
+a temporary `console.log("[jsearch] salary_period:", job.job_salary_period)` in `discover.ts`,
+trigger one pipeline run, then remove the log before shipping.
 
 ---
 
