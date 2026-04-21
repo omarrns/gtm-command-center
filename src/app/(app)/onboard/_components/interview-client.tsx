@@ -6,6 +6,7 @@ import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { Bot, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   INTERVIEW_TOPICS,
@@ -267,23 +268,25 @@ export function InterviewClient({
             disabled={isStreaming}
             className="flex-1"
           />
-          <button
+          <Button
             type="button"
+            size="icon"
             onClick={handleSend}
             disabled={!input.trim() || isStreaming}
-            className="btn-primary flex items-center gap-1.5 px-3 py-2"
           >
             <Send size={14} />
-          </button>
+          </Button>
         </div>
         <div className="mt-2 text-center">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={onSwitchToManual}
-            className="btn-ghost text-xs text-[var(--color-text-subtle)]"
+            className="text-[var(--color-text-subtle)]"
           >
             Skip to manual entry
-          </button>
+          </Button>
         </div>
       </div>
     </div>

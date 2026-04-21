@@ -12,6 +12,7 @@ import {
   Check,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   saveProfileAction,
   saveSearchConfigAction,
@@ -287,24 +288,15 @@ export function OnboardClient({
 
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-[var(--border)]">
           {step > 1 ? (
-            <button
-              type="button"
-              onClick={goBack}
-              className="btn-ghost flex items-center gap-1 text-sm"
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={goBack}>
               <ChevronLeft size={14} />
               Back
-            </button>
+            </Button>
           ) : (
             <div />
           )}
 
-          <button
-            type="button"
-            onClick={saveAndNext}
-            disabled={isPending}
-            className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2"
-          >
+          <Button type="button" onClick={saveAndNext} disabled={isPending}>
             {isPending ? (
               "Saving..."
             ) : (
@@ -313,7 +305,7 @@ export function OnboardClient({
                 {!isLastStep && <ChevronRight size={14} />}
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

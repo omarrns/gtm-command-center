@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface TagInputProps {
@@ -97,15 +98,16 @@ export function TagInput({
             maxLength={maxLength}
             className="flex-1"
           />
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={add}
             disabled={!buffer.trim()}
-            className="btn-ghost flex items-center gap-1 text-xs"
           >
             <Plus size={14} />
             Add
-          </button>
+          </Button>
         </div>
       )}
     </div>

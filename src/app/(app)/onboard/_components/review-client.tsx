@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   confirmInterviewAction,
   backToInterviewAction,
@@ -261,23 +262,19 @@ export function ReviewClient({
       <ReviewSectionInsights insights={extractedInsights} />
 
       <div className="flex items-center justify-between">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={handleBack}
           disabled={isPending}
-          className="btn-ghost flex items-center gap-1 text-sm"
         >
           <ArrowLeft size={14} />
           Back to interview
-        </button>
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={isPending}
-          className="btn-primary text-sm px-5 py-2"
-        >
+        </Button>
+        <Button type="button" onClick={handleConfirm} disabled={isPending}>
           {isPending ? "Saving..." : "Confirm & Continue"}
-        </button>
+        </Button>
       </div>
     </div>
   );

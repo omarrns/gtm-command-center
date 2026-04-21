@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ExternalLink, Play, Settings, Mail } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { triggerPipelineAction } from "../../actions";
 import { dismissActivationAction } from "../actions";
 import type {
@@ -276,7 +276,7 @@ export function ActivationClient({
           <div className="flex items-center gap-3">
             <a
               href={`/api/auth/gmail?return_to=${encodeURIComponent("/")}`}
-              className="btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2"
+              className={buttonVariants()}
             >
               <ExternalLink size={13} />
               Connect Gmail

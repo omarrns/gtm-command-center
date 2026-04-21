@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { updateScoringWeightsAction } from "../actions";
 import type { UserScoringProfileRow } from "@/lib/supabase/types";
 
@@ -138,15 +139,14 @@ export function SettingsScoringPanel({
         ))}
       </div>
 
-      <button
+      <Button
         type="button"
         onClick={handleSaveWeights}
         disabled={!isWeightsDirty || isSavingWeights}
-        className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2"
       >
         <Save size={14} />
         {isSavingWeights ? "Saving..." : "Save Weights"}
-      </button>
+      </Button>
     </section>
   );
 }

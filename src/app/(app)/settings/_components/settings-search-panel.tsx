@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Clock, Save } from "lucide-react";
 import { toast } from "sonner";
 import { TagInput } from "@/components/tag-input";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateConfigAction } from "../actions";
 
@@ -140,15 +141,14 @@ export function SettingsSearchPanel({
         </div>
       </div>
 
-      <button
+      <Button
         type="button"
         onClick={handleSave}
         disabled={!isDirty || isSaving}
-        className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2"
       >
         <Save size={14} />
         {isSaving ? "Saving..." : "Save Changes"}
-      </button>
+      </Button>
     </section>
   );
 }

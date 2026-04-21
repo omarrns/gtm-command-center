@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function AppError({
   error,
@@ -19,9 +20,7 @@ export default function AppError({
       <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-md">
         {error.message || "An unexpected error occurred."}
       </p>
-      <button type="button" onClick={reset} className="btn-primary text-sm">
-        Try again
-      </button>
+      <Button onClick={reset}>Try again</Button>
     </div>
   );
 }

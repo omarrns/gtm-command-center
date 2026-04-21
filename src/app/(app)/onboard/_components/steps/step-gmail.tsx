@@ -1,4 +1,5 @@
 import { Mail, ExternalLink } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 
 interface StepGmailProps {
   gmailConnected: boolean;
@@ -29,10 +30,7 @@ export function StepGmail({ gmailConnected, isRefresh }: StepGmailProps) {
               directly from the pipeline. You can also do this later from
               Settings.
             </p>
-            <a
-              href={authHref}
-              className="btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2"
-            >
+            <a href={authHref} className={buttonVariants()}>
               <ExternalLink size={13} />
               Connect Gmail
             </a>
