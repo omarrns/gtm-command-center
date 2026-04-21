@@ -19,6 +19,7 @@ import {
   emptyOrchestratorState,
   type OrchestratorState,
 } from "@/lib/onboarding/orchestrator/types";
+import { toJobSearchConfirmEdits } from "@/lib/onboarding/orchestrator/to-confirm-edits";
 
 export const maxDuration = 120;
 
@@ -121,6 +122,11 @@ async function handleAgenticTurn(
       nextDimensionKey: null,
     };
 
+    // Hydrate extracted_* from orchestrator so the review UI initializes
+    // from the orchestrator's inferred values, not empty defaults. Without
+    // this the user's review submit would overwrite orchestrator output.
+    const { edits: initialReviewEdits } = toJobSearchConfirmEdits(finalState);
+
     const wrapUpSystem = `You are wrapping up an interview. Briefly thank the user and tell them the review screen is next. Keep it to 1–2 sentences. End with ${template.completionMarker} on its own line. Do NOT ask questions.`;
 
     const result = streamText({
@@ -140,6 +146,9 @@ async function handleAgenticTurn(
             messages: finalMessages,
             orchestrator_state: finalState,
             status: "review",
+            extracted_profile: initialReviewEdits.profile,
+            extracted_search: initialReviewEdits.search,
+            extracted_outreach: initialReviewEdits.outreach,
             updated_at: new Date().toISOString(),
           })
           .eq("id", interview.id);
@@ -159,14 +168,14 @@ async function handleAgenticTurn(
     currentHypothesis: hypothesis,
   });
 
+  // Always push — askedDimensionKeys is a log of ask events, not a set.
+  // Count per key gates the bounded re-ask behavior in computeNextKey.
   const pendingState: OrchestratorState = {
     ...state,
     status: "interviewing",
     activeDimensionKey: next.key,
     nextDimensionKey: next.key,
-    askedDimensionKeys: state.askedDimensionKeys.includes(next.key)
-      ? state.askedDimensionKeys
-      : [...state.askedDimensionKeys, next.key],
+    askedDimensionKeys: [...state.askedDimensionKeys, next.key],
     metrics: {
       ...state.metrics,
       questionCount: state.metrics.questionCount + 1,

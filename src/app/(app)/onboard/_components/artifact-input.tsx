@@ -19,6 +19,29 @@ import type {
 } from "@/lib/supabase/types";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 
+interface ArtifactResponse {
+  artifact: OnboardingArtifactRow;
+  orchestratorState: OrchestratorState | null;
+}
+
+interface ErrorResponse {
+  error: string;
+}
+
+async function readArtifactResponse(res: Response): Promise<ArtifactResponse> {
+  if (!res.ok) {
+    let message = `Server returned ${res.status}`;
+    try {
+      const body = (await res.json()) as Partial<ErrorResponse>;
+      if (body.error) message = body.error;
+    } catch {
+      // fall through — the status-code message is still useful
+    }
+    throw new Error(message);
+  }
+  return (await res.json()) as ArtifactResponse;
+}
+
 interface ArtifactInputProps {
   interviewId: string;
   onStateUpdated: (state: OrchestratorState) => void;
@@ -85,10 +108,7 @@ export function ArtifactInput({
             url,
           }),
         });
-        const data = (await res.json()) as {
-          artifact: OnboardingArtifactRow;
-          orchestratorState: OrchestratorState | null;
-        };
+        const data = await readArtifactResponse(res);
         setArtifacts((prev) => [...prev, data.artifact]);
         setUrlValue("");
         if (data.orchestratorState) onStateUpdated(data.orchestratorState);
@@ -116,10 +136,7 @@ export function ArtifactInput({
             text,
           }),
         });
-        const data = (await res.json()) as {
-          artifact: OnboardingArtifactRow;
-          orchestratorState: OrchestratorState | null;
-        };
+        const data = await readArtifactResponse(res);
         setArtifacts((prev) => [...prev, data.artifact]);
         setTextValue("");
         if (data.orchestratorState) onStateUpdated(data.orchestratorState);
@@ -148,10 +165,7 @@ export function ArtifactInput({
           method: "POST",
           body: form,
         });
-        const data = (await res.json()) as {
-          artifact: OnboardingArtifactRow;
-          orchestratorState: OrchestratorState | null;
-        };
+        const data = await readArtifactResponse(res);
         setArtifacts((prev) => [...prev, data.artifact]);
         if (data.orchestratorState) onStateUpdated(data.orchestratorState);
         if (data.artifact.status === "failed" && data.artifact.error_message) {
