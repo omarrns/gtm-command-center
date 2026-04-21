@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { isOnboardingComplete } from "@/lib/pipeline/onboarding";
+import {
+  getDefaultTemplate,
+  toClientTemplate,
+} from "@/lib/onboarding/templates";
 import { OnboardRouter } from "./_components/onboard-router";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 
@@ -87,9 +91,12 @@ export default async function OnboardPage(props: {
   const activeInterview =
     (interviewRes.data as OnboardingInterviewRow | null) ?? null;
 
+  const clientTemplate = toClientTemplate(getDefaultTemplate());
+
   return (
     <OnboardRouter
       interview={activeInterview}
+      clientTemplate={clientTemplate}
       isRefresh={isRefresh}
       gmailConnected={!!gmailRes.data}
       completedSteps={onboarding.completedSteps}

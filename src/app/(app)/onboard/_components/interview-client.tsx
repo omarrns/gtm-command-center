@@ -26,52 +26,26 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Loader } from "@/components/ai-elements/loader";
 import {
-  INTERVIEW_TOPICS,
-  type InterviewTopic,
-} from "@/lib/onboarding/interview-prompt";
-import {
   extractAndReviewAction,
   checkInterviewStateAction,
 } from "../interview-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
+import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 
 interface InterviewClientProps {
   interview: OnboardingInterviewRow;
+  clientTemplate: ClientInterviewTemplate;
   onExtracted: (interview: OnboardingInterviewRow) => void;
   onSwitchToManual: () => void;
 }
 
-const TOPIC_LABELS: Record<InterviewTopic, string> = {
-  identity: "Identity",
-  career: "Career",
-  proof_points: "Proof Points",
-  tools: "Tools",
-  search_prefs: "Search",
-  dealbreakers: "Dealbreakers",
-  outreach_style: "Outreach",
-};
-
-const OPENING_MESSAGE: UIMessage = {
-  id: "opening",
-  role: "assistant",
-  parts: [
-    {
-      type: "text",
-      text: "Hey! I'm here to get a quick read on who you are professionally so we can find the right opportunities for you. Let's start with the big picture — what do you do, and what makes you different from others with a similar title? Give me the version you'd use with someone in tech but not your exact field.",
-    },
-  ],
-};
-
-const REFRESH_OPENING_MESSAGE: UIMessage = {
-  id: "opening",
-  role: "assistant",
-  parts: [
-    {
-      type: "text",
-      text: "Welcome back! Let's update your profile. What's changed since we last talked? Any new roles, different priorities, or shifts in what you're looking for?",
-    },
-  ],
-};
+function buildOpening(text: string): UIMessage {
+  return {
+    id: "opening",
+    role: "assistant",
+    parts: [{ type: "text", text }],
+  };
+}
 
 function extractDisplayText(msg: UIMessage): string {
   return msg.parts
@@ -84,6 +58,7 @@ function extractDisplayText(msg: UIMessage): string {
 
 export function InterviewClient({
   interview,
+  clientTemplate,
   onExtracted,
   onSwitchToManual,
 }: InterviewClientProps) {
@@ -94,10 +69,11 @@ export function InterviewClient({
   );
 
   const storedMessages = interview.messages as UIMessage[];
+  const openingText = interview.is_refresh
+    ? clientTemplate.refreshOpeningMessage
+    : clientTemplate.openingMessage;
   const initialMessages =
-    storedMessages.length > 0
-      ? storedMessages
-      : [interview.is_refresh ? REFRESH_OPENING_MESSAGE : OPENING_MESSAGE];
+    storedMessages.length > 0 ? storedMessages : [buildOpening(openingText)];
 
   const { messages, sendMessage, status } = useChat({
     id: interview.id,
@@ -173,7 +149,7 @@ export function InterviewClient({
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] max-w-2xl mx-auto w-full">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] shrink-0">
-        {INTERVIEW_TOPICS.map((topic) => {
+        {clientTemplate.topics.map((topic) => {
           const covered = topicsCovered.includes(topic);
           return (
             <div key={topic} className="flex items-center gap-1.5">
@@ -189,7 +165,7 @@ export function InterviewClient({
                     : "text-[var(--color-text-subtle)]"
                 }`}
               >
-                {TOPIC_LABELS[topic]}
+                {clientTemplate.topicLabels[topic]}
               </span>
             </div>
           );

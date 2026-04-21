@@ -10,6 +10,7 @@ import {
   backToInterviewAction,
 } from "../interview-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
+import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 import type {
   ExtractionProfile,
   ExtractionSearch,
@@ -39,6 +40,7 @@ interface ExistingData {
 
 interface ReviewClientProps {
   interview: OnboardingInterviewRow;
+  clientTemplate: ClientInterviewTemplate;
   isRefresh: boolean;
   onBackToInterview: (interview: OnboardingInterviewRow) => void;
   /** Existing saved data — used as fallback in refresh mode */
@@ -47,6 +49,9 @@ interface ReviewClientProps {
 
 export function ReviewClient({
   interview,
+  // Accepted for Phase 1 forward-compat; render still job_search-specific.
+  // Phase 2 switches on clientTemplate.id to render ICP/positioning sections.
+  clientTemplate: _clientTemplate,
   isRefresh,
   onBackToInterview,
   existingData,
