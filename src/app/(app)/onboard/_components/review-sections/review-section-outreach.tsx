@@ -1,5 +1,6 @@
 "use client";
 
+import { Textarea } from "@/components/ui/textarea";
 import type { OutreachTone } from "@/lib/onboarding/markdown";
 import { SectionHeader } from "../section-header";
 
@@ -43,20 +44,18 @@ export function ReviewSectionOutreach({
         <div className="space-y-4 mt-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Green Flags</label>
-            <textarea
+            <Textarea
               rows={3}
               value={greenFlags}
               onChange={(e) => onGreenFlagsChange(e.target.value)}
-              className="input"
             />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Red Flags</label>
-            <textarea
+            <Textarea
               rows={3}
               value={redFlags}
               onChange={(e) => onRedFlagsChange(e.target.value)}
-              className="input"
             />
           </div>
           <div className="space-y-1.5">
@@ -80,20 +79,18 @@ export function ReviewSectionOutreach({
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">What&apos;s Worked</label>
-            <textarea
+            <Textarea
               rows={2}
               value={whatsWorked}
               onChange={(e) => onWhatsWorkedChange(e.target.value)}
-              className="input"
             />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">What to Avoid</label>
-            <textarea
+            <Textarea
               rows={2}
               value={whatToAvoid}
               onChange={(e) => onWhatToAvoidChange(e.target.value)}
-              className="input"
             />
           </div>
         </div>

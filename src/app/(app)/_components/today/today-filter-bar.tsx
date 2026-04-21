@@ -1,6 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { WINDOW_OPTIONS, type DiscoveredWindow } from "../today-helpers";
 
@@ -73,14 +74,14 @@ export function TodayFilterBar({
         >
           Min Score
         </label>
-        <input
+        <Input
           id="today-min-score"
           type="number"
           min={0}
           max={100}
           inputMode="numeric"
           placeholder="0"
-          className="input text-xs h-8 w-16 tabular-nums"
+          className="w-16 text-xs tabular-nums"
           value={minScore}
           onChange={(e) => onMinScoreChange(e.target.value)}
         />
@@ -93,14 +94,14 @@ export function TodayFilterBar({
         >
           Max Score
         </label>
-        <input
+        <Input
           id="today-max-score"
           type="number"
           min={0}
           max={100}
           inputMode="numeric"
           placeholder="100"
-          className="input text-xs h-8 w-16 tabular-nums"
+          className="w-16 text-xs tabular-nums"
           value={maxScore}
           onChange={(e) => onMaxScoreChange(e.target.value)}
         />
@@ -119,11 +120,11 @@ export function TodayFilterBar({
             aria-hidden="true"
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
           />
-          <input
+          <Input
             id="today-company"
             type="search"
             placeholder="Search company…"
-            className="input text-xs h-8 pl-7"
+            className="pl-7 text-xs"
             value={companySearch}
             onChange={(e) => onCompanySearchChange(e.target.value)}
           />

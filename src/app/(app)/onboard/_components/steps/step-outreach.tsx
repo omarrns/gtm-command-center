@@ -1,5 +1,6 @@
 "use client";
 
+import { Textarea } from "@/components/ui/textarea";
 import type { OutreachTone } from "@/lib/onboarding/markdown";
 
 interface StepOutreachProps {
@@ -36,7 +37,7 @@ export function StepOutreach({
         <p className="text-xs text-[var(--color-text-subtle)]">
           What makes a company worth pursuing?
         </p>
-        <textarea
+        <Textarea
           id="green-flags"
           rows={3}
           value={greenFlags}
@@ -44,7 +45,6 @@ export function StepOutreach({
           placeholder={
             "Series A-C, product-led growth, small GTM team, technical founders"
           }
-          className="input"
         />
       </div>
 
@@ -55,7 +55,7 @@ export function StepOutreach({
         <p className="text-xs text-[var(--color-text-subtle)]">
           Immediate disqualifiers
         </p>
-        <textarea
+        <Textarea
           id="red-flags"
           rows={3}
           value={redFlags}
@@ -63,7 +63,6 @@ export function StepOutreach({
           placeholder={
             "Enterprise-only sales motion, no product yet, agency/consultancy"
           }
-          className="input"
         />
       </div>
 
@@ -97,7 +96,7 @@ export function StepOutreach({
         <p className="text-xs text-[var(--color-text-subtle)]">
           Validated patterns, subject lines, framing that got replies
         </p>
-        <textarea
+        <Textarea
           id="whats-worked"
           rows={3}
           value={whatsWorked}
@@ -105,7 +104,6 @@ export function StepOutreach({
           placeholder={
             "Peer frame over applicant frame, simple binary asks, no research mirror-backs"
           }
-          className="input"
         />
       </div>
 
@@ -116,7 +114,7 @@ export function StepOutreach({
         <p className="text-xs text-[var(--color-text-subtle)]">
           Anti-patterns, things that bombed
         </p>
-        <textarea
+        <Textarea
           id="what-to-avoid"
           rows={3}
           value={whatToAvoid}
@@ -124,7 +122,6 @@ export function StepOutreach({
           placeholder={
             "Long intros, flattery, bullet-heavy emails, 'I noticed you...' openers"
           }
-          className="input"
         />
       </div>
     </div>

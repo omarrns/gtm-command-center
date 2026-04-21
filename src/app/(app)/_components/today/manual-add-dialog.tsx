@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { manualInjectOpportunityAction } from "../../actions";
 
 interface ManualAddDialogProps {
@@ -51,8 +52,8 @@ export function ManualAddDialog({
           <DialogTitle>Add Job to Pipeline</DialogTitle>
         </DialogHeader>
         <div className="py-2">
-          <input
-            className="input w-full text-sm"
+          <Input
+            className="text-sm"
             type="url"
             value={jobUrl}
             onChange={(e) => setJobUrl(e.target.value)}

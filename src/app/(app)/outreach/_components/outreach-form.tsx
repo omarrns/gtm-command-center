@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
 import { generateEmailDraftAction } from "../actions";
 
 interface Prefill {
@@ -45,18 +46,13 @@ export function OutreachForm({ prefill }: { prefill: Prefill }) {
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5 block">
             Recipient name
           </span>
-          <input
-            className="input"
-            name="recipient_name"
-            required
-            placeholder="Marty Kausas"
-          />
+          <Input name="recipient_name" required placeholder="Marty Kausas" />
         </label>
         <label className="block">
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5 block">
             Recipient title
           </span>
-          <input className="input" name="recipient_title" placeholder="CEO" />
+          <Input name="recipient_title" placeholder="CEO" />
         </label>
       </div>
 
@@ -65,8 +61,7 @@ export function OutreachForm({ prefill }: { prefill: Prefill }) {
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5 block">
             Company
           </span>
-          <input
-            className="input"
+          <Input
             name="company_name"
             required
             defaultValue={prefill.companyName ?? ""}
@@ -78,8 +73,7 @@ export function OutreachForm({ prefill }: { prefill: Prefill }) {
             Role title{" "}
             <span className="text-[var(--color-text-subtle)]">(optional)</span>
           </span>
-          <input
-            className="input"
+          <Input
             name="role_title"
             defaultValue={prefill.roleTitle ?? ""}
             placeholder="GTM Engineer"

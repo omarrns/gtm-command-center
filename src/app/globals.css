@@ -262,23 +262,4 @@
     cursor: not-allowed;
     transform: none;
   }
-
-  .input {
-    width: 100%;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 0.55rem 0.75rem;
-    font-size: 0.875rem;
-    color: var(--foreground);
-    outline: none;
-    transition:
-      border-color 120ms ease,
-      box-shadow 120ms ease;
-  }
-
-  .input:focus {
-    border-color: var(--color-blue);
-    box-shadow: 0 0 0 3px var(--color-blue-muted);
-  }
 }

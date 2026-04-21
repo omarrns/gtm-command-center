@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   runJdRubricAction,
   enqueueCompanyAnalysisAction,
@@ -56,8 +58,7 @@ export function AnalysisIntakeForm({ mode }: { mode: Mode }) {
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5 block">
             Company name
           </span>
-          <input
-            className="input"
+          <Input
             name="company_name"
             placeholder="e.g. Pylon"
             required={mode === "company"}
@@ -71,11 +72,7 @@ export function AnalysisIntakeForm({ mode }: { mode: Mode }) {
             Role title{" "}
             <span className="text-[var(--color-text-subtle)]">(optional)</span>
           </span>
-          <input
-            className="input"
-            name="role_title"
-            placeholder="e.g. GTM Engineer"
-          />
+          <Input name="role_title" placeholder="e.g. GTM Engineer" />
         </label>
       )}
 
@@ -84,8 +81,8 @@ export function AnalysisIntakeForm({ mode }: { mode: Mode }) {
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5 block">
             Job description
           </span>
-          <textarea
-            className="input min-h-[200px] resize-y font-mono text-xs leading-relaxed"
+          <Textarea
+            className="min-h-[200px] resize-y font-mono text-xs leading-relaxed"
             name="job_description"
             placeholder="Paste the full job description here…"
             required={mode === "jd-rubric"}

@@ -5,6 +5,7 @@ import { ChevronDown, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge, type badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/empty-state";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { VariantProps } from "class-variance-authority";
@@ -83,14 +84,14 @@ export function WatchlistClient({ entries }: { entries: WatchlistEntry[] }) {
         onSubmit={handleAdd}
         className="surface p-3 flex items-center gap-2"
       >
-        <input
+        <Input
           type="text"
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
           placeholder="Company name..."
           aria-label="Company name"
           maxLength={100}
-          className="input flex-1 text-sm"
+          className="flex-1 text-sm"
           disabled={isPending}
         />
         <Button

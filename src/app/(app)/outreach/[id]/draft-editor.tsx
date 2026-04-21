@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { saveEmailDraftAction } from "../actions";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { DetailHeader } from "@/components/detail-header";
 import type { EmailDraftRow } from "@/lib/supabase/types";
 
@@ -110,8 +112,7 @@ export function DraftEditor({
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5 block">
             Subject
           </span>
-          <input
-            className="input"
+          <Input
             value={subject}
             onChange={(e) => {
               setSubject(e.target.value);
@@ -123,8 +124,8 @@ export function DraftEditor({
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1.5 block">
             Body
           </span>
-          <textarea
-            className="input min-h-[300px] resize-y text-sm leading-relaxed whitespace-pre-wrap"
+          <Textarea
+            className="min-h-[300px] resize-y whitespace-pre-wrap text-sm leading-relaxed"
             value={body}
             onChange={(e) => {
               setBody(e.target.value);
