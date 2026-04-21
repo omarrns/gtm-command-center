@@ -35,8 +35,8 @@ async function resolveUserId(email: string): Promise<string | null> {
 }
 
 async function main() {
-  const userId =
-    process.env.SEED_USER_ID ?? (await resolveUserId("omarns059@gmail.com"));
+  const email = process.env.SEED_USER_EMAIL ?? "omarns059@gmail.com";
+  const userId = process.env.SEED_USER_ID ?? (await resolveUserId(email));
 
   if (!userId) {
     console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
