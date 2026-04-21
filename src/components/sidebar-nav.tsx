@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarCheck, Clock, Eye, Settings, LogOut } from "lucide-react";
+import {
+  CalendarCheck,
+  Clock,
+  Eye,
+  Settings,
+  LogOut,
+  BarChart2,
+} from "lucide-react";
 import {
   AnimatePresence,
   LayoutGroup,
@@ -17,6 +24,7 @@ const NAV = [
   { href: "/", label: "Today", icon: CalendarCheck },
   { href: "/history", label: "History", icon: Clock },
   { href: "/watchlist", label: "Watchlist", icon: Eye },
+  { href: "/analytics", label: "Analytics", icon: BarChart2 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

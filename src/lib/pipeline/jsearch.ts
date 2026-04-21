@@ -3,30 +3,37 @@
  * Ported from scripts/search-gtm-jobs.mjs into a reusable module.
  */
 
+import { z } from "zod";
 import { assertEnv } from "@/lib/utils";
 
-export interface JSearchResult {
-  job_id: string;
-  job_title: string;
-  employer_name: string;
-  job_city: string | null;
-  job_state: string | null;
-  job_country: string;
-  job_is_remote: boolean;
-  job_apply_link: string;
-  job_description: string | null;
-  job_employment_type: string | null;
-  job_min_salary: number | null;
-  job_max_salary: number | null;
-  job_salary_currency: string | null;
-  job_salary_period: string | null;
-  job_posted_at_datetime_utc: string | null;
-  job_required_skills: string[] | null;
-  job_highlights: {
-    Qualifications?: string[];
-    Responsibilities?: string[];
-  } | null;
-}
+const JSearchResultSchema = z.object({
+  job_id: z.string(),
+  job_title: z.string(),
+  employer_name: z.string(),
+  job_city: z.string().nullable().default(null),
+  job_state: z.string().nullable().default(null),
+  job_country: z.string().default("us"),
+  job_is_remote: z.boolean().nullable().default(null),
+  job_apply_link: z.string(),
+  job_description: z.string().nullable().default(null),
+  job_employment_type: z.string().nullable().default(null),
+  job_min_salary: z.number().nullable().default(null),
+  job_max_salary: z.number().nullable().default(null),
+  job_salary_currency: z.string().nullable().default(null),
+  job_salary_period: z.string().nullable().default(null),
+  job_posted_at_datetime_utc: z.string().nullable().default(null),
+  job_required_skills: z.array(z.string()).nullable().default(null),
+  // Parsed for schema safety but never stored — redundant with job_description
+  job_highlights: z
+    .object({
+      Qualifications: z.array(z.string()).optional(),
+      Responsibilities: z.array(z.string()).optional(),
+    })
+    .nullable()
+    .default(null),
+});
+
+export type JSearchResult = z.infer<typeof JSearchResultSchema>;
 
 interface SearchOptions {
   numPages?: number;
@@ -79,7 +86,18 @@ async function fetchJSearch(
 
     if (res.ok) {
       const body = await res.json();
-      return (body.data as JSearchResult[]) ?? [];
+      const rawRows = Array.isArray(body.data) ? body.data : [];
+      return rawRows.flatMap((raw: unknown) => {
+        const result = JSearchResultSchema.safeParse(raw);
+        if (!result.success) {
+          console.warn(
+            "[jsearch] Skipping malformed record:",
+            result.error.issues[0],
+          );
+          return [];
+        }
+        return [result.data];
+      });
     }
 
     if (res.status === 429 && attempt < MAX_RETRIES) {

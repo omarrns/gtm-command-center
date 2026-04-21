@@ -43,6 +43,15 @@ export async function runDiscover(
         job_url: job.job_apply_link,
         job_description: job.job_description ?? undefined,
         job_posted_at: job.job_posted_at_datetime_utc ?? undefined,
+        job_city: job.job_city,
+        job_state: job.job_state,
+        job_is_remote: job.job_is_remote,
+        job_employment_type: job.job_employment_type,
+        job_min_salary: job.job_min_salary,
+        job_max_salary: job.job_max_salary,
+        job_salary_currency: job.job_salary_currency,
+        job_salary_period: job.job_salary_period,
+        job_required_skills: job.job_required_skills,
       });
 
       if (created) inserted++;
