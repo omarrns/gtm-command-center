@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { runExtractionFromTranscript } from "@/lib/onboarding/extraction";
+import { getTemplate } from "@/lib/onboarding/templates";
+import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
 import { performConfirm, type ConfirmEdits } from "./confirm-logic";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { UIMessage } from "ai";
@@ -38,23 +40,30 @@ export async function checkInterviewStateAction(
 
 export async function getOrCreateInterviewAction(
   isRefresh: boolean,
+  templateId: InterviewTemplateId = "job_search",
 ): Promise<
   { ok: true; interview: OnboardingInterviewRow } | { ok: false; error: string }
 > {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+  const template = getTemplate(templateId);
   console.log(
     "[getOrCreateInterview] userId:",
     user.id,
     "isRefresh:",
     isRefresh,
+    "templateId:",
+    templateId,
   );
 
-  // Check for existing active interview
+  // Check for existing active interview for this template. Per-template
+  // scoping matches the partial unique index; different templates can have
+  // concurrent active interviews for the same user.
   const { data: existing, error: existingErr } = await svc
     .from("onboarding_interviews")
     .select("*")
     .eq("user_id", user.id)
+    .eq("template_id", templateId)
     .in("status", ["in_progress", "extracting", "review"])
     .maybeSingle();
 
@@ -74,12 +83,13 @@ export async function getOrCreateInterviewAction(
 
   console.log("[getOrCreateInterview] no existing interview, creating new one");
 
-  // Create new interview
   const { data: created, error } = await svc
     .from("onboarding_interviews")
     .insert({
       user_id: user.id,
       is_refresh: isRefresh,
+      template_id: templateId,
+      template_version: template.version,
       status: "in_progress",
       messages: [],
       topics_covered: [],
@@ -158,8 +168,9 @@ export async function extractAndReviewAction(
   }
 
   try {
+    const template = getTemplate(interview.template_id);
     const messages = interview.messages as UIMessage[];
-    const extraction = await runExtractionFromTranscript(messages);
+    const extraction = await runExtractionFromTranscript(messages, template);
 
     const { data: updated, error: updateErr } = await svc
       .from("onboarding_interviews")
