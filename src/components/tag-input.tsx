@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 interface TagInputProps {
   values: string[];
@@ -81,7 +82,7 @@ export function TagInput({
       </div>
       {values.length < maxCount && (
         <div className="flex items-center gap-2">
-          <input
+          <Input
             id={inputId}
             type="text"
             value={buffer}
@@ -94,7 +95,7 @@ export function TagInput({
             }}
             placeholder={placeholder}
             maxLength={maxLength}
-            className="input flex-1"
+            className="flex-1"
           />
           <button
             type="button"

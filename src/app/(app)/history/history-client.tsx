@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import type {
@@ -133,7 +134,7 @@ export function HistoryClient({
           </label>
           <select
             id="history-stage"
-            className="input text-xs h-8"
+            className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
             value={stageFilter}
             onChange={(e) =>
               setStageFilter(e.target.value as OpportunityStage | "")
@@ -153,9 +154,9 @@ export function HistoryClient({
           >
             Min Score
           </label>
-          <input
+          <Input
             id="history-min-score"
-            className="input text-xs h-8 w-20"
+            className="w-20 text-xs"
             type="number"
             min={0}
             max={100}
@@ -171,9 +172,9 @@ export function HistoryClient({
           >
             Max Score
           </label>
-          <input
+          <Input
             id="history-max-score"
-            className="input text-xs h-8 w-20"
+            className="w-20 text-xs"
             type="number"
             min={0}
             max={100}
@@ -195,9 +196,9 @@ export function HistoryClient({
               aria-hidden="true"
               className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
             />
-            <input
+            <Input
               id="history-company"
-              className="input text-xs h-8 pl-7"
+              className="pl-7 text-xs"
               placeholder="Search company…"
               value={companySearch}
               onChange={(e) => setCompanySearch(e.target.value)}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Input } from "@/components/ui/input";
 import { sendMagicLinkAction, signInWithGoogleAction } from "./actions";
 
 export function LoginForm({ next, error }: { next?: string; error?: string }) {
@@ -38,8 +39,7 @@ export function LoginForm({ next, error }: { next?: string; error?: string }) {
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
             Email
           </span>
-          <input
-            className="input"
+          <Input
             type="email"
             name="email"
             required

@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { EmailDraftRow } from "@/lib/supabase/types";
 import { editDraftAction } from "../actions";
@@ -73,14 +75,14 @@ export function EmailVariantPicker({
 
             {isEditing ? (
               <div className="space-y-2">
-                <input
-                  className="input text-xs"
+                <Input
+                  className="text-xs"
                   value={editSubject}
                   onChange={(e) => setEditSubject(e.target.value)}
                   placeholder="Subject"
                 />
-                <textarea
-                  className="input text-xs min-h-[180px] resize-y whitespace-pre-wrap"
+                <Textarea
+                  className="min-h-[180px] resize-y whitespace-pre-wrap text-xs"
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}
                   placeholder="Body"

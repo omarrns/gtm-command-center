@@ -6,6 +6,7 @@ import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { Bot, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import {
   INTERVIEW_TOPICS,
   type InterviewTopic,
@@ -251,7 +252,7 @@ export function InterviewClient({
       {/* Input */}
       <div className="border-t border-[var(--border)] px-4 py-3">
         <div className="flex items-center gap-2">
-          <input
+          <Input
             ref={inputRef}
             type="text"
             value={input}
@@ -264,7 +265,7 @@ export function InterviewClient({
             }}
             placeholder="Type your response..."
             disabled={isStreaming}
-            className="input flex-1"
+            className="flex-1"
           />
           <button
             type="button"

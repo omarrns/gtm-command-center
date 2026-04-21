@@ -1,5 +1,7 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { SectionHeader } from "../section-header";
 
 interface ReviewSectionProfileProps {
@@ -38,38 +40,34 @@ export function ReviewSectionProfile({
         <div className="space-y-4 mt-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Positioning</label>
-            <input
+            <Input
               type="text"
               value={positioning}
               onChange={(e) => onPositioningChange(e.target.value)}
-              className="input"
             />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Career Highlights</label>
-            <textarea
+            <Textarea
               rows={4}
               value={careerHighlights}
               onChange={(e) => onCareerHighlightsChange(e.target.value)}
-              className="input"
             />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Proof Points</label>
-            <textarea
+            <Textarea
               rows={3}
               value={proofPoints}
               onChange={(e) => onProofPointsChange(e.target.value)}
-              className="input"
             />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Technical Tools</label>
-            <input
+            <Input
               type="text"
               value={technicalTools}
               onChange={(e) => onTechnicalToolsChange(e.target.value)}
-              className="input"
             />
           </div>
         </div>

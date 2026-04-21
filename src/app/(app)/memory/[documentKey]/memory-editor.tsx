@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Save, Check } from "lucide-react";
 import { toast } from "sonner";
 import { saveMemoryDocumentAction } from "./actions";
+import { Textarea } from "@/components/ui/textarea";
 import { DetailHeader } from "@/components/detail-header";
 import type { MemoryDocumentRow } from "@/lib/supabase/types";
 
@@ -58,13 +59,13 @@ export function MemoryEditor({ doc }: { doc: MemoryDocumentRow }) {
         className="text-xl font-semibold bg-transparent outline-none w-full mb-6 -mt-2"
       />
 
-      <textarea
+      <Textarea
         value={content}
         onChange={(e) => {
           setContent(e.target.value);
           setSaved(false);
         }}
-        className="input min-h-[500px] resize-y font-mono text-xs leading-relaxed whitespace-pre-wrap"
+        className="min-h-[500px] resize-y whitespace-pre-wrap font-mono text-xs leading-relaxed"
       />
     </div>
   );

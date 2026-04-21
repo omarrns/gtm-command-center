@@ -1,6 +1,7 @@
 "use client";
 
 import { TagInput } from "@/components/tag-input";
+import { Input } from "@/components/ui/input";
 
 interface StepSearchProps {
   searchQueries: string[];
@@ -54,7 +55,7 @@ export function StepSearch({
         <p className="text-xs text-[var(--color-text-subtle)]">
           Minimum score for opportunities to pass scoring (0-100)
         </p>
-        <input
+        <Input
           id="score-threshold"
           type="number"
           min={0}
@@ -65,7 +66,7 @@ export function StepSearch({
               Math.max(0, Math.min(100, parseInt(e.target.value) || 0)),
             )
           }
-          className="input w-28"
+          className="w-28"
         />
       </div>
 
@@ -76,7 +77,7 @@ export function StepSearch({
         <p className="text-xs text-[var(--color-text-subtle)]">
           Maximum emails sent per day (0-50)
         </p>
-        <input
+        <Input
           id="daily-send-cap"
           type="number"
           min={0}
@@ -87,7 +88,7 @@ export function StepSearch({
               Math.max(0, Math.min(50, parseInt(e.target.value) || 0)),
             )
           }
-          className="input w-28"
+          className="w-28"
         />
       </div>
     </div>
