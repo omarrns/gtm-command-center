@@ -7,6 +7,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { runExtractionFromTranscript } from "@/lib/onboarding/extraction";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
+import type { JobSearchExtraction } from "@/lib/onboarding/templates/job-search";
 import { nextDimensionToAsk } from "@/lib/onboarding/orchestrator/run";
 import { toJobSearchConfirmEdits } from "@/lib/onboarding/orchestrator/to-confirm-edits";
 import {
@@ -235,16 +236,27 @@ export async function extractAndReviewAction(
     const messages = interview.messages as UIMessage[];
     const extraction = await runExtractionFromTranscript(messages, template);
 
+    // Dual-write: `extracted` (unified, template-agnostic) is the durable
+    // path for Phase 3+. The 4 legacy columns stay written for job_search
+    // until the DEFERRED cleanup drops them; non-job_search templates leave
+    // the legacy columns NULL because their extraction shape doesn't map.
+    const updatePayload: Record<string, unknown> = {
+      status: "review",
+      extracted: extraction,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (template.id === "job_search") {
+      const js = extraction as JobSearchExtraction;
+      updatePayload.extracted_profile = js.profile;
+      updatePayload.extracted_search = js.search;
+      updatePayload.extracted_outreach = js.outreach;
+      updatePayload.extracted_insights = js.insights;
+    }
+
     const { data: updated, error: updateErr } = await svc
       .from("onboarding_interviews")
-      .update({
-        status: "review",
-        extracted_profile: extraction.profile,
-        extracted_search: extraction.search,
-        extracted_outreach: extraction.outreach,
-        extracted_insights: extraction.insights,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", interviewId)
       .select("*")
       .single();
@@ -310,10 +322,15 @@ export async function confirmInterviewAction(
               messages,
               template,
             );
+            // Agentic insights synthesis is job_search-specific (ICP has no
+            // insights leaf). Cast is safe because template.agenticMode is
+            // only true for job_search in this branch today; if/when ICP
+            // adds its own synthesis, this block narrows per template.id.
+            const js = extraction as JobSearchExtraction;
             await svc
               .from("onboarding_interviews")
               .update({
-                extracted_insights: extraction.insights,
+                extracted_insights: js.insights,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", interviewId);

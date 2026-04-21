@@ -6,7 +6,6 @@ import {
   OPENING_MESSAGE,
   REFRESH_OPENING_MESSAGE,
 } from "@/lib/onboarding/interview-prompt";
-import { extractionResultSchema } from "@/lib/onboarding/extraction";
 import { EXTRACTION_SYSTEM_PROMPT } from "@/lib/onboarding/extraction-prompt";
 import type { Dimension, InterviewTemplate, OutputMapping } from "./types";
 
@@ -33,7 +32,53 @@ const editsSchema = z.object({
 });
 
 export type JobSearchEdits = z.infer<typeof editsSchema>;
-export type JobSearchExtraction = z.infer<typeof extractionResultSchema>;
+
+// Extraction schemas — moved here from extraction.ts in Phase 1.b so each
+// template owns its own shape. extraction.ts is now generic on X.
+const profileSchema = z.object({
+  positioning: z.string().default(""),
+  careerHighlights: z.string().default(""),
+  proofPoints: z.string().default(""),
+  technicalTools: z.string().default(""),
+});
+
+const searchSchema = z.object({
+  searchQueries: z.array(z.string()).default(["Software Engineer"]),
+  searchLocations: z.array(z.string()).default(["Remote"]),
+  scoreThreshold: z.number().default(70),
+  dailySendCap: z.number().default(10),
+});
+
+const outreachSchema = z.object({
+  greenFlags: z.string().default(""),
+  redFlags: z.string().default(""),
+  outreachTone: z.enum(["casual", "direct", "formal"]).default("casual"),
+  whatsWorked: z.string().default(""),
+  whatToAvoid: z.string().default(""),
+});
+
+const insightsSchema = z.object({
+  career_narrative: z.string().default(""),
+  decision_drivers: z.array(z.string()).default([]),
+  unstated_preferences: z.array(z.string()).default([]),
+  strongest_stories: z.array(z.string()).default([]),
+  positioning_alternatives: z.array(z.string()).default([]),
+  risk_tolerance: z.string().default(""),
+  communication_style_notes: z.string().default(""),
+});
+
+export const jobSearchExtractionSchema = z.object({
+  profile: profileSchema,
+  search: searchSchema,
+  outreach: outreachSchema,
+  insights: insightsSchema,
+});
+
+export type JobSearchExtraction = z.infer<typeof jobSearchExtractionSchema>;
+export type ExtractionProfile = z.infer<typeof profileSchema>;
+export type ExtractionSearch = z.infer<typeof searchSchema>;
+export type ExtractionOutreach = z.infer<typeof outreachSchema>;
+export type ExtractionInsights = z.infer<typeof insightsSchema>;
 
 const TONE_LABELS = {
   casual: "Casual",
@@ -370,7 +415,7 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
     outreach_style: "Outreach",
   },
 
-  extractionSchema: extractionResultSchema,
+  extractionSchema: jobSearchExtractionSchema,
   extractionSystemPrompt: EXTRACTION_SYSTEM_PROMPT,
   extractionModel: "claude-opus-4-6",
   extractionMaxOutputTokens: 4096,

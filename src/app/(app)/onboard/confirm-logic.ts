@@ -25,7 +25,7 @@ export async function performConfirm(
   const { data: interview, error: fetchErr } = await svc
     .from("onboarding_interviews")
     .select(
-      "id, user_id, status, template_id, extracted_profile, extracted_search, extracted_outreach, extracted_insights",
+      "id, user_id, status, template_id, extracted, extracted_profile, extracted_search, extracted_outreach, extracted_insights",
     )
     .eq("id", interviewId)
     .single();
@@ -42,16 +42,18 @@ export async function performConfirm(
 
   const parsedEdits = template.editsSchema.parse(edits);
 
-  // Reassemble the extraction shape from the 4 legacy columns. Phase 2 will
-  // introduce a unified `extracted` JSONB column when a second template needs
-  // a different schema shape; for now job_search's extraction decomposes
-  // naturally into these 4 top-level keys.
-  const extraction = {
-    profile: interview.extracted_profile,
-    search: interview.extracted_search,
-    outreach: interview.extracted_outreach,
-    insights: interview.extracted_insights,
-  };
+  // Prefer the unified `extracted` column (written by Phase 1.b's dual-write
+  // path). Fall back to reassembling from the 4 legacy columns for any row
+  // that predates the dual-write. Fallback dropped in the DEFERRED cleanup
+  // commit once Phase 3 stabilises in prod.
+  const extraction =
+    interview.extracted ??
+    ({
+      profile: interview.extracted_profile,
+      search: interview.extracted_search,
+      outreach: interview.extracted_outreach,
+      insights: interview.extracted_insights,
+    } as Record<string, unknown>);
 
   try {
     for (const output of template.outputs) {

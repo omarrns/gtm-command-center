@@ -17,7 +17,7 @@ import type {
   ExtractionSearch,
   ExtractionOutreach,
   ExtractionInsights,
-} from "@/lib/onboarding/extraction";
+} from "@/lib/onboarding/templates/job-search";
 import {
   getLowConfidenceDimensions,
   type OrchestratorState,
