@@ -89,6 +89,15 @@ interface BaseInterviewTemplate<E, X> {
     svc: SupabaseClient,
     userId: string,
   ) => Promise<CompletionStatus>;
+
+  // Derive user_scoring_profiles fields from this template's confirmed
+  // outputs. Optional — a template without scoring (e.g., a pure workflow
+  // template) can omit. job_search reads memory_documents + pipeline_config
+  // and populates the legacy columns; ICP will populate icp_rubric.
+  normalizeScoringProfile?: (
+    svc: SupabaseClient,
+    userId: string,
+  ) => Promise<void>;
 }
 
 export interface InterviewerContext extends InterviewPromptContext {
