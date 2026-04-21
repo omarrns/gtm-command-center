@@ -277,7 +277,7 @@ export async function confirmInterviewAction(
   // confirming, then delegate to the unchanged performConfirm pathway.
   const { data: row } = await svc
     .from("onboarding_interviews")
-    .select("template_id, orchestrator_state")
+    .select("template_id, orchestrator_state, messages, extracted_insights")
     .eq("id", interviewId)
     .eq("user_id", user.id)
     .single();
@@ -292,6 +292,35 @@ export async function confirmInterviewAction(
         state,
         edits,
       );
+
+      // Synthesize insights from the transcript so agentic users get the
+      // same interview_insights memory doc that legacy users do. Skipped
+      // on re-confirm (idempotent) via the null-check on extracted_insights.
+      // Non-fatal: if insights synthesis fails, confirm still succeeds and
+      // the user keeps the 4 durable memory docs.
+      if (!row.extracted_insights) {
+        try {
+          const messages = (row.messages ?? []) as UIMessage[];
+          if (messages.length > 0) {
+            const extraction = await runExtractionFromTranscript(
+              messages,
+              template,
+            );
+            await svc
+              .from("onboarding_interviews")
+              .update({
+                extracted_insights: extraction.insights,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", interviewId);
+          }
+        } catch (err) {
+          console.error(
+            "[confirmInterviewAction] insights synthesis failed:",
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+      }
 
       await svc
         .from("onboarding_interviews")

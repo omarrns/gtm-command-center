@@ -96,3 +96,30 @@ export function emptyOrchestratorState(
     },
   };
 }
+
+/**
+ * Dimensions whose final confidence is still below threshold — the orchestrator
+ * tried to resolve them (possibly via re-ask at the 2-ask cap) but the answer
+ * was ambiguous enough that the confidence stayed low. The review UI surfaces
+ * these so the user knows which fields to double-check.
+ */
+export function getLowConfidenceDimensions(
+  state: OrchestratorState | null,
+  dimensionProjection: ReadonlyArray<{ key: string; label: string }>,
+): Array<{ key: string; label: string; confidence: number }> {
+  if (!state) return [];
+  const result: Array<{ key: string; label: string; confidence: number }> = [];
+  for (const projected of dimensionProjection) {
+    const dim = state.dimensions[projected.key];
+    if (!dim) continue;
+    if (dim.status !== "answered") continue;
+    if (dim.confidence < dim.threshold) {
+      result.push({
+        key: projected.key,
+        label: projected.label,
+        confidence: dim.confidence,
+      });
+    }
+  }
+  return result;
+}

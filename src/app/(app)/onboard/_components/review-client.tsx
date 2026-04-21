@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   confirmInterviewAction,
@@ -17,6 +18,10 @@ import type {
   ExtractionOutreach,
   ExtractionInsights,
 } from "@/lib/onboarding/extraction";
+import {
+  getLowConfidenceDimensions,
+  type OrchestratorState,
+} from "@/lib/onboarding/orchestrator/types";
 import {
   extractSection,
   extractTone,
@@ -49,15 +54,23 @@ interface ReviewClientProps {
 
 export function ReviewClient({
   interview,
-  // Accepted for Phase 1 forward-compat; render still job_search-specific.
-  // Phase 2 switches on clientTemplate.id to render ICP/positioning sections.
-  clientTemplate: _clientTemplate,
+  clientTemplate,
   isRefresh,
   onBackToInterview,
   existingData,
 }: ReviewClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+
+  // Agentic mode only: surface dimensions that hit the 2-ask cap with
+  // confidence still below threshold, so the user knows which inferences
+  // to double-check before confirming.
+  const lowConfidenceDimensions = clientTemplate.agenticMode
+    ? getLowConfidenceDimensions(
+        interview.orchestrator_state as OrchestratorState | null,
+        clientTemplate.dimensions,
+      )
+    : [];
 
   const extractedProfile = (interview.extracted_profile ??
     {}) as unknown as ExtractionProfile;
@@ -222,6 +235,20 @@ export function ReviewClient({
           doesn&apos;t look right, then confirm.
         </p>
       </div>
+
+      {lowConfidenceDimensions.length > 0 && (
+        <Alert className="mb-6">
+          <AlertTriangle size={14} />
+          <div className="text-xs space-y-1">
+            <p className="font-medium">
+              Double-check these — the agent wasn&apos;t sure.
+            </p>
+            <p className="text-[var(--color-text-muted)]">
+              {lowConfidenceDimensions.map((d) => d.label).join(", ")}
+            </p>
+          </div>
+        </Alert>
+      )}
 
       <ReviewSectionProfile
         isExpanded={expandedSections.has("profile")}
