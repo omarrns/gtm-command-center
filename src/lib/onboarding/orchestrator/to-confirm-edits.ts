@@ -15,7 +15,15 @@ function getString(
   fallback = "",
 ): string {
   const v = state.dimensions[key]?.value;
-  return typeof v === "string" ? v : fallback;
+  if (typeof v === "string") return v;
+  // Orchestrator naturally emits bullet-style dimensions (careerHighlights,
+  // proofPoints, greenFlags, etc.) as JSON arrays even though the rubric
+  // expects a markdown-bullet string. Coerce so the review textarea renders
+  // editable content instead of blank.
+  if (Array.isArray(v) && v.every((x) => typeof x === "string")) {
+    return v.map((line) => `- ${line}`).join("\n");
+  }
+  return fallback;
 }
 
 function getStringArray(

@@ -163,6 +163,50 @@ async function main() {
   );
   assert(reviewEdits.length === 0, "reviewEdits is empty (no user edits)");
 
+  // ── Unit: array-to-bullets coercion ────────────────────────────────────
+  // Orchestrator often returns bullet-style dimensions as JSON arrays even
+  // when the rubric expects markdown-bullet strings. The adapter must coerce
+  // so the review textarea renders editable content instead of blank.
+  console.log("\n--- Unit: array-to-bullets coercion ---\n");
+  const arrayState = buildStateFromFixture();
+  const now = new Date().toISOString();
+  const dimArr = (value: string[]) => ({
+    value,
+    summary: "orchestrator emitted bullets as array",
+    confidence: 0.9,
+    threshold: 0.75,
+    status: "inferred" as const,
+    provenance: [],
+    updatedAt: now,
+  });
+  arrayState.dimensions.careerHighlights = dimArr([
+    "Built Compass at Inkeep: 400K+ impressions",
+    "Grew Mira Migo to 3K users",
+  ]);
+  arrayState.dimensions.technicalTools = dimArr([
+    "Claude SDK",
+    "Node.js",
+    "TypeScript",
+  ]);
+  arrayState.dimensions.greenFlags = dimArr(["Series A–C", "PLG motion"]);
+
+  const { edits: arrayEdits } = toJobSearchConfirmEdits(arrayState);
+
+  assert(
+    arrayEdits.profile.careerHighlights ===
+      "- Built Compass at Inkeep: 400K+ impressions\n- Grew Mira Migo to 3K users",
+    "array careerHighlights coerced to markdown bullets",
+  );
+  assert(
+    arrayEdits.profile.technicalTools.startsWith("- Claude SDK") &&
+      arrayEdits.profile.technicalTools.includes("- Node.js"),
+    "array technicalTools coerced to markdown bullets",
+  );
+  assert(
+    arrayEdits.outreach.greenFlags === "- Series A–C\n- PLG motion",
+    "array greenFlags coerced to markdown bullets",
+  );
+
   // ── Unit: user-edit diff ───────────────────────────────────────────────
   console.log("\n--- Unit: user-edit diff ---\n");
   const userEdits = {
