@@ -267,15 +267,102 @@ Only after step 6 does `isOnboardingComplete()` return true, which unlocks the r
 
 ## 7. Key files reference
 
-| File                                                     | Role                                                          |
-| -------------------------------------------------------- | ------------------------------------------------------------- |
-| `src/app/(app)/onboard/page.tsx`                         | Server entry, creates/loads interview                         |
-| `src/app/(app)/onboard/_components/onboard-router.tsx`   | Mode switching, auto-extract on resume                        |
-| `src/app/(app)/onboard/_components/interview-client.tsx` | useChat UI, topic pills, state polling                        |
-| `src/app/(app)/onboard/_components/review-client.tsx`    | Editable review cards                                         |
-| `src/app/(app)/onboard/interview-actions.ts`             | getOrCreate / extractAndReview / confirm / abandon / backTo   |
-| `src/app/api/onboard/chat/route.ts`                      | Streaming endpoint, topic aggregation, completion detection   |
-| `src/lib/onboarding/interview-prompt.ts`                 | Sonnet system prompt + `report_topics` tool                   |
-| `src/lib/onboarding/extraction.ts`                       | Opus extraction via `generateObject` + zod schema             |
-| `src/lib/onboarding/extraction-prompt.ts`                | Opus system prompt                                            |
-| `src/lib/pipeline/scoring-profile.ts`                    | `normalizeScoringProfile` — derives structured scoring fields |
+| File                                                     | Role                                                                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `src/app/(app)/onboard/page.tsx`                         | Server entry. Creates/loads interview, computes `toClientTemplate()`                              |
+| `src/app/(app)/onboard/_components/onboard-router.tsx`   | Mode switching, auto-extract on resume. Threads `clientTemplate` prop down                        |
+| `src/app/(app)/onboard/_components/interview-client.tsx` | useChat UI, topic pills from template, state polling                                              |
+| `src/app/(app)/onboard/_components/review-client.tsx`    | Editable review cards. Accepts `clientTemplate` prop (render still job_search-specific — Phase 2) |
+| `src/app/(app)/onboard/interview-actions.ts`             | Thin server-action wrappers: getOrCreate / extractAndReview / confirm / abandon / backTo          |
+| `src/app/(app)/onboard/confirm-logic.ts`                 | `performConfirm(svc, userId, interviewId, edits)` — testable persistence body                     |
+| `src/app/api/onboard/chat/route.ts`                      | Streaming endpoint. Reads model / cap / marker / threshold / prompt from the template             |
+| `src/lib/onboarding/templates/types.ts`                  | `InterviewTemplate`, `OutputMapping`, `ClientInterviewTemplate`                                   |
+| `src/lib/onboarding/templates/job-search.ts`             | `JOB_SEARCH_TEMPLATE` — the one template today. Topics, prompts, schema, outputs co-located       |
+| `src/lib/onboarding/templates/index.ts`                  | `getTemplate(id)` / `getDefaultTemplate()` / `toClientTemplate()`                                 |
+| `src/lib/onboarding/interview-prompt.ts`                 | Sonnet system prompt + `report_topics` tool (consumed by job_search template)                     |
+| `src/lib/onboarding/extraction.ts`                       | `runExtractionFromTranscript(messages, template)` — generateObject + template zod schema          |
+| `src/lib/onboarding/extraction-prompt.ts`                | Opus system prompt (consumed by job_search template)                                              |
+| `src/lib/pipeline/scoring-profile.ts`                    | `normalizeScoringProfile` — derives structured scoring fields                                     |
+| `scripts/test-onboarding-confirm.ts`                     | DB-integration regression test for the confirm path (42 assertions)                               |
+
+---
+
+## 8. Template abstraction
+
+The state machine, streaming loop, CAS locks, and confirm sequence above are **template-agnostic**. The content that varies per interview — prompts, topics, extraction schema, which memory docs to write on confirm — is pulled from an `InterviewTemplate` object loaded by `getTemplate(interview.template_id)`.
+
+### The `InterviewTemplate` interface
+
+```ts
+interface InterviewTemplate<E, X> {
+  id: InterviewTemplateId; // "job_search" (widens in Phase 2/3)
+  version: string; // "v1" — append-only
+
+  // Chat phase (consumed by route.ts)
+  systemPrompt: (ctx: { isRefresh; existingProfile? }) => string;
+  tools: ToolSet;
+  openingMessage: string;
+  refreshOpeningMessage: string;
+  maxAssistantMessages: number;
+  wrapUpThreshold: number;
+  completionMarker: string;
+  completionTopicThreshold: number;
+  chatModel: string;
+  chatMaxOutputTokens: number;
+
+  topics: readonly string[];
+  topicLabels: Record<string, string>;
+
+  // Extraction phase (consumed by extraction.ts)
+  extractionSchema: z.ZodType<X, ZodTypeDef, unknown>;
+  extractionSystemPrompt: string;
+  extractionModel: string;
+  extractionMaxOutputTokens: number;
+
+  // Confirm phase (consumed by confirm-logic.ts)
+  editsSchema: z.ZodType<E, ZodTypeDef, unknown>;
+  outputs: readonly OutputMapping<E, X>[];
+}
+```
+
+### `OutputMapping` — the confirm-phase contract
+
+The 6-step hardcoded sequence that used to live in `confirmInterviewAction` is now data: `outputs[]`. Each entry is dispatched by type:
+
+| type                        | payload shape                                 | handler behavior                                                             |
+| --------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------- |
+| `memory_doc`                | `transform` returns markdown string           | Upsert `memory_documents` with `(user_id, document_key=key, title, content)` |
+| `pipeline_config`           | `transform` returns `Record<string, unknown>` | Upsert `pipeline_config` with `{ ...payload, user_id }` (user_id wins)       |
+| `scoring_profile_normalize` | no transform                                  | Call `normalizeScoringProfile(svc, userId)`                                  |
+
+Transforms receive `{ edits, extraction }` and may return `null` to skip (e.g. `interview_insights` skips if no insights were extracted). The loop runs in array order; any throw aborts the confirm and leaves the interview in `review` for retry.
+
+### Client-side projection
+
+`InterviewTemplate` can't cross the RSC→Client boundary — zod schemas, tool definitions, and the `systemPrompt` function are not serializable. `toClientTemplate(template)` strips to a plain-data `ClientInterviewTemplate` of `{ id, topics, topicLabels, openingMessage, refreshOpeningMessage }` for the UI.
+
+### Database layout
+
+`onboarding_interviews` has `template_id` + `template_version` columns (defaults `'job_search'`, `'v1'`). The active-interview partial unique index is `(user_id, template_id)` WHERE status IN active states — future templates can have concurrent active interviews for the same user.
+
+The four `extracted_*` JSONB columns (`extracted_profile/search/outreach/insights`) are job_search-shaped. Phase 2 will likely add a unified `extracted` JSONB column when a template with a different top-level schema lands.
+
+### Known gaps (Phase 1 did not close these)
+
+Flagged here so Phase 2 doesn't re-discover them:
+
+- **`isOnboardingComplete()`** (`src/lib/pipeline/onboarding.ts`) checks 3 hardcoded memory doc keys (`user_profile`, `feedback_outreach_style`) + `pipeline_config` existence. Needs per-template completion criteria.
+- **`normalizeScoringProfile()`** reads memory doc sections by name (`Career Highlights`, `Green Flags`, …) that are job_search-specific markdown headings.
+- **`ReviewClient`** renders 4 job_search sections. Accepts `clientTemplate` prop but ignores it. Phase 2 switches on `clientTemplate.id`.
+- **`review-client.tsx` refresh fallback** (lines ~70–73) reads literal topic names (`search_prefs`, `outreach_style`, `dealbreakers`).
+- **`runExtractionFromTranscript` return type** is `Promise<ExtractionResult>` (job_search shape) with an `as ExtractionResult` cast. Genericize on `X` before a second template lands, or callers will get silent type lies.
+- **ICP and positioning templates do not exist yet** and have no UI entry point. See `docs/build-spec-gtm-command-center-pivot.md` §8 (ICP) and §9 (positioning rubric) for the extraction schemas, §6 for the Exa-based ICP search adapter.
+
+### Adding a template (Phase 2+ recipe)
+
+1. New file `src/lib/onboarding/templates/<id>.ts` exporting a full `InterviewTemplate` instance.
+2. Widen `InterviewTemplateId` in `types.ts`; add the entry to `REGISTRY` in `index.ts`.
+3. Route: either `/onboard/<id>/page.tsx` or `/onboard?template=<id>` — pass `templateId` into `getOrCreateInterviewAction`.
+4. If the template needs different schema storage, plan the `onboarding_interviews` migration (unified `extracted` column).
+5. Fix the known gaps above, at minimum for the dimensions the new template touches.
+6. If the template produces a search rubric, build the corresponding adapter (Exa queries for ICP, competitor-URL scorecards for positioning) + any new domain tables (`leads`, `positioning_rubrics`).
