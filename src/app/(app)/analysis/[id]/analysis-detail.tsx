@@ -2,11 +2,12 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { formatRelativeTime } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { DetailHeader } from "@/components/detail-header";
-import { StatusBanner } from "@/components/status-banner";
 import type { AnalysisRow } from "@/lib/supabase/types";
 import type { Obj } from "../_components/result-guards";
 import { ImportedMarkdownView } from "../_components/views/imported-markdown-view";
@@ -51,19 +52,23 @@ export function AnalysisDetail({
       />
 
       {isRunning && (
-        <StatusBanner
-          status="running"
-          title="Analysis running…"
-          detail="Researching company and synthesizing results. This usually takes 60–90 seconds."
-        />
+        <Alert className="mb-6">
+          <RefreshCw className="animate-spin text-[var(--color-blue)]" />
+          <AlertTitle>Analysis running…</AlertTitle>
+          <AlertDescription>
+            Researching company and synthesizing results. This usually takes
+            60–90 seconds.
+          </AlertDescription>
+        </Alert>
       )}
 
       {isFailed && (
-        <StatusBanner
-          status="failed"
-          title="Analysis failed"
-          detail={job?.error ?? "Unknown error. Check logs."}
-        />
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>Analysis failed</AlertTitle>
+          <AlertDescription>
+            {job?.error ?? "Unknown error. Check logs."}
+          </AlertDescription>
+        </Alert>
       )}
 
       {result && isImported && <ImportedMarkdownView result={result} />}
