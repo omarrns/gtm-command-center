@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { formatRelativeTime } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { DetailHeader } from "@/components/detail-header";
-import { StatusBanner } from "@/components/status-banner";
 import type { ResearchReportRow } from "@/lib/supabase/types";
 
 interface PersonResult {
@@ -59,15 +59,19 @@ export function ResearchDetail({
       />
 
       {needsPolling && (
-        <StatusBanner
-          status="running"
-          title="Research running…"
-          detail="Querying Exa and synthesizing. Usually completes within 120 seconds."
-        />
+        <Alert className="mb-6">
+          <RefreshCw className="animate-spin text-[var(--color-blue)]" />
+          <AlertTitle>Research running…</AlertTitle>
+          <AlertDescription>
+            Querying Exa and synthesizing. Usually completes within 120 seconds.
+          </AlertDescription>
+        </Alert>
       )}
 
       {initial.status === "failed" && (
-        <StatusBanner status="failed" title="Research failed" />
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>Research failed</AlertTitle>
+        </Alert>
       )}
 
       {/* Imported markdown fallback */}
