@@ -336,6 +336,12 @@ export interface UserScoringProfileRow {
   green_flags: string[];
   red_flags: string[];
 
+  // GTM persona (user_type='gtm') — populated by icp_definition's
+  // normalizer in Phase 3. Structured ICP rubric: firmographics,
+  // technographics, signals, disqualifiers, proof_points, buyer_personas.
+  // NULL for job_seeker rows.
+  icp_rubric: Record<string, unknown> | null;
+
   created_at: string;
   updated_at: string;
 }
