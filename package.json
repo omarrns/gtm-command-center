@@ -22,6 +22,8 @@
     "test:confirm-adapter": "tsx scripts/test-confirm-adapter.ts",
     "test:onboarding-complete-per-template": "tsx scripts/test-onboarding-complete-per-template.ts",
     "test:scoring-normalize-per-template": "tsx scripts/test-scoring-normalize-per-template.ts",
+    "test:icp-confirm": "tsx scripts/test-icp-confirm.ts",
+    "test:icp-confirm-low-exemplar": "tsx scripts/test-icp-confirm-low-exemplar.ts",
     "test:correctness": "tsx scripts/test-correctness-fixes.ts"
   },
   "dependencies": {
