@@ -318,16 +318,16 @@ function AgenticChat({
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] w-full flex-col">
+    <div className="flex h-[calc(100dvh-8rem)] w-full flex-col">
       <div className="flex items-center justify-end px-6 pt-4 max-w-2xl mx-auto w-full">
         <SwitchPersonaControl
           interviewId={interview.id}
           currentTemplateId={clientTemplate.id}
         />
       </div>
-      <div className="flex flex-1 min-w-0 w-full">
-        <div className="flex flex-col flex-1 min-w-0 max-w-2xl mx-auto">
-          <Conversation className="flex-1">
+      <div className="flex flex-1 min-h-0 min-w-0 w-full">
+        <div className="flex flex-col flex-1 min-h-0 min-w-0 max-w-2xl mx-auto">
+          <Conversation className="flex-1 min-h-0">
             <ConversationContent className="max-w-2xl mx-auto w-full">
               {messages.map((msg) => {
                 const text = extractDisplayText(msg);
@@ -494,7 +494,7 @@ function LegacyInterview({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] max-w-2xl mx-auto w-full">
+    <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-0 max-w-2xl mx-auto w-full">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] shrink-0">
         {clientTemplate.topics.map((topic) => {
           const covered = topicsCovered.includes(topic);
@@ -519,7 +519,7 @@ function LegacyInterview({
         })}
       </div>
 
-      <Conversation className="flex-1">
+      <Conversation className="flex-1 min-h-0">
         <ConversationContent className="max-w-2xl mx-auto w-full">
           {messages.map((msg) => {
             const text = extractDisplayText(msg);
