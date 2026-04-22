@@ -1037,12 +1037,14 @@ async function main() {
   await integrationTestIdempotency(userId, interviewId);
   await integrationTestPersonaPreflight(userId);
 
-  // Restore to job_seeker so the rest of the test suite sees consistent state
+  // Reset first (which nulls user_type), THEN restore to job_seeker so
+  // the rest of the test suite sees a consistent default persona. The
+  // previous order was inverted — resetUser nulled the persona we just set.
+  await resetUser(userId);
   await supabase
     .from("profiles")
     .update({ user_type: "job_seeker" })
     .eq("user_id", userId);
-  await resetUser(userId);
 
   console.log(
     `\n${failures === 0 ? "All assertions passed!" : `${failures} assertion(s) FAILED`}`,

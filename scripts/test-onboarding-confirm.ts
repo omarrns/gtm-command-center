@@ -95,6 +95,13 @@ async function resetUser(userId: string) {
     .eq("origin", "onboarding");
   await supabase.from("pipeline_config").delete().eq("user_id", userId);
   await supabase.from("user_scoring_profiles").delete().eq("user_id", userId);
+  // Clear user_type so the persona preflight in performConfirm passes
+  // regardless of which persona the last test run left behind. Confirm
+  // will set it back to 'job_seeker' for this job_search template.
+  await supabase
+    .from("profiles")
+    .update({ user_type: null })
+    .eq("user_id", userId);
 }
 
 async function seedReviewInterview(userId: string): Promise<string> {

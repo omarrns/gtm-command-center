@@ -141,6 +141,61 @@ async function abandonAndDetach(userId: string, interviewId: string) {
 // that contract — simulates a user who previously started an ICP
 // interview, abandoned it, returned to a pre-existing job_search
 // interview, and expects their ICP artifacts to follow.
+// SPEC-3 audit (Phase 4.c gap, getOrCreateInterview branch): exercise
+// the server-action path rather than the claimOrphanedArtifacts
+// primitive. A pre-existing target interview plus a detached artifact
+// must get reattached when getOrCreateInterview returns the existing
+// row — not just when it creates a new one.
+async function testGetOrCreateInterviewExistingTarget(userId: string) {
+  console.log(
+    "\n=== Scenario C: getOrCreateInterview returns existing + claims orphan ===\n",
+  );
+  await resetUser(userId);
+
+  // Pre-existing job_search interview (target).
+  const targetInterview = await createInterview(userId, "job_search");
+  // Fresh ICP interview with an artifact (source).
+  const sourceInterview = await createInterview(userId, "icp_definition");
+  const artifactId = await insertArtifact(
+    userId,
+    sourceInterview,
+    "Orphan from ICP (Scenario C)",
+    "# Orphan C\n\nContent.",
+  );
+
+  // Detach the artifact as abandonInterviewAction would.
+  await abandonAndDetach(userId, sourceInterview);
+
+  // Invoke the testable seam that the server action wraps.
+  const { getOrCreateInterview } =
+    await import("../src/app/(app)/onboard/get-or-create-interview");
+  const result = await getOrCreateInterview(
+    supabase,
+    userId,
+    false,
+    "job_search",
+  );
+  assert(
+    result.ok,
+    `getOrCreateInterview returned ok (error: ${!result.ok ? result.error : ""})`,
+  );
+  if (!result.ok) return;
+  assert(
+    result.interview.id === targetInterview,
+    `returned the pre-existing interview (got ${result.interview.id}, want ${targetInterview})`,
+  );
+
+  const { data: reattached } = await supabase
+    .from("onboarding_artifacts")
+    .select("interview_id")
+    .eq("id", artifactId)
+    .single();
+  assert(
+    reattached?.interview_id === targetInterview,
+    `orphan reattached to existing target via getOrCreateInterview (got ${reattached?.interview_id})`,
+  );
+}
+
 async function testTargetAlreadyExists(userId: string) {
   console.log(
     "\n=== Scenario B: target-template interview already exists ===\n",
@@ -409,6 +464,7 @@ async function main() {
   );
 
   await testTargetAlreadyExists(userId);
+  await testGetOrCreateInterviewExistingTarget(userId);
   await testPerformPersonaSwitchHappyPath(userId);
   await testPerformPersonaSwitchSameTemplate(userId);
 
