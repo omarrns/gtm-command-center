@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "motion/react";
 
-interface StorySectionTextProps {
+interface EditableProseSectionTextProps {
   title: string;
   kind: "text";
   value: string;
@@ -11,7 +11,7 @@ interface StorySectionTextProps {
   editable: boolean;
 }
 
-interface StorySectionListProps {
+interface EditableProseSectionListProps {
   title: string;
   kind: "list";
   value: string[];
@@ -19,9 +19,16 @@ interface StorySectionListProps {
   editable: boolean;
 }
 
-type StorySectionProps = StorySectionTextProps | StorySectionListProps;
+type EditableProseSectionProps =
+  | EditableProseSectionTextProps
+  | EditableProseSectionListProps;
 
-export function StorySection(props: StorySectionProps) {
+// Click-to-edit prose section. Display mode shows a paragraph (kind=text)
+// or bulleted list (kind=list); click flips to a textarea that commits on
+// blur. List values are entered one item per line. Designed for long-form
+// content where inline editing should feel like correcting a doc, not
+// filling a form.
+export function EditableProseSection(props: EditableProseSectionProps) {
   const [editing, setEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -29,7 +36,8 @@ export function StorySection(props: StorySectionProps) {
     props.kind === "text" ? props.value : props.value.join("\n");
   const [draft, setDraft] = useState(initialDraft);
 
-  // Keep draft in sync with incoming value when not actively editing (streaming).
+  // Keep draft in sync with incoming value when not actively editing
+  // (e.g. a stream is still updating the field).
   useEffect(() => {
     if (editing) return;
     setDraft(props.kind === "text" ? props.value : props.value.join("\n"));
