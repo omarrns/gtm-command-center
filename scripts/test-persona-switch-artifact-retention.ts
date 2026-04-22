@@ -196,6 +196,66 @@ async function testGetOrCreateInterviewExistingTarget(userId: string) {
   );
 }
 
+// SPEC-3 audit Phase 4.c (page.tsx gap): OnboardRouter short-circuits
+// when page.tsx hands it an existing interview, so the client-side
+// getOrCreateInterviewAction auto-start never runs. page.tsx now claims
+// orphans inline after its interview lookup. This scenario mirrors that
+// exact sequence to pin the contract — if someone removes the
+// page.tsx-level claim, this test flips red.
+async function testPageLoadExistingInterviewClaims(userId: string) {
+  console.log(
+    "\n=== Scenario D: /onboard page-load with existing interview claims orphan ===\n",
+  );
+  await resetUser(userId);
+
+  const targetInterview = await createInterview(userId, "job_search");
+  const sourceInterview = await createInterview(userId, "icp_definition");
+  const artifactId = await insertArtifact(
+    userId,
+    sourceInterview,
+    "Orphan from ICP (Scenario D)",
+    "# Orphan D\n\nContent.",
+  );
+  await abandonAndDetach(userId, sourceInterview);
+
+  // Simulate the exact page.tsx sequence: fetch active interview for the
+  // target template, then call claimOrphanedArtifacts for the returned
+  // row. No server action indirection.
+  const { data: activeInterview } = await supabase
+    .from("onboarding_interviews")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("template_id", "job_search")
+    .in("status", ["in_progress", "extracting", "review", "story_review"])
+    .maybeSingle();
+
+  assert(
+    activeInterview?.id === targetInterview,
+    "page.tsx lookup returns the pre-existing target interview",
+  );
+  if (!activeInterview) return;
+
+  const claimed = await claimOrphanedArtifacts(
+    supabase,
+    userId,
+    activeInterview.id,
+  );
+  assert(
+    claimed.ok && claimed.count === 1,
+    `page-load orphan claim picks up the detached artifact (count=${claimed.count})`,
+  );
+
+  const { data: reattached } = await supabase
+    .from("onboarding_artifacts")
+    .select("interview_id")
+    .eq("id", artifactId)
+    .single();
+  assert(
+    reattached?.interview_id === targetInterview,
+    `artifact reattached to pre-existing target via page-load claim (got ${reattached?.interview_id})`,
+  );
+}
+
 async function testTargetAlreadyExists(userId: string) {
   console.log(
     "\n=== Scenario B: target-template interview already exists ===\n",
@@ -465,6 +525,7 @@ async function main() {
 
   await testTargetAlreadyExists(userId);
   await testGetOrCreateInterviewExistingTarget(userId);
+  await testPageLoadExistingInterviewClaims(userId);
   await testPerformPersonaSwitchHappyPath(userId);
   await testPerformPersonaSwitchSameTemplate(userId);
 

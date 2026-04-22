@@ -4,6 +4,7 @@ import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 import { ReviewJobSearch } from "./review-sections/review-job-search";
 import { ReviewIcp } from "./review-sections/review-icp";
+import { SwitchPersonaControl } from "./switch-persona-control";
 
 interface ExistingData {
   config: {
@@ -40,25 +41,43 @@ export function ReviewClient({
   onContinueToStory,
   existingData,
 }: ReviewClientProps) {
+  // SPEC-3 audit Phase 4.d: switch control must be reachable from every
+  // onboarding screen, not only the interview flow. Rendered as a thin
+  // header above whichever template-specific review UI dispatches below.
+  const header = (
+    <div className="mx-auto flex max-w-xl items-center justify-end px-6 pt-4">
+      <SwitchPersonaControl
+        interviewId={interview.id}
+        currentTemplateId={clientTemplate.id}
+      />
+    </div>
+  );
+
   if (clientTemplate.id === "icp_definition") {
     return (
-      <ReviewIcp
-        interview={interview}
-        clientTemplate={clientTemplate}
-        isRefresh={isRefresh}
-        onBackToInterview={onBackToInterview}
-      />
+      <>
+        {header}
+        <ReviewIcp
+          interview={interview}
+          clientTemplate={clientTemplate}
+          isRefresh={isRefresh}
+          onBackToInterview={onBackToInterview}
+        />
+      </>
     );
   }
 
   return (
-    <ReviewJobSearch
-      interview={interview}
-      clientTemplate={clientTemplate}
-      isRefresh={isRefresh}
-      onBackToInterview={onBackToInterview}
-      onContinueToStory={onContinueToStory}
-      existingData={existingData}
-    />
+    <>
+      {header}
+      <ReviewJobSearch
+        interview={interview}
+        clientTemplate={clientTemplate}
+        isRefresh={isRefresh}
+        onBackToInterview={onBackToInterview}
+        onContinueToStory={onContinueToStory}
+        existingData={existingData}
+      />
+    </>
   );
 }

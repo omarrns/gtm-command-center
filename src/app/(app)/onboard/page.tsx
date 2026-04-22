@@ -7,6 +7,7 @@ import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
 import { OnboardRouter } from "./_components/onboard-router";
 import { PersonaPicker } from "./_components/persona-picker";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
+import { claimOrphanedArtifacts } from "@/lib/onboarding/artifacts/reassign";
 
 // Map the app-wide persona discriminator to the template that confirms
 // into it. Used in refresh flows where the user is known and we pick
@@ -179,6 +180,15 @@ export default async function OnboardPage(props: {
 
   const activeInterview =
     (interviewRes.data as OnboardingInterviewRow | null) ?? null;
+
+  // SPEC-3 audit (Phase 4.c final gap): OnboardRouter only calls the
+  // getOrCreateInterview seam when no active interview exists. When a
+  // target interview is already live, an abandon-and-navigate flow
+  // would otherwise strand orphaned artifacts. Claim them here so the
+  // page-load path matches the seam's contract.
+  if (activeInterview) {
+    await claimOrphanedArtifacts(svc, user.id, activeInterview.id);
+  }
 
   const clientTemplate = toClientTemplate(getTemplate(resolvedTemplateId));
 
