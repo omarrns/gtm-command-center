@@ -21,7 +21,14 @@ Each <artifact> has a \`kind\` attribute. They mean different things:
 
 ## For each dimension, produce
 
-- **value**: your best-guess value. Match the expected shape (object, array, string).
+- **value**: your best-guess value. The shape is dimension-specific (field keys must match verbatim — the downstream adapter validates against a zod schema; mismatches fall back to defaults):
+  - \`product\`: { category: string, core_jtbd: string, wedge: string }
+  - \`buyer\`: { economic_buyer: string, champion: string, end_user: string }
+  - \`firmographics\`: { industries: string[], employee_range_min: number, employee_range_max: number, stages: string[], geographies: string[] } — TWO SEPARATE scalar fields for the employee range, NOT a tuple or nested object.
+  - \`technographics\`: { required_tools: string[], excluded_tools: string[] }
+  - \`signals\`: { hiring_roles: string[], jtbd_evidence: string[], trigger_events: string[] }
+  - \`disqualifiers\`: string[]
+  - \`proof_points\`: { existing_customers: string[], won_deals: string[], lost_deals_reasons: string[] }
 - **summary**: one short plain-English line rendered in the status panel. Example: "3 of 4 positive examples are Series A-B devtools with 20-100 employees."
 - **confidence**: 0-1. Be honest:
   - \`>= 0.8\` when a pattern is consistent across 3+ positive examples.
@@ -45,15 +52,15 @@ You never speak to the user directly. Your output updates shared state; the inte
 
 export const ICP_EXTRACTION_SYSTEM_PROMPT = `You are extracting a structured ICP rubric from an onboarding interview transcript and orchestrator state.
 
-Output a clean, edit-ready ICP rubric with these sections:
+Output a clean, edit-ready ICP rubric with these EXACT field keys. Field names must match verbatim — the downstream pipeline validates against a zod schema and any mismatch silently falls back to defaults.
 
-- **product**: category, core_jtbd, wedge.
-- **icp.buyer**: economic_buyer, champion, end_user — role titles.
-- **icp.firmographics**: industries[], employee_range [min, max], stages[], geographies[].
-- **icp.technographics**: required_tools[], excluded_tools[].
-- **icp.signals**: hiring_roles[], jtbd_evidence[], trigger_events[].
-- **icp.disqualifiers**: string array — post-filter exclusions from negative_example artifacts.
-- **proof_points**: existing_customers[], won_deals[], lost_deals_reasons[].
+- **product**: { category: string, core_jtbd: string, wedge: string }
+- **icp.buyer**: { economic_buyer: string, champion: string, end_user: string } — role titles
+- **icp.firmographics**: { industries: string[], employee_range_min: number, employee_range_max: number, stages: string[], geographies: string[] } — NOTE: two separate scalar fields (employee_range_min, employee_range_max), NOT a tuple or object.
+- **icp.technographics**: { required_tools: string[], excluded_tools: string[] }
+- **icp.signals**: { hiring_roles: string[], jtbd_evidence: string[], trigger_events: string[] }
+- **icp.disqualifiers**: string[] — post-filter exclusions from negative_example artifacts
+- **proof_points**: { existing_customers: string[], won_deals: string[], lost_deals_reasons: string[] }
 
 ## Discipline
 
@@ -63,7 +70,7 @@ Output a clean, edit-ready ICP rubric with these sections:
 
 3. When the interview shows a declared-vs-exemplar disagreement the user didn't resolve, prefer the EXEMPLAR value in the extraction and note the declared value in the \`lost_deals_reasons\` or \`disqualifiers\` field as appropriate — the rubric has to commit to one value.
 
-4. Empty arrays are fine. Better empty than invented.`;
+4. Empty arrays are fine. Better empty than invented. Numeric fields default to sensible defaults (employee_range_min=0, employee_range_max=10000) if unknown — don't invent a range.`;
 
 export interface IcpInterviewerContext {
   isRefresh: boolean;

@@ -1,5 +1,14 @@
+import type { z } from "zod";
 import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
-import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
+import {
+  buyerSchema,
+  firmographicsSchema,
+  productSchema,
+  proofPointsSchema,
+  signalsSchema,
+  technographicsSchema,
+  type IcpEdits,
+} from "@/lib/onboarding/icp-schemas";
 import type { InterviewTemplate } from "@/lib/onboarding/templates/types";
 import type { OrchestratorReviewEdit, OrchestratorState } from "./types";
 
@@ -54,17 +63,25 @@ function getTone(
   return "casual";
 }
 
-function getObject<T extends Record<string, unknown>>(
+/**
+ * Safe-parse an orchestrator dimension value against its sub-schema.
+ * Used for ICP dimensions where the prompt asks for specific field
+ * shapes. If the model emits a tuple or mis-keyed object, safeParse
+ * fails and the caller's fallback wins — no silent corruption.
+ *
+ * The sub-schemas carry `.default()` on every leaf, so a successful
+ * parse also fills in any missing keys with their defaults.
+ */
+function coerceDimension<T>(
   state: OrchestratorState,
   key: string,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   fallback: T,
 ): T {
   const v = state.dimensions[key]?.value;
-  if (v && typeof v === "object" && !Array.isArray(v)) {
-    // Shallow merge fallback over orchestrator-provided keys so missing
-    // sub-fields default cleanly.
-    return { ...fallback, ...(v as Partial<T>) };
-  }
+  if (v === undefined || v === null) return fallback;
+  const parsed = schema.safeParse(v);
+  if (parsed.success) return parsed.data;
   return fallback;
 }
 
@@ -206,37 +223,52 @@ export function toJobSearchConfirmEdits(
 // ── ICP adapter ────────────────────────────────────────────────────────────
 
 function orchestratorIcpEdits(state: OrchestratorState): IcpEdits {
+  // Each sub-schema is the source of truth for its shape. coerceDimension
+  // safeParses the orchestrator's emitted value and falls back to the
+  // typed default on shape mismatch — so a malformed employee_range tuple
+  // or an unexpected sub-key collapses cleanly instead of silently
+  // corrupting the rubric.
   return {
-    product: getObject(state, "product", {
+    product: coerceDimension(state, "product", productSchema, {
       category: "",
       core_jtbd: "",
       wedge: "",
     }),
     icp: {
-      buyer: getObject(state, "buyer", {
+      buyer: coerceDimension(state, "buyer", buyerSchema, {
         economic_buyer: "",
         champion: "",
         end_user: "",
       }),
-      firmographics: getObject(state, "firmographics", {
-        industries: [],
-        employee_range_min: 0,
-        employee_range_max: 10000,
-        stages: [],
-        geographies: [],
-      }),
-      technographics: getObject(state, "technographics", {
-        required_tools: [],
-        excluded_tools: [],
-      }),
-      signals: getObject(state, "signals", {
+      firmographics: coerceDimension(
+        state,
+        "firmographics",
+        firmographicsSchema,
+        {
+          industries: [],
+          employee_range_min: 0,
+          employee_range_max: 10000,
+          stages: [],
+          geographies: [],
+        },
+      ),
+      technographics: coerceDimension(
+        state,
+        "technographics",
+        technographicsSchema,
+        {
+          required_tools: [],
+          excluded_tools: [],
+        },
+      ),
+      signals: coerceDimension(state, "signals", signalsSchema, {
         hiring_roles: [],
         jtbd_evidence: [],
         trigger_events: [],
       }),
       disqualifiers: getStringArray(state, "disqualifiers", []),
     },
-    proof_points: getObject(state, "proof_points", {
+    proof_points: coerceDimension(state, "proof_points", proofPointsSchema, {
       existing_customers: [],
       won_deals: [],
       lost_deals_reasons: [],

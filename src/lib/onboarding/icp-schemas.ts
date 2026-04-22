@@ -7,13 +7,20 @@
 
 import { z } from "zod";
 
-const buyerSchema = z.object({
+// Per-section sub-schemas. Exported individually so the adapter in
+// orchestrator/to-confirm-edits.ts can safeParse each orchestrator
+// dimension value against the right sub-shape — if the model emits a
+// tuple or a differently-keyed object, the safeParse fails and the
+// adapter falls back to defaults instead of silently letting a broken
+// shape through. Per SPEC-3 audit finding (round 2, #2).
+
+export const buyerSchema = z.object({
   economic_buyer: z.string().default(""),
   champion: z.string().default(""),
   end_user: z.string().default(""),
 });
 
-const firmographicsSchema = z.object({
+export const firmographicsSchema = z.object({
   industries: z.array(z.string()).default([]),
   employee_range_min: z.number().default(0),
   employee_range_max: z.number().default(10000),
@@ -21,24 +28,24 @@ const firmographicsSchema = z.object({
   geographies: z.array(z.string()).default([]),
 });
 
-const technographicsSchema = z.object({
+export const technographicsSchema = z.object({
   required_tools: z.array(z.string()).default([]),
   excluded_tools: z.array(z.string()).default([]),
 });
 
-const signalsSchema = z.object({
+export const signalsSchema = z.object({
   hiring_roles: z.array(z.string()).default([]),
   jtbd_evidence: z.array(z.string()).default([]),
   trigger_events: z.array(z.string()).default([]),
 });
 
-const productSchema = z.object({
+export const productSchema = z.object({
   category: z.string().default(""),
   core_jtbd: z.string().default(""),
   wedge: z.string().default(""),
 });
 
-const proofPointsSchema = z.object({
+export const proofPointsSchema = z.object({
   existing_customers: z.array(z.string()).default([]),
   won_deals: z.array(z.string()).default([]),
   lost_deals_reasons: z.array(z.string()).default([]),
