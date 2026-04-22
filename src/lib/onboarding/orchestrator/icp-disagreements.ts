@@ -10,9 +10,12 @@
 //   inferred    = positive_example | negative_example
 //
 // A dimension that drew from BOTH source kinds had to be reconciled by
-// the orchestrator. The summary it wrote often signals reconciliation
-// with words like "however", "but", "except". Severity rises with the
-// strength of those signals.
+// the orchestrator. A disagreement is flagged only when BOTH provenance
+// is mixed AND the orchestrator's summary contains a reconciliation
+// keyword ("however", "but", "conflict", ...). Mixed provenance alone
+// is not a disagreement — the orchestrator frequently draws on both
+// sources when they agree, and flagging those would wear out the user
+// on the review screen.
 //
 // Heuristic, not ground truth — the orchestrator could improve this by
 // emitting a structured `disagreements` field. For v1 this is good
@@ -53,7 +56,7 @@ const MEDIUM_SEVERITY_KEYWORDS = [
   "mismatch",
 ];
 
-export type DisagreementSeverity = "low" | "medium" | "high";
+export type DisagreementSeverity = "medium" | "high";
 
 export interface IcpDisagreement {
   dimensionKey: string;
@@ -72,11 +75,11 @@ function classifyKind(kind: string | undefined): ProvenanceClass {
   return "unknown";
 }
 
-function detectSeverity(summary: string): DisagreementSeverity {
+function detectSeverity(summary: string): DisagreementSeverity | null {
   const lower = summary.toLowerCase();
   if (HIGH_SEVERITY_KEYWORDS.some((k) => lower.includes(k))) return "high";
   if (MEDIUM_SEVERITY_KEYWORDS.some((k) => lower.includes(k))) return "medium";
-  return "low";
+  return null;
 }
 
 export function detectIcpDisagreements(
@@ -109,11 +112,14 @@ export function detectIcpDisagreements(
 
     if (declaredSources.size === 0 || inferredSources.size === 0) continue;
 
+    const severity = detectSeverity(stateDim.summary);
+    if (!severity) continue;
+
     result.push({
       dimensionKey: dim.key,
       label: dim.label,
       summary: stateDim.summary,
-      severity: detectSeverity(stateDim.summary),
+      severity,
       declaredSources: Array.from(declaredSources),
       inferredSources: Array.from(inferredSources),
     });

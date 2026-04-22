@@ -5,9 +5,12 @@ import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 
 // Section 4 of the ICP review. Display-only — never written to the
 // rubric. Surfaces dimensions where the orchestrator's confidence
-// stayed below threshold even after consolidation. Low confidence
-// here is the "meaningful variation" signal: the exemplars didn't
-// agree, so the orchestrator couldn't pick a clean value.
+// stayed below threshold even after consolidation. With 3+ positive
+// exemplars, low confidence means "the exemplars disagreed" — a real
+// variation signal. With 1-2 positives the exemplar-scarcity clamp
+// deliberately holds confidence at 0.6, so below-threshold is just
+// scarcity, not variation. The parent hides this section when
+// positiveExemplarCount < 3 to avoid false warnings.
 //
 // We deliberately don't try to enumerate per-exemplar values — the
 // orchestrator emits one synthesized value per dimension. The
@@ -25,14 +28,17 @@ interface MeaningfulVariationsProps {
   isExpanded: boolean;
   onToggle: () => void;
   orchestratorState: OrchestratorState | null;
+  positiveExemplarCount: number;
 }
 
 export function MeaningfulVariations({
   isExpanded,
   onToggle,
   orchestratorState,
+  positiveExemplarCount,
 }: MeaningfulVariationsProps) {
   if (!orchestratorState) return null;
+  if (positiveExemplarCount < 3) return null;
 
   const variations = VARIATION_DIMENSIONS.map((d) => {
     const dim = orchestratorState.dimensions[d.key];

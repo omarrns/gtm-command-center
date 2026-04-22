@@ -6,10 +6,13 @@ import { SectionHeader } from "../../section-header";
 import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
 
 // Section 2 of the ICP review. Firmographics, technographics, signals,
-// and proof points are pattern-extracted across positive_example
-// artifacts. When zero positives were uploaded the orchestrator
-// degenerates to declarative-only mode and these fields are typically
-// empty defaults — the parent hides this section in that case.
+// and proof points. When positive_example artifacts exist the
+// orchestrator pattern-extracts these across them; when none exist
+// the fields still accept declarative input ("we sell to Series A-C
+// devtool companies using Salesforce"). Always shown — hiding would
+// let the app save fields the user never reviewed. The header +
+// helper copy switch between "inferred" and "declared targeting"
+// based on count so the source of truth is obvious.
 
 interface InferredFromExemplarsProps {
   isExpanded: boolean;
@@ -38,15 +41,27 @@ export function InferredFromExemplars({
   onProofPointsChange,
   positiveExemplarCount,
 }: InferredFromExemplarsProps) {
+  const title =
+    positiveExemplarCount === 0
+      ? "Declared targeting"
+      : `Inferred from exemplars (${positiveExemplarCount})`;
+
   return (
     <div className="surface p-5 mb-4">
       <SectionHeader
-        title={`Inferred from exemplars (${positiveExemplarCount})`}
+        title={title}
         isExpanded={isExpanded}
         onToggle={onToggle}
       />
       {isExpanded && (
         <div className="space-y-5 mt-2">
+          {positiveExemplarCount === 0 && (
+            <p className="text-xs text-[var(--color-text-muted)]">
+              No positive exemplars yet — these fields are declarative. Add
+              customers you&apos;d want more of to switch to pattern-extracted
+              inference.
+            </p>
+          )}
           <div className="space-y-3">
             <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
               Firmographics
