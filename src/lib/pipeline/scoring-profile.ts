@@ -20,8 +20,9 @@ export async function normalizeScoringProfile(
   svc: SupabaseClient,
   userId: string,
   templateId: InterviewTemplateId = "job_search",
+  context?: { interviewId?: string },
 ): Promise<void> {
   const template = getTemplate(templateId);
   if (!template.normalizeScoringProfile) return;
-  await template.normalizeScoringProfile(svc, userId);
+  await template.normalizeScoringProfile(svc, userId, context);
 }

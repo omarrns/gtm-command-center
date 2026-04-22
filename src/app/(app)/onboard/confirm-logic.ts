@@ -59,7 +59,14 @@ export async function performConfirm(
   try {
     for (const output of template.outputs) {
       if (output.type === "scoring_profile_normalize") {
-        await normalizeScoringProfile(svc, userId);
+        // Pass template.id so the dispatcher routes to the right template's
+        // normalizer (audit finding 1). Pass interviewId so the ICP
+        // normalizer can read the current row regardless of status — at
+        // this point the interview is still in 'review', not 'confirmed'
+        // (audit finding 2).
+        await normalizeScoringProfile(svc, userId, template.id, {
+          interviewId,
+        });
         continue;
       }
 
