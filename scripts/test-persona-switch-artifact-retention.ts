@@ -25,6 +25,7 @@ config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
 import { claimOrphanedArtifacts } from "../src/lib/onboarding/artifacts/reassign";
+import { performPersonaSwitch } from "../src/app/(app)/onboard/switch-persona";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const key =
@@ -94,6 +95,7 @@ async function insertArtifact(
   interviewId: string,
   label: string,
   markdown: string,
+  status: "succeeded" | "failed" = "succeeded",
 ): Promise<string> {
   const { data, error } = await supabase
     .from("onboarding_artifacts")
@@ -103,8 +105,9 @@ async function insertArtifact(
       kind: "positive_example",
       source_type: "text",
       source_label: label,
-      status: "succeeded",
-      normalized_markdown: markdown,
+      status,
+      normalized_markdown: status === "succeeded" ? markdown : null,
+      error_message: status === "failed" ? "test fixture: skip analyze" : null,
       created_from_template_id: "icp_definition",
     })
     .select("id")
@@ -183,6 +186,131 @@ async function testTargetAlreadyExists(userId: string) {
   assert(
     reattached?.normalized_markdown === originalMarkdown,
     "content preserved through claim into pre-existing target",
+  );
+}
+
+// SPEC-3 Phase 4.e: exercise the recoverable performPersonaSwitch core
+// end-to-end. Uses a `failed`-status artifact so analyzeArtifacts short-
+// circuits (zero succeeded) — we're testing the DB recovery contract,
+// not Opus. Asserts:
+//   - Reassign lands artifacts on the target.
+//   - Source is marked abandoned.
+//   - Target orchestrator_state is populated (analyze ran the short-
+//     circuit path).
+//   - analysisFailed is not set (short-circuit is a success, not a
+//     failure).
+async function testPerformPersonaSwitchHappyPath(userId: string) {
+  console.log(
+    "\n=== Scenario C: performPersonaSwitch happy-path (analyze short-circuits) ===\n",
+  );
+  await resetUser(userId);
+
+  const source = await createInterview(userId, "icp_definition");
+  // Failed-status artifact → analyze skips Opus but the move still
+  // has to work. Content is null by design (matches production path).
+  const artifactId = await insertArtifact(
+    userId,
+    source,
+    "scrape-failed-artifact",
+    "(unused — failed status has null markdown)",
+    "failed",
+  );
+
+  const result = await performPersonaSwitch(
+    supabase,
+    userId,
+    source,
+    "job_search",
+  );
+  assert(
+    result.ok,
+    `performPersonaSwitch ok (error: ${(result as { error?: string }).error})`,
+  );
+  if (!result.ok) return;
+
+  assert(
+    !result.analysisFailed,
+    `analysisFailed is not set when analyze short-circuits (got ${result.analysisFailed})`,
+  );
+  assert(
+    result.interview.template_id === "job_search",
+    `returned interview is target (got template_id=${result.interview.template_id})`,
+  );
+  assert(
+    result.interview.id !== source,
+    "returned interview id differs from source",
+  );
+
+  const { data: sourceAfter } = await supabase
+    .from("onboarding_interviews")
+    .select("status")
+    .eq("id", source)
+    .single();
+  assert(
+    sourceAfter?.status === "abandoned",
+    `source status='abandoned' (got ${sourceAfter?.status})`,
+  );
+
+  const { data: movedArtifact } = await supabase
+    .from("onboarding_artifacts")
+    .select("interview_id")
+    .eq("id", artifactId)
+    .single();
+  assert(
+    movedArtifact?.interview_id === result.interview.id,
+    `artifact now pinned to target (got ${movedArtifact?.interview_id})`,
+  );
+
+  // analyze's short-circuit still writes orchestrator_state with the
+  // artifact manifest, so UI has something to render.
+  const state = result.interview.orchestrator_state as Record<
+    string,
+    unknown
+  > | null;
+  assert(
+    state !== null,
+    "target orchestrator_state is populated after analyze short-circuit",
+  );
+  if (state) {
+    const artifacts = (state as { artifacts?: unknown[] }).artifacts;
+    assert(
+      Array.isArray(artifacts) && artifacts.length === 1,
+      `orchestrator_state.artifacts contains the moved row (len=${Array.isArray(artifacts) ? artifacts.length : "n/a"})`,
+    );
+  }
+}
+
+// Sanity check: calling performPersonaSwitch with the SAME target
+// template is rejected with a clear error. No writes should happen.
+async function testPerformPersonaSwitchSameTemplate(userId: string) {
+  console.log(
+    "\n=== Scenario D: performPersonaSwitch rejects same-template switch ===\n",
+  );
+  await resetUser(userId);
+
+  const source = await createInterview(userId, "icp_definition");
+  const result = await performPersonaSwitch(
+    supabase,
+    userId,
+    source,
+    "icp_definition",
+  );
+  assert(!result.ok, "switch to same template is rejected");
+  assert(
+    !result.ok && /already on that persona/i.test(result.error),
+    `error mentions already-on-persona (got: ${
+      !result.ok ? result.error : "n/a"
+    })`,
+  );
+
+  const { data: sourceAfter } = await supabase
+    .from("onboarding_interviews")
+    .select("status")
+    .eq("id", source)
+    .single();
+  assert(
+    sourceAfter?.status === "in_progress",
+    `source still in_progress after rejected switch (got ${sourceAfter?.status})`,
   );
 }
 
@@ -281,6 +409,8 @@ async function main() {
   );
 
   await testTargetAlreadyExists(userId);
+  await testPerformPersonaSwitchHappyPath(userId);
+  await testPerformPersonaSwitchSameTemplate(userId);
 
   // Clean up.
   await resetUser(userId);
