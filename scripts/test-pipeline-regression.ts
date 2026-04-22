@@ -86,6 +86,53 @@ const JSEARCH_FIXTURE = [
   },
 ];
 
+// TheirStack fixture for Phase 2 — GTM discover-accounts. Three rows
+// with firmographic fields populated so we can assert company_domain,
+// trigger_signals, buyer_personas write back correctly.
+const THEIRSTACK_FIXTURE = [
+  {
+    id: 9001,
+    job_title: "VP of Sales",
+    description: "Own pipeline and net-new logos.",
+    date_posted: new Date().toISOString(),
+    short_location: "San Francisco, CA",
+    remote: false,
+    seniority: "c_level",
+    company: "NovaCore",
+    company_domain: "novacore.io",
+    company_object: {
+      name: "NovaCore",
+      domain: "novacore.io",
+      linkedin_url: "https://linkedin.com/company/novacore",
+      industry_id: 1234,
+      employee_count: 185,
+      annual_revenue_usd: 42000000,
+      funding_stage: "series_b",
+      country_code: "US",
+    },
+  },
+  {
+    id: 9002,
+    job_title: "Head of Marketing",
+    description: "Scale content + demand engine.",
+    date_posted: new Date().toISOString(),
+    short_location: "New York, NY",
+    remote: false,
+    seniority: "senior",
+    company: "Formstack",
+    company_domain: "formstack.example",
+    company_object: {
+      name: "Formstack",
+      domain: "formstack.example",
+      linkedin_url: "https://linkedin.com/company/formstack",
+      industry_id: 5678,
+      employee_count: 210,
+      funding_stage: "series_b",
+      country_code: "US",
+    },
+  },
+];
+
 const originalFetch = globalThis.fetch;
 let jsearchCallCount = 0;
 
@@ -98,6 +145,13 @@ globalThis.fetch = (async (input: any, init?: RequestInit) => {
     // (queries×locations loop) so we deduplicate to exactly 3 results.
     const data = jsearchCallCount === 1 ? JSEARCH_FIXTURE : [];
     return new Response(JSON.stringify({ data }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }) as unknown as Response;
+  }
+
+  if (url.includes("api.theirstack.com")) {
+    return new Response(JSON.stringify({ data: THEIRSTACK_FIXTURE }), {
       status: 200,
       headers: { "content-type": "application/json" },
     }) as unknown as Response;
@@ -117,6 +171,7 @@ globalThis.fetch = (async (input: any, init?: RequestInit) => {
 // Required env for jsearch.ts assertEnv + score prompt assertEnv checks.
 process.env.RAPIDAPI_KEY ||= "test-fixture-key";
 process.env.ANTHROPIC_API_KEY ||= "test-fixture-key";
+process.env.THEIRSTACK_API_KEY ||= "test-fixture-key";
 process.env.EXA_API_KEY ||= "test-fixture-key";
 
 // ── In-memory Supabase mock ───────────────────────────────────────────────
@@ -541,14 +596,14 @@ async function main() {
     "result.queuedRecovery is numeric",
   );
 
-  // ── GTM persona branch (Phase 1 gate) ───────────────────────────────────
+  // ── GTM persona branch (Phase 2 gate) ───────────────────────────────────
   //
-  // runPipeline reads profiles.user_type and routes. For a gtm user the
-  // stub runner must complete without producing rows or errors. If a later
-  // phase accidentally wires the job_seeker stages into the gtm path this
-  // check catches it.
-  console.log("\n--- GTM persona no-op ---");
-  const gtmUserId = "test-user-phase-1-gtm";
+  // runPipeline reads profiles.user_type and dispatches to runGtmPipeline,
+  // which loads the icp_rubric and calls TheirStack. The fetch stub above
+  // returns 2 fixture jobs. Opportunities should land with source=
+  // 'theirstack' and the GTM columns populated.
+  console.log("\n--- GTM discover-accounts (theirstack) ---");
+  const gtmUserId = "test-user-phase-2-gtm";
   tables.pipeline_config.push({
     id: nextId(),
     user_id: gtmUserId,
@@ -564,25 +619,100 @@ async function main() {
     email: "gtm@example.com",
     user_type: "gtm",
   });
+  tables.user_scoring_profiles.push({
+    id: nextId(),
+    user_id: gtmUserId,
+    icp_rubric: {
+      firmographics: {
+        industries: ["B2B SaaS"],
+        employee_range_min: 50,
+        employee_range_max: 500,
+        stages: ["Series B"],
+        geographies: ["United States"],
+      },
+      technographics: {
+        required_tools: ["Salesforce"],
+        excluded_tools: [],
+      },
+      signals: {
+        hiring_roles: ["VP of Sales", "Head of Marketing"],
+        jtbd_evidence: [],
+        trigger_events: [],
+      },
+      disqualifiers: [],
+    },
+  });
 
   const gtmResult = await runPipeline(svc, gtmUserId);
   const gtmOpps = tables.opportunities.filter((o) => o.user_id === gtmUserId);
 
   assert(
-    gtmResult.discover.inserted === 0,
-    `gtm discover.inserted === 0 (got ${gtmResult.discover.inserted})`,
-  );
-  assert(
-    gtmOpps.length === 0,
-    `gtm opportunities count === 0 (got ${gtmOpps.length})`,
-  );
-  assert(
     gtmResult.error === null,
     `gtm result.error === null (got ${gtmResult.error})`,
   );
   assert(
-    opps.length === 3,
-    `job_seeker opportunities unaffected by gtm run (got ${opps.length})`,
+    gtmResult.discover.found === 2,
+    `gtm discover.found === 2 (got ${gtmResult.discover.found})`,
+  );
+  assert(
+    gtmResult.discover.inserted === 2,
+    `gtm discover.inserted === 2 (got ${gtmResult.discover.inserted})`,
+  );
+  assert(
+    gtmOpps.length === 2,
+    `gtm opportunities count === 2 (got ${gtmOpps.length})`,
+  );
+  assert(
+    gtmOpps.every((o) => o.source === "theirstack"),
+    "every gtm opportunity source === 'theirstack'",
+  );
+  assert(
+    gtmOpps.every(
+      (o) =>
+        typeof o.company_domain === "string" && o.company_domain.length > 0,
+    ),
+    "every gtm opportunity has company_domain",
+  );
+  assert(
+    gtmOpps.every(
+      (o) => Array.isArray(o.trigger_signals) && o.trigger_signals.length > 0,
+    ),
+    "every gtm opportunity has trigger_signals",
+  );
+  assert(
+    gtmOpps.every(
+      (o) => Array.isArray(o.buyer_personas) && o.buyer_personas.length > 0,
+    ),
+    "every gtm opportunity has buyer_personas",
+  );
+  assert(
+    gtmOpps.some((o) => o.company_name === "NovaCore"),
+    "NovaCore opportunity present",
+  );
+  assert(
+    gtmOpps.some(
+      (o) =>
+        o.company_name === "NovaCore" &&
+        (o.trigger_signals as Record<string, unknown>[])[0]?.funding_stage ===
+          "series_b",
+    ),
+    "NovaCore trigger_signals carries funding_stage='series_b'",
+  );
+  assert(
+    gtmOpps.some(
+      (o) =>
+        o.company_name === "NovaCore" &&
+        (o.buyer_personas as Record<string, unknown>[])[0]?.hiring_for ===
+          "VP of Sales",
+    ),
+    "NovaCore buyer_personas carries hiring_for='VP of Sales'",
+  );
+  const jobSeekerOpps = tables.opportunities.filter(
+    (o) => o.user_id === userId,
+  );
+  assert(
+    jobSeekerOpps.length === 3,
+    `job_seeker opportunities unaffected by gtm run (got ${jobSeekerOpps.length})`,
   );
 
   console.log("\n===================================================");
