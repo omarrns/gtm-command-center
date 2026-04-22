@@ -23,22 +23,36 @@ interface ArtifactResponse {
   orchestratorState: OrchestratorState | null;
 }
 
+interface BatchArtifactResponse {
+  artifacts: OnboardingArtifactRow[];
+  orchestratorState: OrchestratorState | null;
+}
+
 interface ErrorResponse {
   error: string;
 }
 
-async function readArtifactResponse(res: Response): Promise<ArtifactResponse> {
-  if (!res.ok) {
-    let message = `Server returned ${res.status}`;
-    try {
-      const body = (await res.json()) as Partial<ErrorResponse>;
-      if (body.error) message = body.error;
-    } catch {
-      // fall through
-    }
-    throw new Error(message);
+async function extractErrorMessage(res: Response): Promise<string> {
+  let message = `Server returned ${res.status}`;
+  try {
+    const body = (await res.json()) as Partial<ErrorResponse>;
+    if (body.error) message = body.error;
+  } catch {
+    // fall through
   }
+  return message;
+}
+
+async function readArtifactResponse(res: Response): Promise<ArtifactResponse> {
+  if (!res.ok) throw new Error(await extractErrorMessage(res));
   return (await res.json()) as ArtifactResponse;
+}
+
+async function readBatchArtifactResponse(
+  res: Response,
+): Promise<BatchArtifactResponse> {
+  if (!res.ok) throw new Error(await extractErrorMessage(res));
+  return (await res.json()) as BatchArtifactResponse;
 }
 
 interface ArtifactInputProps {
@@ -73,6 +87,22 @@ function parseUrlLike(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+// Splits the input on whitespace/commas and runs each token through
+// parseUrlLike. Returns the normalized URL list only when every token is a
+// URL AND there are at least two — so single URLs fall to parseUrlLike and
+// mixed text + URL pastes still land as text.
+function parseUrlLikeBatch(value: string): string[] | null {
+  const tokens = value.split(/[\s,]+/).filter(Boolean);
+  if (tokens.length < 2) return null;
+  const urls: string[] = [];
+  for (const token of tokens) {
+    const url = parseUrlLike(token);
+    if (!url) return null;
+    urls.push(url);
+  }
+  return urls;
 }
 
 function detectKindFromUrl(
@@ -162,9 +192,39 @@ export function ArtifactInput({
     if (!value || isUploading) return;
     const submitted = value;
     const normalizedUrl = parseUrlLike(value);
+    const batchUrls = normalizedUrl ? null : parseUrlLikeBatch(value);
     const override = kindOverride;
     startUpload(async () => {
       try {
+        if (batchUrls) {
+          const items = batchUrls.map((u) => ({
+            url: u,
+            kind: override ?? detectKindFromUrl(u, templateId),
+          }));
+          const res = await fetch("/api/onboard/artifacts", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ interviewId, urls: items }),
+          });
+          const data = await readBatchArtifactResponse(res);
+          setArtifacts((prev) => [...prev, ...data.artifacts]);
+          setInputValue((curr) => (curr.trim() === submitted ? "" : curr));
+          if (textareaRef.current) textareaRef.current.style.height = "auto";
+          if (data.orchestratorState) onStateUpdated(data.orchestratorState);
+          const failures = data.artifacts.filter((a) => a.status === "failed");
+          if (failures.length > 0) {
+            toast.warning(
+              failures.length === data.artifacts.length
+                ? "All uploads failed. Try pasting text or uploading PDFs instead."
+                : `${failures.length} of ${data.artifacts.length} URLs failed — see chips for details.`,
+            );
+          }
+          if (data.artifacts.some((a) => a.status === "succeeded")) {
+            onReadyToChat();
+          }
+          return;
+        }
+
         const resolvedKind = normalizedUrl
           ? (override ?? detectKindFromUrl(normalizedUrl, templateId))
           : (override ?? defaultTextKind(templateId));

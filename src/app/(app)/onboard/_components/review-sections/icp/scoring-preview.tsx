@@ -1,6 +1,6 @@
 "use client";
 
-import { SectionHeader } from "../../section-header";
+import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
 
 // Section 7 of the ICP review. Read-only summary of the rubric that
@@ -17,73 +17,56 @@ function bullets(items: string[]): string {
 }
 
 interface ScoringPreviewProps {
-  isExpanded: boolean;
-  onToggle: () => void;
   edits: IcpEdits;
 }
 
-export function ScoringPreview({
-  isExpanded,
-  onToggle,
-  edits,
-}: ScoringPreviewProps) {
+export function ScoringPreview({ edits }: ScoringPreviewProps) {
   const f = edits.icp.firmographics;
   const t = edits.icp.technographics;
   const s = edits.icp.signals;
 
   return (
-    <div className="surface p-5 mb-4">
-      <SectionHeader
-        title="Scoring rubric preview"
-        isExpanded={isExpanded}
-        onToggle={onToggle}
-      />
-      {isExpanded && (
-        <div className="mt-2 space-y-3 text-sm">
-          <p className="text-xs text-[var(--color-text-muted)]">
-            This is what gets written to your scoring profile. Discovery
-            adapters (search queries, automated ICP matching) come in a
-            follow-up release.
-          </p>
-          <div className="space-y-2">
-            <div>
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
-                Firmographics
-              </p>
-              <p>
-                {bullets(f.industries)} · {f.employee_range_min}–
-                {f.employee_range_max} employees · {bullets(f.stages)} ·{" "}
-                {bullets(f.geographies)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
-                Technographics
-              </p>
-              <p>
-                Required: {bullets(t.required_tools)} · Excluded:{" "}
-                {bullets(t.excluded_tools)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
-                Signals
-              </p>
-              <p>
-                Hiring: {bullets(s.hiring_roles)} · JTBD:{" "}
-                {bullets(s.jtbd_evidence)} · Triggers:{" "}
-                {bullets(s.trigger_events)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
-                Disqualifiers
-              </p>
-              <p>{bullets(edits.icp.disqualifiers)}</p>
-            </div>
+    <ReviewFormSection title="Scoring Rubric Preview">
+      <div className="space-y-4 text-sm">
+        <p className="text-xs text-[var(--color-text-muted)]">
+          This is what gets written to your scoring profile. Discovery adapters
+          (search queries, automated ICP matching) come in a follow-up release.
+        </p>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Firmographics
+            </p>
+            <p>
+              {bullets(f.industries)} · {f.employee_range_min}–
+              {f.employee_range_max} employees · {bullets(f.stages)} ·{" "}
+              {bullets(f.geographies)}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Technographics
+            </p>
+            <p>
+              Required: {bullets(t.required_tools)} · Excluded:{" "}
+              {bullets(t.excluded_tools)}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-[var(--color-text-muted)]">Signals</p>
+            <p>
+              Hiring: {bullets(s.hiring_roles)} · JTBD:{" "}
+              {bullets(s.jtbd_evidence)} · Triggers: {bullets(s.trigger_events)}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Disqualifiers
+            </p>
+            <p>{bullets(edits.icp.disqualifiers)}</p>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    </ReviewFormSection>
   );
 }

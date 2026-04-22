@@ -4,20 +4,26 @@ import {
   ingestFile,
   ingestText,
   ingestUrl,
+  ingestUrls,
   type IngestOptions,
 } from "@/lib/onboarding/artifacts/ingest";
 import { getTemplate } from "@/lib/onboarding/templates";
 import { analyzeArtifacts } from "@/lib/onboarding/orchestrator/run";
-import type { OnboardingArtifactRow } from "@/lib/supabase/types";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 
 export const maxDuration = 120;
 
+interface BatchUrlItem {
+  url: string;
+  kind: string;
+}
+
 interface ArtifactRequestBody {
   interviewId?: string | null;
-  kind: string;
+  kind?: string;
   url?: string;
   text?: string;
+  urls?: BatchUrlItem[];
   sourceLabel?: string;
 }
 
@@ -57,11 +63,43 @@ export async function POST(req: Request) {
     };
     const buffer = await file.arrayBuffer();
     const row = await ingestFile(buffer, file.name, file.type, opts, svc);
-    const orchestratorState = await maybeAnalyze(svc, interviewId, row);
+    const orchestratorState = await maybeAnalyze(svc, interviewId);
     return Response.json({ artifact: row, orchestratorState });
   }
 
   const body = (await req.json()) as ArtifactRequestBody;
+
+  // Batch URL path: scrape N URLs in parallel, persist all, then run
+  // analyzeArtifacts exactly once so a 5-URL paste produces one Opus call
+  // instead of five racing ones.
+  if (Array.isArray(body.urls) && body.urls.length > 0) {
+    if (body.urls.some((u) => !u?.url || !u?.kind)) {
+      return Response.json(
+        { error: "Each url entry requires both `url` and `kind`." },
+        { status: 400 },
+      );
+    }
+
+    const ownershipErr = await checkInterviewOwnership(
+      svc,
+      body.interviewId ?? null,
+      user.id,
+    );
+    if (ownershipErr) return ownershipErr;
+
+    const rows = await ingestUrls(
+      body.urls,
+      {
+        userId: user.id,
+        interviewId: body.interviewId ?? null,
+        sourceLabel: body.sourceLabel,
+      },
+      svc,
+    );
+    const orchestratorState = await maybeAnalyze(svc, body.interviewId ?? null);
+    return Response.json({ artifacts: rows, orchestratorState });
+  }
+
   if (!body.kind) {
     return Response.json({ error: "`kind` is required." }, { status: 400 });
   }
@@ -82,18 +120,18 @@ export async function POST(req: Request) {
 
   if (body.url) {
     const row = await ingestUrl(body.url, opts, svc);
-    const orchestratorState = await maybeAnalyze(svc, opts.interviewId, row);
+    const orchestratorState = await maybeAnalyze(svc, opts.interviewId);
     return Response.json({ artifact: row, orchestratorState });
   }
 
   if (body.text) {
     const row = await ingestText(body.text, opts, svc);
-    const orchestratorState = await maybeAnalyze(svc, opts.interviewId, row);
+    const orchestratorState = await maybeAnalyze(svc, opts.interviewId);
     return Response.json({ artifact: row, orchestratorState });
   }
 
   return Response.json(
-    { error: "Provide one of: url, text, or a multipart file." },
+    { error: "Provide one of: url, text, urls, or a multipart file." },
     { status: 400 },
   );
 }
@@ -108,7 +146,6 @@ export async function POST(req: Request) {
 async function maybeAnalyze(
   svc: ReturnType<typeof createSupabaseServiceClient>,
   interviewId: string | null,
-  _artifact: OnboardingArtifactRow,
 ): Promise<OrchestratorState | null> {
   if (!interviewId) return null;
 

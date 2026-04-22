@@ -1,6 +1,6 @@
 "use client";
 
-import { SectionHeader } from "../../section-header";
+import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 
 // Section 3 of the ICP review. Read-only. Surfaces the orchestrator's
@@ -21,15 +21,11 @@ const PATTERN_DIMENSIONS = [
 ];
 
 interface CommonPatternsProps {
-  isExpanded: boolean;
-  onToggle: () => void;
   orchestratorState: OrchestratorState | null;
   positiveExemplarCount: number;
 }
 
 export function CommonPatterns({
-  isExpanded,
-  onToggle,
   orchestratorState,
   positiveExemplarCount,
 }: CommonPatternsProps) {
@@ -43,24 +39,17 @@ export function CommonPatterns({
   if (rows.length === 0) return null;
 
   return (
-    <div className="surface p-5 mb-4">
-      <SectionHeader
-        title={`Common patterns (${positiveExemplarCount} exemplars)`}
-        isExpanded={isExpanded}
-        onToggle={onToggle}
-      />
-      {isExpanded && (
-        <div className="mt-2 space-y-3">
-          {rows.map((r) => (
-            <div key={r.key} className="space-y-1">
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
-                {r.label}
-              </p>
-              <p className="text-sm">{r.summary}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <ReviewFormSection
+      title={`Common Patterns (${positiveExemplarCount} exemplars)`}
+    >
+      <div className="space-y-4">
+        {rows.map((r) => (
+          <div key={r.key} className="space-y-1">
+            <p className="text-xs text-[var(--color-text-muted)]">{r.label}</p>
+            <p className="text-sm">{r.summary}</p>
+          </div>
+        ))}
+      </div>
+    </ReviewFormSection>
   );
 }

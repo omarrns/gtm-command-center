@@ -40,7 +40,7 @@ export function ExemplarScarcityBanner({
   if (!copy) return null;
 
   return (
-    <Alert className="mb-6">
+    <Alert className="mb-8">
       <Info size={14} />
       <div className="text-xs space-y-1">
         <p className="font-medium">{copy.title}</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { SectionHeader } from "../../section-header";
+import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 
 // Section 4 of the ICP review. Display-only — never written to the
@@ -11,11 +11,6 @@ import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 // deliberately holds confidence at 0.6, so below-threshold is just
 // scarcity, not variation. The parent hides this section when
 // positiveExemplarCount < 3 to avoid false warnings.
-//
-// We deliberately don't try to enumerate per-exemplar values — the
-// orchestrator emits one synthesized value per dimension. The
-// per-exemplar breakdown section gives the raw artifacts for users
-// who want to dig in.
 
 const VARIATION_DIMENSIONS = [
   { key: "firmographics", label: "Firmographics" },
@@ -25,15 +20,11 @@ const VARIATION_DIMENSIONS = [
 ];
 
 interface MeaningfulVariationsProps {
-  isExpanded: boolean;
-  onToggle: () => void;
   orchestratorState: OrchestratorState | null;
   positiveExemplarCount: number;
 }
 
 export function MeaningfulVariations({
-  isExpanded,
-  onToggle,
   orchestratorState,
   positiveExemplarCount,
 }: MeaningfulVariationsProps) {
@@ -50,34 +41,27 @@ export function MeaningfulVariations({
   if (variations.length === 0) return null;
 
   return (
-    <div className="surface p-5 mb-4">
-      <SectionHeader
-        title={`Meaningful variations (${variations.length})`}
-        isExpanded={isExpanded}
-        onToggle={onToggle}
-      />
-      {isExpanded && (
-        <div className="mt-2 space-y-3">
-          <p className="text-xs text-[var(--color-text-muted)]">
-            These dimensions didn&apos;t consolidate cleanly across your
-            exemplars. They aren&apos;t blocked from confirm — but you may want
-            to revisit them or add more examples.
-          </p>
-          {variations.map((v) => (
-            <div key={v.key} className="space-y-1">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
-                  {v.label}
-                </p>
-                <span className="text-[10px] text-[var(--color-text-subtle)]">
-                  {Math.round(v.confidence * 100)}% confidence
-                </span>
-              </div>
-              <p className="text-sm">{v.summary}</p>
+    <ReviewFormSection title={`Meaningful Variations (${variations.length})`}>
+      <div className="space-y-4">
+        <p className="text-xs text-[var(--color-text-muted)]">
+          These dimensions didn&apos;t consolidate cleanly across your
+          exemplars. They aren&apos;t blocked from confirm — but you may want to
+          revisit them or add more examples.
+        </p>
+        {variations.map((v) => (
+          <div key={v.key} className="space-y-1">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {v.label}
+              </p>
+              <span className="text-[10px] text-[var(--color-text-subtle)]">
+                {Math.round(v.confidence * 100)}% confidence
+              </span>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
+            <p className="text-sm">{v.summary}</p>
+          </div>
+        ))}
+      </div>
+    </ReviewFormSection>
   );
 }

@@ -367,15 +367,6 @@ function AgenticChat({
                 className="bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0"
               />
               <PromptInputFooter className="bg-[var(--color-surface-muted)] border-t border-[var(--border)]">
-                <PromptInputTools>
-                  <button
-                    type="button"
-                    onClick={onSwitchToManual}
-                    className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors px-2"
-                  >
-                    Skip to manual entry
-                  </button>
-                </PromptInputTools>
                 <PromptInputSubmit
                   status={status}
                   disabled={!input.trim() || isStreaming}
@@ -566,15 +557,6 @@ function LegacyInterview({
             className="bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0"
           />
           <PromptInputFooter className="bg-[var(--color-surface-muted)] border-t border-[var(--border)]">
-            <PromptInputTools>
-              <button
-                type="button"
-                onClick={onSwitchToManual}
-                className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors px-2"
-              >
-                Skip to manual entry
-              </button>
-            </PromptInputTools>
             <PromptInputSubmit
               status={status}
               disabled={!input.trim() || isStreaming}

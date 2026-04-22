@@ -64,6 +64,12 @@ export async function POST(req: Request) {
     prompt: `<transcript>\n${transcript}\n</transcript>\n\nWrite the reflective synthesis now. Return JSON matching the schema in your system prompt.`,
     schema: template.insightsSchema,
     maxOutputTokens: template.extractionMaxOutputTokens,
+    // Opt out of Anthropic's native structured-output path for parity
+    // with runGenerateObject (src/lib/ai/calls.ts). See comment there
+    // for the rationale.
+    providerOptions: {
+      anthropic: { structuredOutputMode: "jsonTool" },
+    },
     onFinish: async ({ object }) => {
       if (!object) return;
 
