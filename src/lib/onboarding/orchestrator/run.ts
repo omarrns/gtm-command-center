@@ -314,7 +314,7 @@ export async function loadPositiveExemplarCount(
   return count ?? 0;
 }
 
-function applyIcpExemplarScarcityClamp(
+export function applyIcpExemplarScarcityClamp(
   state: OrchestratorState,
   succeededArtifacts: ReadonlyArray<OnboardingArtifactRow>,
   dimensions: ReadonlyArray<Dimension>,

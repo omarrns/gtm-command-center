@@ -93,6 +93,25 @@ export async function performConfirm(
     } as Record<string, unknown>);
 
   try {
+    // Canonicalize the confirmed snapshot: write the user's edits to
+    // interview.extracted before any output runs. Downstream consumers
+    // (the ICP normalizer, post-confirm dashboards, any future reader of
+    // the confirmed row) read extracted as the source of truth — without
+    // this write, edits land in memory_documents but not in icp_rubric,
+    // so scoring drifts from the narrative summary.
+    const { error: extractedErr } = await svc
+      .from("onboarding_interviews")
+      .update({
+        extracted: parsedEdits,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", interviewId);
+    if (extractedErr) {
+      throw new Error(
+        `extracted snapshot write failed: ${extractedErr.message}`,
+      );
+    }
+
     for (const output of template.outputs) {
       if (output.type === "scoring_profile_normalize") {
         // Pass template.id so the dispatcher routes to the right template's
