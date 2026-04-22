@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useTransition, useEffect, useRef } from "react";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { InterviewClient } from "./interview-client";
 import { ReviewClient } from "./review-client";
@@ -41,13 +40,6 @@ interface OnboardRouterProps {
   existingOutreach: string | null;
 }
 
-// Short, user-facing labels for each persona. Surfaced on the choice
-// screen + anywhere the active template should be visible.
-const TEMPLATE_LABEL: Record<InterviewTemplateId, string> = {
-  job_search: "Job search",
-  icp_definition: "Company ICP",
-};
-
 type Mode = "choice" | "interview" | "manual";
 
 export function OnboardRouter({
@@ -76,6 +68,34 @@ export function OnboardRouter({
   });
   const [isPending, startTransition] = useTransition();
   const autoExtractTriggered = useRef(false);
+  const autoStartTriggered = useRef(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  // Auto-start: skip the redundant one-CTA interstitial and enter the
+  // interview immediately. Manual mode is still reachable from inside
+  // InterviewClient via onSwitchToManual, so we don't lose an affordance.
+  useEffect(() => {
+    if (
+      mode !== "choice" ||
+      interview ||
+      isPending ||
+      autoStartTriggered.current
+    ) {
+      return;
+    }
+    autoStartTriggered.current = true;
+    setStartError(null);
+    startTransition(async () => {
+      const result = await getOrCreateInterviewAction(isRefresh, templateId);
+      if (result.ok) {
+        setInterview(result.interview);
+        setMode("interview");
+      } else {
+        setStartError(result.error ?? "Failed to start interview");
+        autoStartTriggered.current = false;
+      }
+    });
+  }, [mode, interview, isPending, isRefresh, templateId]);
 
   // Auto-trigger extraction on resume when ready_for_extraction is set
   // but status is still in_progress (server set the flag, client disconnected)
@@ -166,77 +186,28 @@ export function OnboardRouter({
     );
   }
 
-  // ── Choice screen ──
-  function startInterview() {
-    if (isPending || interview) return;
-    startTransition(async () => {
-      // Thread templateId through so the right persona's interview row is
-      // created. Without this, the action defaults to 'job_search' and
-      // ICP users would get a job_search interview under the covers.
-      const result = await getOrCreateInterviewAction(isRefresh, templateId);
-      if (result.ok) {
-        setInterview(result.interview);
-        setMode("interview");
-      } else {
-        toast.error(result.error ?? "Failed to start interview — try again");
-      }
-    });
+  // ── Auto-start loading / error fallback ──
+  if (startError) {
+    return (
+      <div className="mx-auto flex min-h-[75vh] max-w-md flex-col items-center justify-center gap-3 p-6 text-center">
+        <p className="text-sm text-[var(--color-text-muted)]">{startError}</p>
+        <button
+          type="button"
+          onClick={() => {
+            autoStartTriggered.current = false;
+            setStartError(null);
+          }}
+          className="text-sm font-medium text-[var(--color-blue)] hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
-  const personaLabel = TEMPLATE_LABEL[templateId];
-  const personaDescription =
-    templateId === "icp_definition"
-      ? "We'll build your ICP rubric from exemplar customers, buyer personas, and your product context."
-      : "We need to understand who you are to find and score opportunities for you.";
-
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <Link
-          href="/onboard"
-          className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-        >
-          <ArrowLeft size={12} />
-          Switch persona
-        </Link>
-        <span className="rounded-full border border-[var(--color-border-strong)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
-          {personaLabel}
-        </span>
-      </div>
-
-      <div className="mb-8">
-        <h1 className="text-xl font-bold tracking-tight">
-          {isRefresh ? "Profile Refresh" : "Set up your pipeline"}
-        </h1>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          {isRefresh
-            ? "Update your profile so the pipeline uses your latest context."
-            : personaDescription}
-        </p>
-      </div>
-
-      <button
-        type="button"
-        onClick={startInterview}
-        disabled={isPending}
-        className="surface p-5 text-left hover:border-[var(--color-blue)] transition-colors max-w-sm"
-      >
-        <div className="mb-3">
-          <h2 className="text-sm font-semibold">Chat with AI coach</h2>
-        </div>
-        <p className="text-xs text-[var(--color-text-muted)]">
-          Answer a few questions conversationally. Takes ~5 minutes and produces
-          richer data for scoring and outreach.
-        </p>
-        {isPending && (
-          <div className="mt-3">
-            <Loader2
-              size={14}
-              className="animate-spin text-[var(--color-blue)]"
-            />
-          </div>
-        )}
-      </button>
+    <div className="mx-auto flex min-h-[75vh] flex-col items-center justify-center gap-3 p-6">
+      <Loader2 size={20} className="animate-spin text-[var(--color-blue)]" />
     </div>
   );
 }

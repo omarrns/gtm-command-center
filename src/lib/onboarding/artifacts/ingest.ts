@@ -89,6 +89,22 @@ export async function ingestUrl(
   }
 }
 
+// Scrape + persist N URLs concurrently. Each item carries its own kind so a
+// heterogeneous paste (customer URLs + a LinkedIn buyer) gets tagged
+// correctly per URL. ingestUrl swallows Firecrawl errors into failed rows;
+// this only rejects if a DB insert itself fails.
+export async function ingestUrls(
+  items: ReadonlyArray<{ url: string; kind: string }>,
+  baseOpts: Omit<IngestOptions, "kind">,
+  svc: SupabaseClient,
+): Promise<OnboardingArtifactRow[]> {
+  return Promise.all(
+    items.map((item) =>
+      ingestUrl(item.url, { ...baseOpts, kind: item.kind }, svc),
+    ),
+  );
+}
+
 export async function ingestText(
   text: string,
   opts: IngestOptions,

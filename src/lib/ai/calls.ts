@@ -125,6 +125,16 @@ export async function runGenerateObject<S extends z.ZodType>(
       prompt: args.prompt,
       schema: args.schema,
       maxOutputTokens: args.maxOutputTokens,
+      // Opt out of Anthropic's native `output_config.format.schema` path
+      // (the v3 @ai-sdk/anthropic default on Claude 4.x models). That path
+      // enforces a strict subset of JSON Schema — rejects
+      // `additionalProperties: <schema>` (z.record) and empty schemas
+      // (z.unknown/z.any). Forcing the old `jsonTool` path keeps the
+      // permissive tool-calling semantics our schemas were designed
+      // against under @ai-sdk/anthropic v2.
+      providerOptions: {
+        anthropic: { structuredOutputMode: "jsonTool" },
+      },
     });
 
     await captureAiCall(args.scope, {

@@ -101,8 +101,20 @@ async function main() {
     process.exit(1);
   }
 
+  // Null profiles.user_type (SPEC-3 — stamped on first confirm). Without
+  // this the persona picker never reappears on /onboard.
+  const { error: userTypeError } = await supabase
+    .from("profiles")
+    .update({ user_type: null })
+    .eq("user_id", userId);
+
+  if (userTypeError) {
+    console.error("Failed to null user_type:", userTypeError.message);
+    process.exit(1);
+  }
+
   console.log(
-    `Reset complete: ${artifactCount ?? 0} artifacts, ${interviewCount ?? 0} interviews, ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted`,
+    `Reset complete: ${artifactCount ?? 0} artifacts, ${interviewCount ?? 0} interviews, ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted, user_type cleared`,
   );
 }
 

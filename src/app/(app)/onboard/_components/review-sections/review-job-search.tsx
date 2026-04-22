@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -33,10 +34,6 @@ import { ReviewSectionSearch } from "./review-section-search";
 import { ReviewSectionOutreach } from "./review-section-outreach";
 import { ReviewSectionInsights } from "./review-section-insights";
 
-// Which topics_covered key drives the fallback-to-saved-data logic for each
-// editable section. Lives here (co-located with the job-search review UI)
-// rather than in the shared ClientInterviewTemplate — an ICP review would
-// have entirely different sections and therefore a different map shape.
 const SEARCH_TOPIC_KEY = "search_prefs";
 const OUTREACH_TOPIC_KEY = "outreach_style";
 const DEALBREAKERS_TOPIC_KEY = "dealbreakers";
@@ -72,9 +69,6 @@ export function ReviewJobSearch({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  // Agentic mode only: surface dimensions that hit the 2-ask cap with
-  // confidence still below threshold, so the user knows which inferences
-  // to double-check before confirming.
   const lowConfidenceDimensions = clientTemplate.agenticMode
     ? getLowConfidenceDimensions(
         interview.orchestrator_state as OrchestratorState | null,
@@ -91,9 +85,6 @@ export function ReviewJobSearch({
   const extractedInsights = (interview.extracted_insights ??
     {}) as unknown as ExtractionInsights;
 
-  // In refresh mode, use topics_covered to decide whether to trust extracted
-  // values. If a topic wasn't covered in the interview, the extractor returns
-  // defaults that would clobber existing saved data.
   const saved = existingData;
   const topics = new Set(interview.topics_covered);
   const searchCovered = topics.has(SEARCH_TOPIC_KEY);
@@ -172,28 +163,10 @@ export function ReviewJobSearch({
           "",
   );
 
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["profile", "search", "outreach"]),
-  );
-
-  function toggleSection(key: string) {
-    setExpandedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
-
   function buildEdits() {
     return {
       profile: { positioning, careerHighlights, proofPoints, technicalTools },
-      search: {
-        searchQueries,
-        searchLocations,
-        scoreThreshold,
-        dailySendCap,
-      },
+      search: { searchQueries, searchLocations, scoreThreshold, dailySendCap },
       outreach: {
         greenFlags,
         redFlags,
@@ -204,12 +177,6 @@ export function ReviewJobSearch({
     };
   }
 
-  // Agentic path: hand off to the story phase. The career-story screen
-  // streams the seven insight sections, accepts inline edits, and only
-  // then calls confirm. Legacy path: confirm directly (no story phase).
-  // Sync local OnboardRouter state via the onContinueToStory callback —
-  // router.refresh() alone wouldn't update the parent's useState, leaving
-  // the router stuck on `review` even though the DB row moved.
   function handlePrimary() {
     if (clientTemplate.agenticMode) {
       startTransition(async () => {
@@ -250,19 +217,24 @@ export function ReviewJobSearch({
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold tracking-tight">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="mx-auto max-w-xl px-6 py-12"
+    >
+      <header className="mb-10">
+        <h1 className="text-xl font-semibold tracking-tight">
           Review your profile
         </h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Here&apos;s what we captured from the interview. Edit anything that
-          doesn&apos;t look right, then confirm.
+        <p className="text-sm text-[var(--color-text-muted)] mt-2">
+          Here&apos;s what we captured from the interview. Click any field to
+          edit, then confirm.
         </p>
-      </div>
+      </header>
 
       {lowConfidenceDimensions.length > 0 && (
-        <Alert className="mb-6">
+        <Alert className="mb-8">
           <AlertTriangle size={14} />
           <div className="text-xs space-y-1">
             <p className="font-medium">
@@ -276,8 +248,6 @@ export function ReviewJobSearch({
       )}
 
       <ReviewSectionProfile
-        isExpanded={expandedSections.has("profile")}
-        onToggle={() => toggleSection("profile")}
         positioning={positioning}
         onPositioningChange={setPositioning}
         careerHighlights={careerHighlights}
@@ -289,8 +259,6 @@ export function ReviewJobSearch({
       />
 
       <ReviewSectionSearch
-        isExpanded={expandedSections.has("search")}
-        onToggle={() => toggleSection("search")}
         searchQueries={searchQueries}
         onSearchQueriesChange={setSearchQueries}
         searchLocations={searchLocations}
@@ -302,8 +270,6 @@ export function ReviewJobSearch({
       />
 
       <ReviewSectionOutreach
-        isExpanded={expandedSections.has("outreach")}
-        onToggle={() => toggleSection("outreach")}
         greenFlags={greenFlags}
         onGreenFlagsChange={setGreenFlags}
         redFlags={redFlags}
@@ -318,7 +284,7 @@ export function ReviewJobSearch({
 
       <ReviewSectionInsights insights={extractedInsights} />
 
-      <div className="flex items-center justify-between">
+      <div className="mt-12 flex items-center justify-between border-t border-[var(--color-border-strong)] pt-6">
         <Button
           type="button"
           variant="ghost"
@@ -339,6 +305,6 @@ export function ReviewJobSearch({
               : "Confirm & Continue"}
         </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

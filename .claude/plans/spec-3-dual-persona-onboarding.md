@@ -255,37 +255,65 @@ Banner above ICP review when positive-exemplar count is 0, 1, or 2. Copy differs
 
 Post-confirm GTM experience. Mirrors SPEC-3's bet: the synthesized ICP rubric IS the product.
 
+#### UI reuse constraint (applies to every Phase 6 commit)
+
+**Hard rule:** before writing any new markup, grep `src/components/` + `src/components/ui/` and reuse the existing primitive. Do not create bespoke buttons, cards, badges, alerts, empty states, collapsibles, or sidebar patterns if a primitive already covers the need. New component files are for composing these primitives, not for reinventing them.
+
+Inventory the implementer must reach for first:
+
+| Need                               | Primitive                                                               | Notes                                                                                                                                   |
+| ---------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Page-top title + description       | `PageHeader`                                                            | `src/components/page-header.tsx`. Pass actions (e.g. "Refresh ICP" `<Button>`) via `children`.                                          |
+| Detail-screen header with back nav | `DetailHeader`                                                          | `src/components/detail-header.tsx`. Not expected in Phase 6 but noted so nobody reinvents.                                              |
+| Section container                  | `Card` + `CardHeader` + `CardContent` OR `.surface` utility             | `src/components/ui/card.tsx`. Existing onboarding review uses `.surface p-5`; match that for visual consistency with the review screen. |
+| Callable action                    | `Button` / `buttonVariants()`                                           | `src/components/ui/button.tsx`. Use `buttonVariants({ variant: "ghost" })` on `<Link>` anchors — mirror `SettingsClient`'s pattern.     |
+| Labeled pill                       | `Badge`                                                                 | `src/components/ui/badge.tsx`. Variants available: `default`, `secondary`, `outline`, `muted`, `success`, `warning`, `accent`.          |
+| Soft callout / info banner         | `Alert` + `AlertTitle` + `AlertDescription`                             | `src/components/ui/alert.tsx`. Use `variant="destructive"` for errors; default for info/coming-soon.                                    |
+| Empty list / placeholder state     | `EmptyState`                                                            | `src/components/empty-state.tsx`. GTM `/history` + `/analytics` use this for the "discovery coming soon" copy.                          |
+| Collapsible rubric / exemplar list | `Accordion` + `AccordionItem` + `AccordionTrigger` + `AccordionContent` | `src/components/ui/accordion.tsx`. Replaces hand-rolled expand/collapse logic used in the onboarding review sections.                   |
+| List of linked rows                | `ListItem`                                                              | `src/components/list-item.tsx`. Fits the exemplars list.                                                                                |
+| String-array editing               | `TagInput`                                                              | `src/components/tag-input.tsx`. N/A for Phase 6 (dashboard is read-only) but noted for future edit screens.                             |
+
+Visual consistency:
+
+- Match the onboarding review UI's `.surface p-5 mb-4` section rhythm when not using `<Card>`. `<Card>` itself is already used in shadcn primitives elsewhere — both are acceptable; don't mix them within one screen.
+- Badges: use `accent` for persona labels ("GTM" / "Job search"), `muted` for status/counts, `success`/`warning` for semantic states.
+- Do not copy onboarding-only components (e.g. `SectionHeader`, `review-section-*`) into the dashboard. If a pattern is genuinely shared, extract it into `src/components/` first in a separate commit; otherwise lean on `<Accordion>`.
+- Sidebar + `app-shell` are explicitly custom per CLAUDE.md. Extend via `buildNav(userType)`, do **not** swap in shadcn `sidebar`/`command`.
+
 #### Commit 6.a — `<IcpDashboard>` component
 
-- `src/app/(app)/_components/icp-dashboard.tsx` — renders:
-  - Narrative ICP summary from `memory_documents.company_icp`.
-  - Structured rubric from `user_scoring_profiles.icp_rubric` — firmographics / technographics / signals / disqualifiers / buyer personas as labeled sections.
-  - Proof points from `memory_documents.icp_proof_points`.
-  - Exemplars list (collapsible) — links back to `onboarding_artifacts` that fed the synthesis.
-  - "Refresh ICP" button → `/onboard?mode=refresh&template=icp_definition`.
-- Read-only in v1. Edits happen via refresh-mode onboarding.
+- `src/app/(app)/_components/icp-dashboard.tsx` (RSC, read-only in v1):
+  - **Header**: `<PageHeader title="Your ICP" description="Synthesized from your exemplars, buyer personas, and product context." />` with a `<Link>` styled via `buttonVariants({ variant: "ghost" })` to `/onboard?mode=refresh&template=icp_definition` as the "Refresh ICP" action.
+  - **Narrative summary**: `.surface p-5` block rendering `memory_documents.company_icp` as pre-formatted markdown (short text; no heavy renderer).
+  - **Structured rubric**: a single `<Accordion type="multiple">` with one `<AccordionItem>` per rubric dimension (firmographics / technographics / signals / disqualifiers / buyer_personas / proof_points). Empty dimensions render a `<Badge variant="muted">` "not set" and no body; populated dimensions render a plain key/value list. Header uses `<Badge variant="accent">` for the dimension label + item count.
+  - **Proof points + disqualifiers**: two more `.surface p-5` blocks rendering the respective memory docs.
+  - **Exemplars**: collapsible `<Accordion>` → one `<AccordionItem>` labeled `Exemplars (N)`. Body is a stack of `<ListItem>` rows per artifact (title = `source_label`/`source_url`, subtitle = kind + status, meta = `<Badge variant="muted">` with kind).
+- No edit affordances — refresh goes through onboarding. If `icp_rubric` is NULL or memory docs are missing, render a single `<EmptyState>` pointing the user to `/onboard?mode=refresh&template=icp_definition`.
 
 #### Commit 6.b — Homepage branches on `user_type`
 
-- `src/app/(app)/page.tsx` — reads `user_type`:
-  - `'job_seeker'` → existing `<TodayClient>`.
-  - `'gtm'` → `<IcpDashboard>`.
+- `src/app/(app)/page.tsx` — reads `profiles.user_type` in the RSC:
+  - `'gtm'` → render `<IcpDashboard userId={user.id} />`. Skip the activation/pipeline-config redirect chain for GTM (no `/activate` flow for them; no opportunities pipeline in v1).
+  - `'job_seeker'` OR `null` → existing `<TodayClient>` path unchanged.
 - `user_type` loaded in the RSC, no client cache drift.
 
 #### Commit 6.c — Sidebar + empty-state vocabulary
 
-- `src/components/sidebar-nav.tsx`: `NAV` becomes `buildNav(userType)`. GTM variant:
-  - "Today" → "ICP" (same `/` route).
-  - "History" — kept but empty for GTM v1 (no pipeline output yet).
-  - "Watchlist" — unchanged semantics (companies of interest is persona-agnostic).
-  - "Analytics" — hidden for GTM (nothing to analyze yet).
-  - "Settings" — same.
-- `src/components/app-shell.tsx` loads `user_type` and passes to `SidebarNav`.
-- `/history` + `/analytics` GTM empty-state copy: "Automated discovery is coming. Your ICP rubric is the v1 asset — refresh it from the home screen."
+- `src/components/sidebar-nav.tsx`: convert `NAV` to `buildNav(userType: UserType | null): NavItem[]`. GTM variant:
+  - `/` labeled `"ICP"` (same route).
+  - `/history` kept but pointing to a GTM empty state.
+  - `/watchlist` unchanged.
+  - `/analytics` hidden.
+  - `/settings` unchanged.
+  - `job_seeker` / `null` → current labels unchanged.
+- `src/app/(app)/layout.tsx` (RSC) loads `user_type` alongside the existing `user` lookup and passes it into `<AppShell>`. `AppShell` threads it into `SidebarNav`.
+- GTM empty-state screens on `/history` + `/analytics` use `<EmptyState message="Automated discovery is coming" hint="Your ICP rubric is the v1 asset — refresh it from the home screen." />` gated inside each page's RSC when `user_type === 'gtm'`. Job-search path is untouched.
 
 #### Commit 6.d — `/settings` switch-persona placeholder
 
-- `src/app/(app)/settings/_components/switch-persona-placeholder.tsx` — card showing current persona + "Switching personas is coming in a future update — contact support if you need to reset now." No destructive action in v1.
+- `src/app/(app)/settings/_components/switch-persona-placeholder.tsx`: renders `<Card>` with `<CardHeader>` (title: "Persona", description: current persona label) + `<CardContent>` containing an `<Alert>` with `<AlertTitle>Switching personas is coming soon</AlertTitle>` + `<AlertDescription>Contact support if you need to reset now. Full download-my-data + destructive reset ships in a follow-up SPEC.</AlertDescription>`. No button.
+- Mounted from `SettingsClient` below the existing sections. Reads `user_type` from the Settings page RSC and passes it down.
 - Full reset infra (download-my-data + destructive delete) deferred to follow-up SPEC per `DEFERRED.md`.
 
 ## Verification
@@ -310,7 +338,6 @@ Post-confirm GTM experience. Mirrors SPEC-3's bet: the synthesized ICP rubric IS
 17. **Legacy `?legacy=1`:** still works, still writes `user_type='job_seeker'` at confirm.
 18. **Refresh mode:** `?mode=refresh` on a confirmed user of either persona reloads the right template with existing memory docs as context.
 19. **Exemplar-scarcity rule:** seed ICP interview with 0 / 1 / 2 / 3 / 5 positive exemplars; banner + section visibility match decision #7.
-
 ## Critical files
 
 | Area                       | File                                                                      | Action                                                                                                            |

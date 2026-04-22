@@ -78,7 +78,27 @@ export default async function OnboardPage(props: {
       .eq("user_id", user.id);
   }
 
-  if (onboarding.complete && !isRefresh && !isGmailReturn) {
+  // Don't redirect a confirmed user who still has an interview in a terminal
+  // pre-confirm state (review or story_review). This happens when the user
+  // confirmed a prior run but has since been rewound for testing, or when the
+  // career story step is mid-flight and needs to complete before confirming.
+  const hasActiveIncompleteInterview = resolvedTemplateId
+    ? await svc
+        .from("onboarding_interviews")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("template_id", resolvedTemplateId)
+        .in("status", ["review", "story_review"])
+        .maybeSingle()
+        .then(({ data }) => !!data)
+    : false;
+
+  if (
+    onboarding.complete &&
+    !isRefresh &&
+    !isGmailReturn &&
+    !hasActiveIncompleteInterview
+  ) {
     redirect("/");
   }
 
@@ -145,7 +165,7 @@ export default async function OnboardPage(props: {
       .select("*")
       .eq("user_id", user.id)
       .eq("template_id", resolvedTemplateId)
-      .in("status", ["in_progress", "extracting", "review"])
+      .in("status", ["in_progress", "extracting", "review", "story_review"])
       .maybeSingle(),
   ]);
 

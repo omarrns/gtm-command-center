@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,22 +93,6 @@ export function ReviewIcp({
     [orchestratorState],
   );
 
-  // Sections collapsed by default except the two edit-heavy ones the
-  // user almost always opens (declared + inferred). Read-only sections
-  // and per-exemplar breakdown stay collapsed to keep the page short.
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    () => new Set(["declared", "inferred"]),
-  );
-
-  function toggleSection(key: string) {
-    setExpandedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
-
   function handleConfirm() {
     startTransition(async () => {
       const result = await confirmInterviewAction(interview.id, edits);
@@ -136,20 +121,25 @@ export function ReviewIcp({
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold tracking-tight">Review your ICP</h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="mx-auto max-w-xl px-6 py-12"
+    >
+      <header className="mb-10">
+        <h1 className="text-xl font-semibold tracking-tight">
+          Review your ICP
+        </h1>
+        <p className="text-sm text-[var(--color-text-muted)] mt-2">
           Synthesized from your exemplars, buyer personas, and product context.
           Edit anything that doesn&apos;t look right, then confirm.
         </p>
-      </div>
+      </header>
 
       <ExemplarScarcityBanner positiveExemplarCount={positiveExemplarCount} />
 
       <DeclaredIcp
-        isExpanded={expandedSections.has("declared")}
-        onToggle={() => toggleSection("declared")}
         product={edits.product}
         onProductChange={(product) => setEdits({ ...edits, product })}
         buyer={edits.icp.buyer}
@@ -159,8 +149,6 @@ export function ReviewIcp({
       />
 
       <InferredFromExemplars
-        isExpanded={expandedSections.has("inferred")}
-        onToggle={() => toggleSection("inferred")}
         firmographics={edits.icp.firmographics}
         onFirmographicsChange={(firmographics) =>
           setEdits({ ...edits, icp: { ...edits.icp, firmographics } })
@@ -182,48 +170,30 @@ export function ReviewIcp({
 
       {positiveExemplarCount >= 3 && (
         <CommonPatterns
-          isExpanded={expandedSections.has("common")}
-          onToggle={() => toggleSection("common")}
           orchestratorState={orchestratorState}
           positiveExemplarCount={positiveExemplarCount}
         />
       )}
 
       <MeaningfulVariations
-        isExpanded={expandedSections.has("variations")}
-        onToggle={() => toggleSection("variations")}
         orchestratorState={orchestratorState}
         positiveExemplarCount={positiveExemplarCount}
       />
 
       <Exclusions
-        isExpanded={expandedSections.has("exclusions")}
-        onToggle={() => toggleSection("exclusions")}
         disqualifiers={edits.icp.disqualifiers}
         onDisqualifiersChange={(disqualifiers) =>
           setEdits({ ...edits, icp: { ...edits.icp, disqualifiers } })
         }
       />
 
-      <Disagreements
-        isExpanded={expandedSections.has("disagreements")}
-        onToggle={() => toggleSection("disagreements")}
-        disagreements={disagreements}
-      />
+      <Disagreements disagreements={disagreements} />
 
-      <ScoringPreview
-        isExpanded={expandedSections.has("scoring")}
-        onToggle={() => toggleSection("scoring")}
-        edits={edits}
-      />
+      <ScoringPreview edits={edits} />
 
-      <PerExemplarBreakdown
-        isExpanded={expandedSections.has("breakdown")}
-        onToggle={() => toggleSection("breakdown")}
-        orchestratorState={orchestratorState}
-      />
+      <PerExemplarBreakdown orchestratorState={orchestratorState} />
 
-      <div className="flex items-center justify-between">
+      <div className="mt-12 flex items-center justify-between border-t border-[var(--color-border-strong)] pt-6">
         <Button
           type="button"
           variant="ghost"
@@ -238,6 +208,6 @@ export function ReviewIcp({
           {isPending ? "Saving..." : "Confirm & Continue"}
         </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

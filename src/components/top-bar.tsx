@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 import { Command, Menu, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { UserType } from "@/lib/supabase/types";
