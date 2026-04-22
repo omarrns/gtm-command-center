@@ -1,3 +1,47 @@
+// =============================================================================
+// StreamingDocumentReader
+// =============================================================================
+//
+// Generic streamed structured-output reader. Wraps four things into one
+// component: AI SDK's experimental_useObject for streaming, progressive
+// section reveal as fields arrive, click-to-edit per section (via
+// EditableProseSection), and a save/back footer with dirty-tracking.
+//
+// Use when a feature produces a long-form structured output the user
+// should read — and optionally edit — before committing. Replaces the
+// pattern of "show a spinner, then show a static result, then show a form
+// to edit it" with a single document-feel screen that streams in.
+//
+// Wiring contract:
+//   • The endpoint must return an SSE stream produced by AI SDK's
+//     `streamObject()`. The stream's schema must match the `schema` prop.
+//   • If `initialValue` is non-null, the stream is skipped entirely and
+//     the document renders as already-complete (refresh / round-trip case).
+//   • `onSave` receives the full assembled value plus a Set of keys the
+//     user actually edited — caller decides whether to forward those
+//     edits to a server action or no-op when nothing changed.
+//   • `onBack` is optional; omit to hide the back button.
+//
+// Header copy:
+//   • headerSubtitleStreaming is shown while sections are still arriving.
+//   • headerSubtitleReady is shown once every section has landed and the
+//     user can edit/save.
+//
+// Ambient state:
+//   • `cyclicMessages` are rotated by CyclicLoader at the bottom of the
+//     reader while streaming. Required — they're a meaningful part of the
+//     anticipation UX, not chrome.
+//
+// What this component does NOT do:
+//   • Navigation — caller's `onSave` / `onBack` decide where to go after.
+//   • Toast on success — caller's responsibility. Toast on failure is
+//     handled here (errors thrown from onSave/onBack become toasts).
+//   • Per-field DB writes — edits stay in local state until save.
+//
+// Pairs with: HandoffCard (the screen before this one) +
+// EditableProseSection (each section).
+// =============================================================================
+
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
