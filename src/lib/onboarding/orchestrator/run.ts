@@ -253,11 +253,92 @@ export async function analyzeArtifacts(
     };
   }
 
+  // ICP exemplar-scarcity clamp (audit finding 5). Deterministic
+  // post-process so the product rule doesn't depend on the model
+  // obeying the prompt. With 1-2 positive exemplars, dimensions
+  // pattern-extracted from positives are capped at 0.6 — one or two
+  // examples are evidence, not a pattern. Status flips back from
+  // 'inferred' to 'needs_question' if the cap pushes confidence below
+  // threshold.
+  if (template.id === "icp_definition") {
+    applyIcpExemplarScarcityClamp(next, succeeded, template.dimensions);
+  }
+
   next.status = "interviewing";
   next.nextDimensionKey = computeNextKey(next, template);
 
   await persistState(svc, interviewId, next);
   return next;
+}
+
+// Dimensions that are pattern-extracted across positive_example artifacts.
+// Capping confidence on these when positive count is 1-2 prevents the
+// orchestrator from shipping a "rubric" that's really just one buyer.
+const ICP_EXEMPLAR_DERIVED_DIMENSIONS = [
+  "firmographics",
+  "technographics",
+  "signals",
+  "proof_points",
+] as const;
+
+const ICP_EXEMPLAR_SCARCITY_CAP = 0.6;
+
+export function countPositiveExemplars(
+  artifacts: ReadonlyArray<OnboardingArtifactRow>,
+): number {
+  return artifacts.filter(
+    (a) => a.kind === "positive_example" && a.status === "succeeded",
+  ).length;
+}
+
+/**
+ * Async DB version — count positive_example artifacts directly via a
+ * COUNT query. Used by the chat route and kickoff action to drive the
+ * ICP interviewer's exemplar-scarcity branching without loading full
+ * artifact rows.
+ */
+export async function loadPositiveExemplarCount(
+  svc: SupabaseClient,
+  interviewId: string,
+): Promise<number> {
+  const { count } = await svc
+    .from("onboarding_artifacts")
+    .select("id", { count: "exact", head: true })
+    .eq("interview_id", interviewId)
+    .eq("kind", "positive_example")
+    .eq("status", "succeeded");
+  return count ?? 0;
+}
+
+function applyIcpExemplarScarcityClamp(
+  state: OrchestratorState,
+  succeededArtifacts: ReadonlyArray<OnboardingArtifactRow>,
+  dimensions: ReadonlyArray<Dimension>,
+): void {
+  const count = countPositiveExemplars(succeededArtifacts);
+  // The clamp only fires for 1-2 positive exemplars. Zero positives is
+  // handled by the orchestrator prompt (declarative-only mode); 3+
+  // positives is enough to pattern-match without artificial dampening.
+  if (count === 0 || count >= 3) return;
+
+  for (const key of ICP_EXEMPLAR_DERIVED_DIMENSIONS) {
+    const dim = state.dimensions[key];
+    if (!dim) continue;
+    if (dim.confidence <= ICP_EXEMPLAR_SCARCITY_CAP) continue;
+    const dimDef = dimensions.find((d) => d.key === key);
+    if (!dimDef) continue;
+
+    state.dimensions[key] = {
+      ...dim,
+      confidence: ICP_EXEMPLAR_SCARCITY_CAP,
+      summary: `${dim.summary} (capped at ${ICP_EXEMPLAR_SCARCITY_CAP} — only ${count} positive exemplar${count === 1 ? "" : "s"}, not enough to call a pattern)`,
+      status: dimensionStatusFromConfidence(
+        ICP_EXEMPLAR_SCARCITY_CAP,
+        dimDef.confidenceThreshold,
+        false,
+      ),
+    };
+  }
 }
 
 /**

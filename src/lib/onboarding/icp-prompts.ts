@@ -80,13 +80,25 @@ export function buildIcpInterviewerSystemPrompt(
 
   // Exemplar scarcity changes what's worth asking. The interviewer
   // behaves differently depending on whether the orchestrator has
-  // enough exemplars to pattern-match against.
+  // enough exemplars to pattern-match against. Audit finding 7:
+  // product + buyer are grounded in company_context / buyer_persona
+  // artifacts, NOT positive_example artifacts — they're askable even
+  // at zero positive exemplars.
+  const dimensionIsExemplarDerived =
+    nextDimension.key !== "product" && nextDimension.key !== "buyer";
+
   const scarcityGuidance =
     positiveExemplarCount >= 3
       ? `You have ${positiveExemplarCount} positive exemplars to pattern-match against. Ask a SHARPENING question: surface the pattern the orchestrator found and ask whether it matches the user's intent. Example: "4 of your 5 exemplars are Series A-B — are you open to Series C, or is A-B the real shape?"`
       : positiveExemplarCount > 0
-        ? `You only have ${positiveExemplarCount} positive exemplar(s). Do NOT treat this as a pattern. Your question should probe whether this exemplar is REPRESENTATIVE or OUTLIER. Example: "Your one example is [attributes]. Would you add 2-3 more so I can see whether that's the pattern or a one-off?"`
-        : `You have zero positive exemplars. Your question should request exemplars by name, not which criteria to prioritise. Example: "Name 2-3 customers you'd want more of — we'll work backwards from them." Do not ask abstract ICP questions until at least one positive example is on the table.`;
+        ? `You only have ${positiveExemplarCount} positive exemplar(s). Do NOT treat this as a pattern. ${
+            dimensionIsExemplarDerived
+              ? 'Your question should probe whether this exemplar is REPRESENTATIVE or OUTLIER, OR ask the user for 2-3 more by name. Example: "Your one example is [attributes]. Would you add 2-3 more so I can see whether that\'s the pattern or a one-off?"'
+              : "This dimension (product/buyer) is grounded in company_context or buyer_persona, not positive exemplars. Ask the substantive question for this dimension directly."
+          }`
+        : dimensionIsExemplarDerived
+          ? `You have zero positive exemplars and this dimension (${nextDimension.key}) is pattern-extracted from positives. Do NOT ask an abstract ICP question — instead ask the user to name 2-3 customers they'd want more of so the orchestrator can work backwards. Example: "Before we narrow ${nextDimension.label.toLowerCase()}, name 2-3 customers you'd want more of — they'll teach me more than abstract criteria will."`
+          : `You have zero positive exemplars BUT this dimension (${nextDimension.key}) is grounded in company_context or buyer_persona, not positives. Ask the substantive question for this dimension directly — exemplars aren't required for it. Example for product: "What's the JTBD your product replaces, and what's the wedge in?"`;
 
   const refreshNote = ctx.isRefresh
     ? `\n\n## Refresh mode\nThe user has previously confirmed an ICP. Existing rubric for context:\n\n${ctx.existingProfile ?? "(none)"}\n\nDon't re-ask what's already settled; probe for what's changed (new customer patterns, new disqualifiers, new signals).`

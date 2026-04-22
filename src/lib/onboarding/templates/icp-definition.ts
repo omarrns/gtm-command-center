@@ -271,20 +271,16 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   orchestratorModel: "claude-opus-4-6",
   orchestratorMaxOutputTokens: 4096,
   orchestratorSystemPrompt: () => ICP_ORCHESTRATOR_SYSTEM_PROMPT,
-  // `buildIcpInterviewerSystemPrompt` takes an extra positiveExemplarCount
-  // arg that the orchestrator run.ts will inject (Phase 3.c). The template
-  // contract passes whatever the caller provides through `ctx`; we widen
-  // ctx via a helper cast here rather than changing InterviewerContext for
-  // one template.
+  // positiveExemplarCount comes from the call sites (chat/route +
+  // startAgenticInterviewAction) which load it from onboarding_artifacts
+  // via countPositiveExemplars. job_search's prompt builder ignores it.
   interviewerSystemPrompt: (ctx) =>
     buildIcpInterviewerSystemPrompt({
       isRefresh: ctx.isRefresh,
       existingProfile: ctx.existingProfile,
       nextDimension: ctx.nextDimension,
       currentHypothesis: ctx.currentHypothesis,
-      positiveExemplarCount:
-        (ctx as unknown as { positiveExemplarCount?: number })
-          .positiveExemplarCount ?? 0,
+      positiveExemplarCount: ctx.positiveExemplarCount ?? 0,
     }),
 
   // Agentic flow bypasses the static systemPrompt/tools/opening — these are

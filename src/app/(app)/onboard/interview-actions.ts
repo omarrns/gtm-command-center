@@ -11,7 +11,10 @@ import type {
   JobSearchEdits,
   JobSearchExtraction,
 } from "@/lib/onboarding/templates/job-search";
-import { nextDimensionToAsk } from "@/lib/onboarding/orchestrator/run";
+import {
+  loadPositiveExemplarCount,
+  nextDimensionToAsk,
+} from "@/lib/onboarding/orchestrator/run";
 import { toConfirmEditsForTemplate } from "@/lib/onboarding/orchestrator/to-confirm-edits";
 import {
   emptyOrchestratorState,
@@ -525,11 +528,17 @@ export async function startAgenticInterviewAction(
     ? formatMemoryForPrompt(await loadMemoryContext(user.id, svc))
     : undefined;
 
+  const positiveExemplarCount =
+    template.id === "icp_definition"
+      ? await loadPositiveExemplarCount(svc, interviewId)
+      : undefined;
+
   const systemPrompt = template.interviewerSystemPrompt({
     isRefresh: interview.is_refresh,
     existingProfile,
     nextDimension: next,
     currentHypothesis: state.dimensions[next.key]?.summary ?? "",
+    positiveExemplarCount,
   });
 
   const text = await runClaudeText({
