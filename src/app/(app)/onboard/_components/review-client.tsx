@@ -41,7 +41,14 @@ export function ReviewClient({
   existingData,
 }: ReviewClientProps) {
   if (clientTemplate.id === "icp_definition") {
-    return <ReviewIcp />;
+    return (
+      <ReviewIcp
+        interview={interview}
+        clientTemplate={clientTemplate}
+        isRefresh={isRefresh}
+        onBackToInterview={onBackToInterview}
+      />
+    );
   }
 
   return (
