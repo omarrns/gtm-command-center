@@ -117,24 +117,48 @@ export async function performConfirm(
     }
 
     // SPEC-3: write profiles.user_type from the template's declared persona.
-    // This is the canonical write per the hard constraint — only at the
-    // first successful confirm, never on persona-card click or pre-confirm
-    // template switch. Idempotent: re-confirming the same template doesn't
-    // change user_type; a different template (via reset flow, Phase 8) will
-    // overwrite.
-    const { error: personaErr } = await svc
+    // Audit finding 6: this is a *guarded* write, not a plain UPDATE. Only
+    // overwrites when current value is NULL or equal to the new value. A
+    // different persona (e.g., a job_seeker confirming an ICP interview
+    // out-of-band) must NOT silently re-flag the account — the only path
+    // to a different user_type is the explicit reset flow (Phase 8).
+    const { data: profileRow, error: profileErr } = await svc
       .from("profiles")
-      .update({ user_type: template.userTypeOnConfirm })
-      .eq("user_id", userId);
+      .select("user_type")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-    if (personaErr) {
-      // Non-fatal: the interview is already marked 'confirmed' and outputs
-      // are written. user_type can be retried on the next /onboard visit
-      // via Phase 2.c's safety net. Log and succeed.
+    if (profileErr) {
       console.error(
-        `[performConfirm] profiles.user_type write failed for user ${userId}:`,
-        personaErr.message,
+        `[performConfirm] profiles read failed for user ${userId}:`,
+        profileErr.message,
       );
+    } else {
+      const current = profileRow?.user_type as string | null | undefined;
+      const target = template.userTypeOnConfirm;
+      if (current && current !== target) {
+        // Guard: another persona is already stamped. Log + skip; do not
+        // throw — the interview's outputs already landed and the status is
+        // 'confirmed'. The mismatch is recoverable via the reset flow.
+        console.warn(
+          `[performConfirm] skipping profiles.user_type write for user ${userId}: current='${current}' target='${target}'. Use the reset flow to switch personas.`,
+        );
+      } else if (current !== target) {
+        const { error: personaErr } = await svc
+          .from("profiles")
+          .update({ user_type: target })
+          .eq("user_id", userId);
+
+        if (personaErr) {
+          // Non-fatal: outputs are written and status is 'confirmed'. The
+          // Phase 2.c /onboard safety net retries on next visit.
+          console.error(
+            `[performConfirm] profiles.user_type write failed for user ${userId}:`,
+            personaErr.message,
+          );
+        }
+      }
+      // current === target: no-op, idempotent re-confirm.
     }
 
     return { ok: true };
