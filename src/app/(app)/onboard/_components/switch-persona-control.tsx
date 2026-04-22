@@ -50,7 +50,17 @@ export function SwitchPersonaControl({
         toast.error(result.error ?? "Switch failed");
         return;
       }
-      toast.success(`Switched to ${targetLabel}`);
+      if (result.analysisFailed) {
+        // Artifacts moved + source abandoned, but the target agent's
+        // orchestrator_state didn't refresh. Surface loudly so the user
+        // knows why the new agent might ask for things their artifacts
+        // already cover. Uploading any artifact re-runs analyze.
+        toast.warning(
+          `Switched to ${targetLabel}, but re-analysis failed. Upload another artifact to retry, or refresh the page.`,
+        );
+      } else {
+        toast.success(`Switched to ${targetLabel}`);
+      }
       router.push(`/onboard?template=${target}`);
       router.refresh();
     });
