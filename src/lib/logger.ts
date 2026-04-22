@@ -17,7 +17,7 @@
  *   stageLog.error("jsearch failed", err, { opportunityId });
  */
 
-export type LogLevel = "debug" | "info" | "warn" | "error";
+export type LogLevel = "info" | "warn" | "error";
 
 export interface LogContext {
   runId?: string;
@@ -30,7 +30,6 @@ export interface LogContext {
 
 export interface Logger {
   readonly context: LogContext;
-  debug(message: string, extra?: Record<string, unknown>): void;
   info(message: string, extra?: Record<string, unknown>): void;
   warn(message: string, extra?: Record<string, unknown>): void;
   error(
@@ -55,8 +54,6 @@ export function createLogger(context: LogContext = {}): Logger {
 function makeLogger(context: LogContext): Logger {
   return {
     context,
-    debug: (message, extra) =>
-      emit("debug", context, message, undefined, extra),
     info: (message, extra) => emit("info", context, message, undefined, extra),
     warn: (message, extra) => emit("warn", context, message, undefined, extra),
     error: (message, error, extra) =>
@@ -113,22 +110,23 @@ function write(level: LogLevel, line: string): void {
 }
 
 function formatContext(ctx: Record<string, unknown>): string {
+  // Full IDs in dev too — grep needs them. Order: runId, scope, stage,
+  // userId, opportunityId, then alphabetical for everything else.
   const parts: string[] = [];
-  if (ctx.runId) parts.push(`run=${shortId(ctx.runId as string)}`);
+  if (ctx.runId) parts.push(`run=${ctx.runId}`);
   if (ctx.scope) parts.push(`${ctx.scope}`);
   if (ctx.stage) parts.push(`stage=${ctx.stage}`);
-  if (ctx.userId) parts.push(`user=${shortId(ctx.userId as string)}`);
-  if (ctx.opportunityId)
-    parts.push(`opp=${shortId(ctx.opportunityId as string)}`);
+  if (ctx.userId) parts.push(`user=${ctx.userId}`);
+  if (ctx.opportunityId) parts.push(`opp=${ctx.opportunityId}`);
+  const reserved = new Set([
+    "runId",
+    "userId",
+    "opportunityId",
+    "stage",
+    "scope",
+  ]);
   for (const [k, v] of Object.entries(ctx)) {
-    if (
-      k === "runId" ||
-      k === "userId" ||
-      k === "opportunityId" ||
-      k === "stage" ||
-      k === "scope"
-    )
-      continue;
+    if (reserved.has(k)) continue;
     if (v === undefined || v === null) continue;
     parts.push(`${k}=${formatValue(v)}`);
   }
@@ -136,18 +134,13 @@ function formatContext(ctx: Record<string, unknown>): string {
 }
 
 function formatValue(v: unknown): string {
-  if (typeof v === "string") return v.length > 60 ? `${v.slice(0, 60)}…` : v;
+  if (typeof v === "string") return v;
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   try {
     return JSON.stringify(v);
   } catch {
     return String(v);
   }
-}
-
-function shortId(id: string): string {
-  if (id.length <= 8) return id;
-  return id.slice(0, 8);
 }
 
 function serializeError(

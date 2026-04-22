@@ -30,7 +30,6 @@ export interface CapturedCall {
   callKind: "text" | "json" | "object";
   systemPrompt?: string;
   userPrompt?: string;
-  schemaSummary?: string;
   responseText?: string;
   responseObject?: unknown;
   inputTokens?: number;
@@ -64,7 +63,6 @@ export async function captureAiCall(
       call_kind: call.callKind,
       system_prompt: truncate(call.systemPrompt),
       user_prompt: truncate(call.userPrompt),
-      schema_summary: call.schemaSummary ?? null,
       response_text: truncate(call.responseText),
       response_object: call.responseObject ?? null,
       input_tokens: call.inputTokens ?? null,
@@ -116,7 +114,6 @@ export async function runGenerateObject<S extends z.ZodType>(
       callKind: "object",
       systemPrompt: args.system,
       userPrompt: args.prompt,
-      schemaSummary: schemaSummary(args.schema),
       responseObject: result.object,
       inputTokens: result.usage?.inputTokens ?? undefined,
       outputTokens: result.usage?.outputTokens ?? undefined,
@@ -131,15 +128,9 @@ export async function runGenerateObject<S extends z.ZodType>(
       callKind: "object",
       systemPrompt: args.system,
       userPrompt: args.prompt,
-      schemaSummary: schemaSummary(args.schema),
       latencyMs: Date.now() - start,
       error: err instanceof Error ? err.message : String(err),
     });
     throw err;
   }
-}
-
-function schemaSummary(schema: z.ZodType): string {
-  const def = (schema as { _def?: { typeName?: string } })._def;
-  return def?.typeName ?? "ZodSchema";
 }

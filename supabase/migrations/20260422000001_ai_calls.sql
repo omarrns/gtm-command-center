@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS public.ai_calls (
   call_kind text NOT NULL CHECK (call_kind IN ('text', 'json', 'object')),
   system_prompt text,
   user_prompt text,
-  schema_summary text,
 
   -- Response
   response_text text,
