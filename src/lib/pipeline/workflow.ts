@@ -40,7 +40,7 @@ import {
 } from "@/lib/pipeline/pursuit/execute-plan";
 import { loadMemoryContext } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
-import { createLogger, newRunId } from "@/lib/logger";
+import { createLogger } from "@/lib/logger";
 
 /* ── Result type (matches runner.ts) ─────────────────────────────── */
 
@@ -363,7 +363,7 @@ async function stepExecutePlans(
 
 export async function pipelineWorkflow(
   userId: string,
-  runId: string = newRunId(),
+  runId: string,
 ): Promise<WorkflowPipelineResult> {
   "use workflow";
 
