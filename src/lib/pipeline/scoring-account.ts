@@ -8,7 +8,6 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { OpportunityRow } from "@/lib/supabase/types";
 import { z } from "zod";
 import { exaFindCompany, formatExaResults } from "@/lib/ai/exa";
 import { loadMemoryContext } from "@/lib/skills/context";
@@ -70,8 +69,22 @@ export function computeAccountScore(analysis: IcpAccountAnalysis): number {
   return Math.round((sum / max) * 100);
 }
 
+// Narrower than OpportunityRow — the scorer only needs id + company
+// identity + the JSONB trigger/persona fields. OpportunityRow satisfies
+// this structurally, so the pipeline's score-accounts step still passes
+// its rows in unchanged. /activate's inline scoring builds the subject
+// straight from a TheirStackJob without having to forge a full
+// opportunity row.
+export interface ScoreAccountSubject {
+  id: string;
+  company_name: string;
+  company_domain: string | null;
+  trigger_signals: Record<string, unknown>[] | null;
+  buyer_personas: Record<string, unknown>[] | null;
+}
+
 export interface ScoreAccountInput {
-  opp: OpportunityRow;
+  opp: ScoreAccountSubject;
   rubric: IcpRubric;
   userId: string;
   svc: SupabaseClient;
@@ -131,7 +144,7 @@ export async function scoreAccountAgainstIcp({
   };
 }
 
-function extractFirmographics(opp: OpportunityRow): AccountFirmographics {
+function extractFirmographics(opp: ScoreAccountSubject): AccountFirmographics {
   const triggers = (opp.trigger_signals ?? [])[0] ?? {};
   const personas = (opp.buyer_personas ?? [])[0] ?? {};
 

@@ -829,6 +829,72 @@ async function main() {
     "formstack.example NOT re-inserted (dedup against theirstack set)",
   );
 
+  // ── Phase 5a: /activate fast preview ──────────────────────────────────
+  //
+  // runAccountActivationSearch runs TheirStack → inline score synchronously.
+  // Exa/Anthropic are still 503 so scoring fails per-row, which gives us
+  // the error-isolation gate: the function must return a structured
+  // result without throwing, and stats must accurately reflect the
+  // attempted + errored counts.
+  console.log("\n--- GTM activation fast preview ---");
+  const { runAccountActivationSearch } =
+    await import("../src/lib/pipeline/activation-accounts");
+  const activationResult = await runAccountActivationSearch(
+    svc,
+    gtmUserId,
+    icpRubricForDormant,
+  );
+
+  assert(
+    activationResult.stats.discovered === 2,
+    `activation discovered === 2 from theirstack fixture (got ${activationResult.stats.discovered})`,
+  );
+  assert(
+    activationResult.stats.errors === 2,
+    `activation errors === 2 under stubbed exa/anthropic (got ${activationResult.stats.errors})`,
+  );
+  assert(
+    activationResult.stats.scored === 0,
+    `activation scored === 0 when every row errors (got ${activationResult.stats.scored})`,
+  );
+  assert(
+    Array.isArray(activationResult.results) &&
+      activationResult.results.length === 0,
+    `activation results is an empty array when all scoring errored (got ${activationResult.results.length})`,
+  );
+  assert(
+    activationResult.stats.rubricIncomplete === false,
+    "activation rubricIncomplete=false when hiring_roles present",
+  );
+
+  // Empty-rubric guard: a rubric without signals.hiring_roles must
+  // short-circuit before TheirStack is called.
+  const emptyRubric = {
+    firmographics: {
+      industries: [],
+      employee_range_min: 0,
+      employee_range_max: 10000,
+      stages: [],
+      geographies: [],
+    },
+    signals: { hiring_roles: [], jtbd_evidence: [], trigger_events: [] },
+    technographics: { required_tools: [], excluded_tools: [] },
+    disqualifiers: [],
+  } as any;
+  const emptyActivation = await runAccountActivationSearch(
+    svc,
+    gtmUserId,
+    emptyRubric,
+  );
+  assert(
+    emptyActivation.stats.rubricIncomplete === true,
+    "empty-hiring_roles rubric sets rubricIncomplete=true",
+  );
+  assert(
+    emptyActivation.stats.discovered === 0,
+    "empty-hiring_roles rubric short-circuits before TheirStack",
+  );
+
   console.log("\n===================================================");
   if (failures > 0) {
     console.error(`FAILED: ${failures} assertion(s) did not pass`);

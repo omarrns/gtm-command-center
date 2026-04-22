@@ -1,17 +1,25 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import type { UserType } from "@/lib/supabase/types";
 import { ActivationClient } from "./_components/activation-client";
 
 export default async function ActivatePage() {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
 
-  const { data: config } = await svc
-    .from("pipeline_config")
-    .select("activation_completed_at, score_threshold")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [{ data: config }, { data: profile }] = await Promise.all([
+    svc
+      .from("pipeline_config")
+      .select("activation_completed_at, score_threshold")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    svc
+      .from("profiles")
+      .select("user_type")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
 
   // Already activated — go to Today
   if (config?.activation_completed_at) {
@@ -24,6 +32,7 @@ export default async function ActivatePage() {
   }
 
   const scoreThreshold = config.score_threshold ?? 70;
+  const userType = (profile?.user_type ?? "job_seeker") as UserType;
 
   // Check Gmail connection for the prompt
   const { data: gmailCreds } = await svc
@@ -36,6 +45,7 @@ export default async function ActivatePage() {
     <ActivationClient
       gmailConnected={!!gmailCreds}
       scoreThreshold={scoreThreshold}
+      userType={userType}
     />
   );
 }
