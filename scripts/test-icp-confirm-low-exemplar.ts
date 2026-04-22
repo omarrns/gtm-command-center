@@ -163,6 +163,13 @@ async function resetUser(userId: string) {
     .delete()
     .eq("user_id", userId)
     .eq("created_from_template_id", "icp_definition");
+  // Clear user_type so the Phase 3.c.6 persona preflight doesn't block the
+  // ICP confirm. This test covers the first-confirm happy path under
+  // exemplar scarcity; the preflight itself is covered by test:icp-confirm.
+  await supabase
+    .from("profiles")
+    .update({ user_type: null })
+    .eq("user_id", userId);
 }
 
 async function integrationTestLowExemplar(userId: string) {

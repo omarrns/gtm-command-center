@@ -392,6 +392,87 @@ async function main() {
   console.log("\n--- Restoring job_seeker state ---\n");
   await restoreJobSeekerState(userId);
 
+  // ── Persona preflight regression (Phase 3.c.6) ─────────────────────────
+  // A confirmed job_seeker must not be able to deep-confirm an ICP
+  // interview. The preflight in performConfirm returns an error before
+  // any output writes. Asserts the error is surfaced AND no ICP outputs
+  // leak into the DB.
+  console.log("\n--- Preflight: job_seeker can't confirm ICP ---\n");
+  await resetUser(userId);
+  // Stamp user as job_seeker (the state after a real job_search confirm).
+  await supabase
+    .from("profiles")
+    .update({ user_type: "job_seeker" })
+    .eq("user_id", userId);
+
+  const mismatchInterviewId = await seedReviewInterview(userId);
+
+  const blocked = await performConfirm(
+    supabase,
+    userId,
+    mismatchInterviewId,
+    ICP_EDITS_FIXTURE,
+  );
+  assert(!blocked.ok, "preflight blocks the mismatched confirm");
+  assert(
+    !!blocked.error && blocked.error.includes("mix personas"),
+    `error mentions persona mismatch (got: ${blocked.error})`,
+  );
+
+  // Assert no writes happened: no ICP memory docs, no pipeline_config, no
+  // icp_rubric, status stays 'review', user_type stays 'job_seeker'.
+  const { count: leakedMemDocs } = await supabase
+    .from("memory_documents")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .in("document_key", [
+      "company_icp",
+      "icp_proof_points",
+      "icp_disqualifiers",
+    ]);
+  assert(
+    leakedMemDocs === 0,
+    `no ICP memory docs written on blocked confirm (got ${leakedMemDocs})`,
+  );
+
+  const { count: leakedConfig } = await supabase
+    .from("pipeline_config")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  assert(
+    leakedConfig === 0,
+    `no pipeline_config written on blocked confirm (got ${leakedConfig})`,
+  );
+
+  const { data: leakedRubric } = await supabase
+    .from("user_scoring_profiles")
+    .select("icp_rubric")
+    .eq("user_id", userId)
+    .maybeSingle();
+  assert(!leakedRubric?.icp_rubric, "no icp_rubric written on blocked confirm");
+
+  const { data: mismatchInterview } = await supabase
+    .from("onboarding_interviews")
+    .select("status")
+    .eq("id", mismatchInterviewId)
+    .single();
+  assert(
+    mismatchInterview?.status === "review",
+    `interview stays in 'review' (got ${mismatchInterview?.status})`,
+  );
+
+  const { data: mismatchProfile } = await supabase
+    .from("profiles")
+    .select("user_type")
+    .eq("user_id", userId)
+    .single();
+  assert(
+    mismatchProfile?.user_type === "job_seeker",
+    `user_type remains 'job_seeker' (got ${mismatchProfile?.user_type})`,
+  );
+
+  await restoreJobSeekerState(userId);
+
   console.log(
     `\n${failures === 0 ? "All assertions passed!" : `${failures} assertion(s) FAILED`}`,
   );

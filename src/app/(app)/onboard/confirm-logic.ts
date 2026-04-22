@@ -43,6 +43,36 @@ export async function performConfirm(
 
   const parsedEdits = template.editsSchema.parse(edits);
 
+  // ── Persona preflight (Phase 3.c.6) ─────────────────────────────────────
+  // SPEC-3 audit finding: the user_type overwrite guard in Phase 3.c.4
+  // prevented silent user_type changes but still allowed a confirmed
+  // job_seeker to deep-confirm an ICP interview and write company_icp /
+  // icp_rubric / pipeline_config without a persona reset. That would
+  // produce mixed-persona data (user_type='job_seeker' with GTM-shaped
+  // memory docs and rubric). Block it here, before any output runs.
+  //
+  // Path to switch personas is the explicit reset flow (Phase 8).
+  const { data: profileBefore, error: profileReadErr } = await svc
+    .from("profiles")
+    .select("user_type")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (profileReadErr) {
+    return {
+      ok: false,
+      error: `Profile read failed: ${profileReadErr.message}`,
+    };
+  }
+
+  const currentUserType = profileBefore?.user_type as string | null | undefined;
+  if (currentUserType && currentUserType !== template.userTypeOnConfirm) {
+    return {
+      ok: false,
+      error: `This account is ${currentUserType}. Confirming ${template.id} would mix personas — use the reset flow to switch first.`,
+    };
+  }
+
   // Prefer the unified `extracted` column (written by Phase 1.b's dual-write
   // path). Fall back to reassembling from the 4 legacy columns for any row
   // that predates the dual-write. Fallback dropped in the DEFERRED cleanup
@@ -117,49 +147,27 @@ export async function performConfirm(
     }
 
     // SPEC-3: write profiles.user_type from the template's declared persona.
-    // Audit finding 6: this is a *guarded* write, not a plain UPDATE. Only
-    // overwrites when current value is NULL or equal to the new value. A
-    // different persona (e.g., a job_seeker confirming an ICP interview
-    // out-of-band) must NOT silently re-flag the account — the only path
-    // to a different user_type is the explicit reset flow (Phase 8).
-    const { data: profileRow, error: profileErr } = await svc
-      .from("profiles")
-      .select("user_type")
-      .eq("user_id", userId)
-      .maybeSingle();
+    // The preflight at the top of performConfirm already returned an error
+    // for any mismatch, so at this point currentUserType is either NULL
+    // (first confirm — write target) or equal to target (idempotent
+    // re-confirm — no-op).
+    const target = template.userTypeOnConfirm;
+    if (currentUserType !== target) {
+      const { error: personaErr } = await svc
+        .from("profiles")
+        .update({ user_type: target })
+        .eq("user_id", userId);
 
-    if (profileErr) {
-      console.error(
-        `[performConfirm] profiles read failed for user ${userId}:`,
-        profileErr.message,
-      );
-    } else {
-      const current = profileRow?.user_type as string | null | undefined;
-      const target = template.userTypeOnConfirm;
-      if (current && current !== target) {
-        // Guard: another persona is already stamped. Log + skip; do not
-        // throw — the interview's outputs already landed and the status is
-        // 'confirmed'. The mismatch is recoverable via the reset flow.
-        console.warn(
-          `[performConfirm] skipping profiles.user_type write for user ${userId}: current='${current}' target='${target}'. Use the reset flow to switch personas.`,
+      if (personaErr) {
+        // Non-fatal: outputs are written and status is 'confirmed'. The
+        // Phase 2.c /onboard safety net retries on next visit.
+        console.error(
+          `[performConfirm] profiles.user_type write failed for user ${userId}:`,
+          personaErr.message,
         );
-      } else if (current !== target) {
-        const { error: personaErr } = await svc
-          .from("profiles")
-          .update({ user_type: target })
-          .eq("user_id", userId);
-
-        if (personaErr) {
-          // Non-fatal: outputs are written and status is 'confirmed'. The
-          // Phase 2.c /onboard safety net retries on next visit.
-          console.error(
-            `[performConfirm] profiles.user_type write failed for user ${userId}:`,
-            personaErr.message,
-          );
-        }
       }
-      // current === target: no-op, idempotent re-confirm.
     }
+    // currentUserType === target: no-op, idempotent re-confirm.
 
     return { ok: true };
   } catch (err) {
