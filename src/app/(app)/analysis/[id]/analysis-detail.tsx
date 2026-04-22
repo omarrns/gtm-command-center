@@ -22,7 +22,9 @@ export function AnalysisDetail({
   const router = useRouter();
   const needsPolling =
     initial.status === "running" || initial.status === "draft";
-  const { job, isComplete } = useJobPoll(needsPolling ? initial.job_id : null);
+  const { job, isComplete, fetchError, pollingStopped } = useJobPoll(
+    needsPolling ? initial.job_id : null,
+  );
 
   useEffect(() => {
     if (isComplete && needsPolling) {
@@ -31,7 +33,7 @@ export function AnalysisDetail({
   }, [isComplete, needsPolling, router]);
 
   const result = initial.result as Obj | null;
-  const isRunning = initial.status === "running";
+  const isRunning = initial.status === "running" && !pollingStopped;
   const isFailed = initial.status === "failed";
 
   const isImported = result?.imported === true;
@@ -67,6 +69,17 @@ export function AnalysisDetail({
           <AlertTitle>Analysis failed</AlertTitle>
           <AlertDescription>
             {job?.error ?? "Unknown error. Check logs."}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {pollingStopped && needsPolling && !isFailed && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>Lost connection to job</AlertTitle>
+          <AlertDescription>
+            Stopped polling after repeated failures
+            {fetchError ? ` (${fetchError})` : ""}. The job may still be running
+            — refresh the page to retry.
           </AlertDescription>
         </Alert>
       )}
