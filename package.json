@@ -26,6 +26,7 @@
     "test:icp-confirm": "tsx scripts/test-icp-confirm.ts",
     "test:icp-confirm-low-exemplar": "tsx scripts/test-icp-confirm-low-exemplar.ts",
     "test:artifact-persistence": "tsx scripts/test-artifact-persistence.ts",
+    "test:persona-switch-artifact-retention": "tsx scripts/test-persona-switch-artifact-retention.ts",
     "test:correctness": "tsx scripts/test-correctness-fixes.ts"
   },
   "dependencies": {
