@@ -10,6 +10,7 @@ import { getGmailClient, sendEmail } from "@/lib/integrations/gmail";
 import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
 import { firecrawlScrape } from "@/lib/ai/firecrawl";
 import { runClaudeJson } from "@/lib/ai/anthropic";
+import { createLogger } from "@/lib/logger";
 import type { OpportunityStage, PipelineConfigRow } from "@/lib/supabase/types";
 
 // ---------------------------------------------------------------------------
@@ -61,6 +62,11 @@ export async function approveOpportunityAction(
 ): Promise<{ ok: boolean; error?: string }> {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+  const log = createLogger({
+    scope: "action.approve",
+    userId: user.id,
+    opportunityId,
+  });
 
   // Check if Gmail is connected
   const { data: gmailCreds } = await svc
@@ -143,7 +149,7 @@ export async function approveOpportunityAction(
   } catch (err) {
     // Gmail send failed — safe to revert to queued for retry
     const errorMsg = err instanceof Error ? err.message : "Gmail send failed";
-    console.error("Gmail send failed:", errorMsg);
+    log.error("gmail send failed; reverting to queued", err);
 
     await advanceStage(svc, opportunityId, user.id, "sending", "queued", {
       last_error: errorMsg,
@@ -168,10 +174,10 @@ export async function approveOpportunityAction(
       },
     );
   } catch (dbErr) {
-    console.error(
-      `Email sent for ${opportunityId} but post-send DB write threw:`,
-      dbErr,
-    );
+    log.error("RECONCILE: email sent but post-send DB write threw", dbErr, {
+      gmailThreadId: threadId,
+      gmailMessageId: messageId,
+    });
     return {
       ok: false,
       error:
@@ -180,8 +186,10 @@ export async function approveOpportunityAction(
   }
 
   if (!advanced) {
-    console.error(
-      `Email sent for ${opportunityId} but stage transition returned false (precondition miss).`,
+    log.error(
+      "RECONCILE: email sent but stage transition returned false (precondition miss)",
+      undefined,
+      { gmailThreadId: threadId, gmailMessageId: messageId },
     );
     return {
       ok: false,
@@ -190,6 +198,10 @@ export async function approveOpportunityAction(
     };
   }
 
+  log.info("opportunity sent", {
+    gmailThreadId: threadId,
+    gmailMessageId: messageId,
+  });
   revalidatePath("/");
   return { ok: true };
 }
