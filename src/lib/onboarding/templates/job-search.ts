@@ -133,6 +133,11 @@ function splitBullets(text: string): string[] {
 async function normalizeScoringProfile(
   svc: SupabaseClient,
   userId: string,
+  // job_search reads from confirmed memory_documents + pipeline_config
+  // (already written by the time the normalizer runs in the outputs loop),
+  // so the context arg is ignored. ICP needs it because its normalizer
+  // reads the in-flight interview row via context.interviewId.
+  _context?: { interviewId?: string },
 ): Promise<void> {
   const [memoryCtx, pipelineConfig] = await Promise.all([
     loadMemoryContext(userId, svc),

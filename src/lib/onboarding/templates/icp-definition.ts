@@ -183,22 +183,40 @@ async function completionCheck(
 async function normalizeScoringProfile(
   svc: SupabaseClient,
   userId: string,
+  context?: { interviewId?: string },
 ): Promise<void> {
-  // Source of truth for icp_rubric is the most-recent confirmed ICP
-  // interview's unified `extracted` JSONB. Re-extracting from memory docs
-  // would require parsing markdown back into structured fields — fragile
-  // and round-trip-lossy. The extraction JSON is already the right shape.
-  const { data: interview } = await svc
-    .from("onboarding_interviews")
-    .select("extracted")
-    .eq("user_id", userId)
-    .eq("template_id", "icp_definition")
-    .eq("status", "confirmed")
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Source of truth for icp_rubric is the in-flight confirm's unified
+  // `extracted` JSONB. The normalizer runs from inside performConfirm
+  // BEFORE the status flip to 'confirmed', so we cannot filter by
+  // status. context.interviewId is passed by the dispatcher (audit
+  // finding 2). When called outside confirm (e.g., a manual
+  // re-normalize), fall back to the most-recent confirmed row for this
+  // template + user.
+  let row: { extracted: unknown } | null = null;
+  if (context?.interviewId) {
+    const { data } = await svc
+      .from("onboarding_interviews")
+      .select("extracted")
+      .eq("id", context.interviewId)
+      .eq("user_id", userId)
+      .eq("template_id", "icp_definition")
+      .maybeSingle();
+    row = data;
+  } else {
+    const { data } = await svc
+      .from("onboarding_interviews")
+      .select("extracted")
+      .eq("user_id", userId)
+      .eq("template_id", "icp_definition")
+      .eq("status", "confirmed")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    row = data;
+  }
 
-  if (!interview?.extracted) return;
+  if (!row?.extracted) return;
+  const interview = row;
 
   const extracted = interview.extracted as IcpExtraction;
 

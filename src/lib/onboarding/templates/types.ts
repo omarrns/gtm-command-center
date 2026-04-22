@@ -93,10 +93,14 @@ interface BaseInterviewTemplate<E, X> {
   // Derive user_scoring_profiles fields from this template's confirmed
   // outputs. Optional — a template without scoring (e.g., a pure workflow
   // template) can omit. job_search reads memory_documents + pipeline_config
-  // and populates the legacy columns; ICP will populate icp_rubric.
+  // (no context needed); ICP reads the current interview's `extracted`
+  // payload via context.interviewId because the normalizer runs BEFORE
+  // status flips to 'confirmed', so a "latest confirmed" lookup wouldn't
+  // see the in-flight row.
   normalizeScoringProfile?: (
     svc: SupabaseClient,
     userId: string,
+    context?: { interviewId?: string },
   ) => Promise<void>;
 
   // The persona this template confirms the user into. Written to
