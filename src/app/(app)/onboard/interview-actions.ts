@@ -7,9 +7,12 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { runExtractionFromTranscript } from "@/lib/onboarding/extraction";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
-import type { JobSearchExtraction } from "@/lib/onboarding/templates/job-search";
+import type {
+  JobSearchEdits,
+  JobSearchExtraction,
+} from "@/lib/onboarding/templates/job-search";
 import { nextDimensionToAsk } from "@/lib/onboarding/orchestrator/run";
-import { toJobSearchConfirmEdits } from "@/lib/onboarding/orchestrator/to-confirm-edits";
+import { toConfirmEditsForTemplate } from "@/lib/onboarding/orchestrator/to-confirm-edits";
 import {
   emptyOrchestratorState,
   type OrchestratorState,
@@ -172,23 +175,35 @@ export async function extractAndReviewAction(
   // initial values to render.
   if (interview.status === "review" || interview.status === "extracting") {
     const template = getTemplate(interview.template_id);
+    // Hydrate when the agentic flow landed at review without any extracted
+    // payload yet (rare — typically a disconnect mid-wrap-up). Check both
+    // unified and legacy slots so existing job_search rows hydrated via
+    // the legacy 4-column path don't get re-written.
     const needsHydration =
       template.agenticMode &&
       interview.status === "review" &&
+      interview.extracted === null &&
       interview.extracted_profile === null &&
       interview.orchestrator_state !== null;
 
     if (needsHydration) {
       const state = interview.orchestrator_state as OrchestratorState;
-      const { edits } = toJobSearchConfirmEdits(state);
+      const { edits } = toConfirmEditsForTemplate(state, template);
+      const updatePayload: Record<string, unknown> = {
+        extracted: edits,
+        updated_at: new Date().toISOString(),
+      };
+      // Legacy dual-write for job_search until the cleanup commit drops
+      // the four extracted_* columns (see docs/DEFERRED.md).
+      if (template.id === "job_search") {
+        const js = edits as JobSearchEdits;
+        updatePayload.extracted_profile = js.profile;
+        updatePayload.extracted_search = js.search;
+        updatePayload.extracted_outreach = js.outreach;
+      }
       const { data: hydrated } = await svc
         .from("onboarding_interviews")
-        .update({
-          extracted_profile: edits.profile,
-          extracted_search: edits.search,
-          extracted_outreach: edits.outreach,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("id", interviewId)
         .select("*")
         .single();
@@ -304,8 +319,9 @@ export async function confirmInterviewAction(
       const state =
         (row.orchestrator_state as OrchestratorState | null) ??
         emptyOrchestratorState(template.id);
-      const { edits: finalEdits, reviewEdits } = toJobSearchConfirmEdits(
+      const { edits: finalEdits, reviewEdits } = toConfirmEditsForTemplate(
         state,
+        template,
         edits,
       );
 
@@ -314,7 +330,10 @@ export async function confirmInterviewAction(
       // on re-confirm (idempotent) via the null-check on extracted_insights.
       // Non-fatal: if insights synthesis fails, confirm still succeeds and
       // the user keeps the 4 durable memory docs.
-      if (!row.extracted_insights) {
+      // ICP-only NOTE: insights is a job_search-specific extraction leaf;
+      // skipped entirely for ICP since its extraction shape doesn't carry
+      // it.
+      if (template.id === "job_search" && !row.extracted_insights) {
         try {
           const messages = (row.messages ?? []) as UIMessage[];
           if (messages.length > 0) {
@@ -358,7 +377,7 @@ export async function confirmInterviewAction(
         svc,
         user.id,
         interviewId,
-        finalEdits,
+        finalEdits as ConfirmEdits,
       );
       if (agenticResult.ok) {
         revalidatePath("/onboard");
@@ -471,20 +490,26 @@ export async function startAgenticInterviewAction(
   const next = nextDimensionToAsk(state, template);
 
   // No dimension below threshold → advance straight to review. Mirrors
-  // extractAndReviewAction's agentic hydration path: populate extracted_*
-  // from orchestrator state, set status='review', revalidatePath. /onboard
+  // extractAndReviewAction's agentic hydration path: populate the unified
+  // `extracted` slot (and the legacy 4 columns for job_search) from
+  // orchestrator state, set status='review', revalidatePath. /onboard
   // routes on interview.status — there is no /onboard/review route.
   if (!next) {
-    const { edits } = toJobSearchConfirmEdits(state);
+    const { edits } = toConfirmEditsForTemplate(state, template);
+    const updatePayload: Record<string, unknown> = {
+      status: "review",
+      extracted: edits,
+      updated_at: new Date().toISOString(),
+    };
+    if (template.id === "job_search") {
+      const js = edits as JobSearchEdits;
+      updatePayload.extracted_profile = js.profile;
+      updatePayload.extracted_search = js.search;
+      updatePayload.extracted_outreach = js.outreach;
+    }
     const { data: hydrated } = await svc
       .from("onboarding_interviews")
-      .update({
-        status: "review",
-        extracted_profile: edits.profile,
-        extracted_search: edits.search,
-        extracted_outreach: edits.outreach,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", interviewId)
       .select("*")
       .single();

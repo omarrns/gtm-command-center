@@ -2,11 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeScoringProfile } from "@/lib/pipeline/scoring-profile";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
+import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
 
-// The ConfirmEdits shape is job_search-specific today. When ICP/positioning
-// lands, this will become a discriminated union keyed by template_id — but
-// for Phase 1 there is only one template.
-export type ConfirmEdits = JobSearchEdits;
+// Template-tagged union of confirm-edit shapes. Caller passes the right
+// payload for the interview's template; performConfirm validates against
+// the template's editsSchema before any output runs.
+export type ConfirmEdits = JobSearchEdits | IcpEdits;
 
 export interface ConfirmResult {
   ok: boolean;
