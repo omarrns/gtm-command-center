@@ -4,6 +4,42 @@ import type { z } from "zod";
 
 export type InterviewTemplateId = "job_search" | "icp_definition";
 
+// Template-owned artifact-kind contract. Classifies a user-supplied URL,
+// pasted text, or uploaded file into the artifact kind this template
+// expects to store. Pure data (no functions) so it survives the
+// client-projection boundary in `toClientTemplate`.
+//
+// Matchers run in declaration order; first match wins. `substring` is
+// case-insensitive against the URL or file name.
+export interface UrlKindMatcher {
+  readonly urlSubstring: string;
+  readonly kind: string;
+}
+
+export interface FileKindMatcher {
+  readonly fileNameSubstring: string;
+  readonly kind: string;
+}
+
+export interface ArtifactKindContract {
+  /**
+   * All artifact kinds this template can produce. Informational — used
+   * by UI guards and future template-tests, not by the matcher logic.
+   */
+  readonly kindOptions: readonly string[];
+
+  /** Kind assigned to pasted text when no explicit override applies. */
+  readonly defaultTextKind: string;
+
+  /** Fallback kind for file uploads. fileKindMatchers checked first. */
+  readonly defaultFileKind: string;
+  readonly fileKindMatchers: readonly FileKindMatcher[];
+
+  /** Fallback kind for URLs. urlKindMatchers checked first. */
+  readonly defaultUrlKind: string;
+  readonly urlKindMatchers: readonly UrlKindMatcher[];
+}
+
 export interface CompletionStatus {
   complete: boolean;
   completedSteps: number[];
@@ -108,6 +144,11 @@ interface BaseInterviewTemplate<E, X> {
   // per SPEC-3's write-timing rule. job_search → 'job_seeker',
   // icp_definition → 'gtm'.
   userTypeOnConfirm: "job_seeker" | "gtm";
+
+  // How ArtifactInput classifies a URL / file / paste into an artifact
+  // kind for this template. Moves kind-routing logic off of templateId
+  // conditionals in the UI so adding a third template is a data change.
+  artifactKindContract: ArtifactKindContract;
 }
 
 export interface InterviewerContext extends InterviewPromptContext {
@@ -152,4 +193,5 @@ export interface ClientInterviewTemplate {
   refreshOpeningMessage: string;
   agenticMode: boolean;
   dimensions: ReadonlyArray<{ key: string; label: string }>;
+  artifactKindContract: ArtifactKindContract;
 }

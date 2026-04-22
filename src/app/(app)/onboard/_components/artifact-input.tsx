@@ -16,7 +16,15 @@ import type {
   OnboardingArtifactStatus,
 } from "@/lib/supabase/types";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
-import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
+import type {
+  ClientInterviewTemplate,
+  InterviewTemplateId,
+} from "@/lib/onboarding/templates/types";
+import {
+  defaultFileKind,
+  defaultTextKind,
+  detectKindFromUrl,
+} from "@/lib/onboarding/templates/artifact-kind";
 
 interface ArtifactResponse {
   artifact: OnboardingArtifactRow;
@@ -57,7 +65,7 @@ async function readBatchArtifactResponse(
 
 interface ArtifactInputProps {
   interviewId: string;
-  templateId: InterviewTemplateId;
+  clientTemplate: ClientInterviewTemplate;
   onStateUpdated: (state: OrchestratorState) => void;
   onReadyToChat: () => void;
 }
@@ -105,37 +113,9 @@ function parseUrlLikeBatch(value: string): string[] | null {
   return urls;
 }
 
-function detectKindFromUrl(
-  url: string,
-  templateId: InterviewTemplateId,
-): string {
-  const lower = url.toLowerCase();
-  if (templateId === "icp_definition") {
-    // A person's LinkedIn profile is almost always a buyer_persona
-    // artifact; any other URL (including linkedin.com/company/...) is
-    // treated as a positive_example customer unless the user explicitly
-    // overrides the kind via the "Bad-fit" pill.
-    if (lower.includes("linkedin.com/in/")) return "buyer_persona";
-    return "positive_example";
-  }
-  return lower.includes("linkedin.com") ? "linkedin" : "website";
-}
-
-// Default kind for pasted text / uploaded files when no explicit kind
-// override is in play. ICP defaults to company_context (product decks,
-// buying-committee notes, long-form context); job_search keeps its
-// existing resume heuristic.
-function defaultTextKind(templateId: InterviewTemplateId): string {
-  return templateId === "icp_definition" ? "company_context" : "pasted_text";
-}
-
-function defaultFileKind(
-  templateId: InterviewTemplateId,
-  fileName: string,
-): string {
-  if (templateId === "icp_definition") return "company_context";
-  return fileName.toLowerCase().includes("resume") ? "resume" : "uploaded_file";
-}
+// Kind resolution for URLs / text / files is driven by the template's
+// ArtifactKindContract (see @/lib/onboarding/templates/artifact-kind).
+// Adding a new template = defining a new contract, no edits here.
 
 function statusIcon(status: OnboardingArtifactStatus) {
   if (status === "succeeded")
@@ -165,10 +145,12 @@ function artifactLabel(a: ArtifactListItem): string {
 
 export function ArtifactInput({
   interviewId,
-  templateId,
+  clientTemplate,
   onStateUpdated,
   onReadyToChat,
 }: ArtifactInputProps) {
+  const templateId = clientTemplate.id;
+  const artifactContract = clientTemplate.artifactKindContract;
   const [inputValue, setInputValue] = useState("");
   const [artifacts, setArtifacts] = useState<ArtifactListItem[]>([]);
   const [isUploading, startUpload] = useTransition();
@@ -199,7 +181,7 @@ export function ArtifactInput({
         if (batchUrls) {
           const items = batchUrls.map((u) => ({
             url: u,
-            kind: override ?? detectKindFromUrl(u, templateId),
+            kind: override ?? detectKindFromUrl(u, artifactContract),
           }));
           const res = await fetch("/api/onboard/artifacts", {
             method: "POST",
@@ -226,8 +208,8 @@ export function ArtifactInput({
         }
 
         const resolvedKind = normalizedUrl
-          ? (override ?? detectKindFromUrl(normalizedUrl, templateId))
-          : (override ?? defaultTextKind(templateId));
+          ? (override ?? detectKindFromUrl(normalizedUrl, artifactContract))
+          : (override ?? defaultTextKind(artifactContract));
         const body = normalizedUrl
           ? { interviewId, kind: resolvedKind, url: normalizedUrl }
           : { interviewId, kind: resolvedKind, text: value };
@@ -271,7 +253,10 @@ export function ArtifactInput({
         const form = new FormData();
         form.append("file", file);
         form.append("interviewId", interviewId);
-        form.append("kind", override ?? defaultFileKind(templateId, file.name));
+        form.append(
+          "kind",
+          override ?? defaultFileKind(artifactContract, file.name),
+        );
         const res = await fetch("/api/onboard/artifacts", {
           method: "POST",
           body: form,
