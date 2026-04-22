@@ -13,7 +13,6 @@ import type { IcpDisagreement } from "@/lib/onboarding/orchestrator/icp-disagree
 const SEVERITY_LABEL: Record<IcpDisagreement["severity"], string> = {
   high: "High",
   medium: "Medium",
-  low: "Low",
 };
 
 interface DisagreementsProps {

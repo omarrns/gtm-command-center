@@ -158,29 +158,27 @@ export function ReviewIcp({
         }
       />
 
-      {positiveExemplarCount > 0 && (
-        <InferredFromExemplars
-          isExpanded={expandedSections.has("inferred")}
-          onToggle={() => toggleSection("inferred")}
-          firmographics={edits.icp.firmographics}
-          onFirmographicsChange={(firmographics) =>
-            setEdits({ ...edits, icp: { ...edits.icp, firmographics } })
-          }
-          technographics={edits.icp.technographics}
-          onTechnographicsChange={(technographics) =>
-            setEdits({ ...edits, icp: { ...edits.icp, technographics } })
-          }
-          signals={edits.icp.signals}
-          onSignalsChange={(signals) =>
-            setEdits({ ...edits, icp: { ...edits.icp, signals } })
-          }
-          proofPoints={edits.proof_points}
-          onProofPointsChange={(proof_points) =>
-            setEdits({ ...edits, proof_points })
-          }
-          positiveExemplarCount={positiveExemplarCount}
-        />
-      )}
+      <InferredFromExemplars
+        isExpanded={expandedSections.has("inferred")}
+        onToggle={() => toggleSection("inferred")}
+        firmographics={edits.icp.firmographics}
+        onFirmographicsChange={(firmographics) =>
+          setEdits({ ...edits, icp: { ...edits.icp, firmographics } })
+        }
+        technographics={edits.icp.technographics}
+        onTechnographicsChange={(technographics) =>
+          setEdits({ ...edits, icp: { ...edits.icp, technographics } })
+        }
+        signals={edits.icp.signals}
+        onSignalsChange={(signals) =>
+          setEdits({ ...edits, icp: { ...edits.icp, signals } })
+        }
+        proofPoints={edits.proof_points}
+        onProofPointsChange={(proof_points) =>
+          setEdits({ ...edits, proof_points })
+        }
+        positiveExemplarCount={positiveExemplarCount}
+      />
 
       {positiveExemplarCount >= 3 && (
         <CommonPatterns
@@ -195,6 +193,7 @@ export function ReviewIcp({
         isExpanded={expandedSections.has("variations")}
         onToggle={() => toggleSection("variations")}
         orchestratorState={orchestratorState}
+        positiveExemplarCount={positiveExemplarCount}
       />
 
       <Exclusions
