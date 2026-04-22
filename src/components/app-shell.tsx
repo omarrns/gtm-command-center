@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { TopBar } from "@/components/top-bar";
 import { LazyCommandPalette } from "@/components/lazy-command-palette";
+import type { UserType } from "@/lib/supabase/types";
 
 const COLLAPSE_STORAGE_KEY = "gtm:sidebar-collapsed";
 
 export function AppShell({
   user,
+  userType,
   children,
 }: {
   user: { email: string };
+  userType: UserType | null;
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -50,20 +54,33 @@ export function AppShell({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  const pathname = usePathname();
+  const isOnboarding = pathname.startsWith("/onboard");
+
+  if (isOnboarding) {
+    return (
+      <div className="min-h-screen">
+        <main className="flex-1 overflow-auto">
+          <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
+            {children}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex">
       <SidebarNav
         user={user}
+        userType={userType}
         open={sidebarOpen}
         onOpenChange={setSidebarOpen}
         collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
       />
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar
-          onMenuClick={() => setSidebarOpen(true)}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
-        />
+        <TopBar onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-auto">
           <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
             {children}
