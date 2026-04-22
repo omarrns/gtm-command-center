@@ -12,8 +12,6 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UserScoringProfileRow } from "@/lib/supabase/types";
-import { generateObject } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { exaFindCompany, formatExaResults } from "@/lib/ai/exa";
 import {
@@ -22,6 +20,7 @@ import {
 } from "@/lib/skills/prompts/full-analysis";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
+import { runGenerateObject, type AiCallScope } from "@/lib/ai/calls";
 
 const dimensionScoreSchema = z.object({
   score: z.number().min(0).max(5),
@@ -108,7 +107,7 @@ export async function scoreOpportunity(
   jobDescription: string,
   userId: string,
   client?: SupabaseClient,
-  options?: { model?: string },
+  options?: { model?: string; scope?: AiCallScope },
 ): Promise<ScoringResult> {
   const svc = client;
 
@@ -156,8 +155,8 @@ export async function scoreOpportunity(
     ? `${memory}\n\n## Structured Scoring Preferences\n\n${structuredPreferences}`
     : memory;
 
-  const { object: result } = await generateObject({
-    model: anthropic(options?.model ?? "claude-opus-4-6"),
+  const result = await runGenerateObject({
+    model: options?.model ?? "claude-opus-4-6",
     system: buildFullAnalysisSystem(sender),
     prompt: buildFullAnalysisPrompt({
       companyName,
@@ -168,6 +167,9 @@ export async function scoreOpportunity(
     }),
     schema: analysisSchema,
     maxOutputTokens: 8192,
+    scope: options?.scope
+      ? { ...options.scope, callPurpose: options.scope.callPurpose ?? "score" }
+      : { userId, callPurpose: "score" },
   });
 
   const jdFit = dimensionScores(result.jd_fit.scorecard);

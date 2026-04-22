@@ -269,7 +269,12 @@ export async function extractAndReviewAction(
   try {
     const template = getTemplate(interview.template_id);
     const messages = interview.messages as UIMessage[];
-    const extraction = await runExtractionFromTranscript(messages, template);
+    const extraction = await runExtractionFromTranscript(messages, template, {
+      userId: user.id,
+      scopeTable: "onboarding_interviews",
+      scopeId: interviewId,
+      callPurpose: "extract",
+    });
 
     // Dual-write: `extracted` (unified, template-agnostic) is the durable
     // path for Phase 3+. The 4 legacy columns stay written for job_search
