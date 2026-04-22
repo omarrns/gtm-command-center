@@ -24,6 +24,8 @@ config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
 import { countPositiveExemplars } from "../src/lib/onboarding/orchestrator/run";
+import { toIcpConfirmEdits } from "../src/lib/onboarding/orchestrator/to-confirm-edits";
+import type { OrchestratorState } from "../src/lib/onboarding/orchestrator/types";
 import type { OnboardingArtifactRow } from "../src/lib/supabase/types";
 import type { IcpEdits } from "../src/lib/onboarding/icp-schemas";
 
@@ -82,6 +84,116 @@ function makeArtifact(
     created_at: "",
     updated_at: "",
   };
+}
+
+// ── Unit: toIcpConfirmEdits shape coercion ────────────────────────────────
+
+function makeDim(value: unknown) {
+  return {
+    value,
+    summary: "",
+    confidence: 0.8,
+    threshold: 0.75,
+    status: "inferred" as const,
+    provenance: [],
+    updatedAt: "2026-04-21T00:00:00Z",
+  };
+}
+
+function makeState(
+  dimensions: Record<string, ReturnType<typeof makeDim>>,
+): OrchestratorState {
+  return {
+    version: 1,
+    templateId: "icp_definition",
+    status: "ready_for_review",
+    artifacts: [],
+    dimensions,
+    activeDimensionKey: null,
+    nextDimensionKey: null,
+    askedDimensionKeys: [],
+    metrics: {
+      questionCount: 0,
+      artifactSuccessCount: 0,
+      artifactFailureCount: 0,
+      reviewEdits: [],
+    },
+  };
+}
+
+function unitTestAdapterShapeCoercion() {
+  console.log("\n--- Unit: toIcpConfirmEdits shape coercion ---\n");
+
+  // Happy path: orchestrator emits well-shaped firmographics.
+  const goodState = makeState({
+    firmographics: makeDim({
+      industries: ["devtools"],
+      employee_range_min: 20,
+      employee_range_max: 100,
+      stages: ["series-a"],
+      geographies: ["US"],
+    }),
+  });
+  const good = toIcpConfirmEdits(goodState);
+  assert(
+    good.edits.icp.firmographics.employee_range_min === 20,
+    "well-shaped firmographics: employee_range_min parsed",
+  );
+  assert(
+    good.edits.icp.firmographics.employee_range_max === 100,
+    "well-shaped firmographics: employee_range_max parsed",
+  );
+
+  // Malformed path: the model emits a tuple instead of min/max scalars.
+  // safeParse should fail + fall back to defaults (0, 10000), NOT silently
+  // produce NaN/undefined or inherit from the tuple in bad ways.
+  const tupleState = makeState({
+    firmographics: makeDim({
+      industries: ["devtools"],
+      employee_range: [20, 100], // WRONG shape — tuple under a single key
+      stages: ["series-a"],
+      geographies: ["US"],
+    }),
+  });
+  const tupleResult = toIcpConfirmEdits(tupleState);
+  assert(
+    tupleResult.edits.icp.firmographics.employee_range_min === 0,
+    "malformed tuple firmographics: falls back to employee_range_min=0",
+  );
+  assert(
+    tupleResult.edits.icp.firmographics.employee_range_max === 10000,
+    "malformed tuple firmographics: falls back to employee_range_max=10000",
+  );
+
+  // Partial shape: orchestrator emits product with only `category`. zod
+  // defaults fill the missing leaves.
+  const partialState = makeState({
+    product: makeDim({ category: "AI SDR agent" }),
+  });
+  const partialResult = toIcpConfirmEdits(partialState);
+  assert(
+    partialResult.edits.product.category === "AI SDR agent",
+    "partial product: keeps category",
+  );
+  assert(
+    partialResult.edits.product.core_jtbd === "",
+    "partial product: core_jtbd defaults to empty string",
+  );
+  assert(
+    partialResult.edits.product.wedge === "",
+    "partial product: wedge defaults to empty string",
+  );
+
+  // Array-for-object: orchestrator emits an array where an object is
+  // required. safeParse fails → fallback defaults.
+  const arrayState = makeState({
+    buyer: makeDim(["VP Sales", "SDR Lead"]),
+  });
+  const arrayResult = toIcpConfirmEdits(arrayState);
+  assert(
+    arrayResult.edits.icp.buyer.economic_buyer === "",
+    "array-for-buyer-object: falls back to empty economic_buyer",
+  );
 }
 
 function unitTestCount() {
@@ -248,6 +360,7 @@ async function integrationTestLowExemplar(userId: string) {
 }
 
 async function main() {
+  unitTestAdapterShapeCoercion();
   unitTestCount();
 
   const userId =
