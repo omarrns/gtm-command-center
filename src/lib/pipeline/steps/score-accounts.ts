@@ -1,0 +1,148 @@
+/**
+ * Pipeline Step: Score Accounts (GTM persona).
+ *
+ * Mirrors runScore's claim → score → advance → release pattern. Writes
+ * analyses rows with skill_slug='icp-account-fit' and role_title=NULL.
+ * Advances discovered → scored (>= threshold) or filtered (< threshold).
+ * Auto-watchlists accounts at normalised score >= 80.
+ */
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PipelineConfigRow } from "@/lib/supabase/types";
+import type { IcpRubric } from "@/lib/pipeline/icp-to-theirstack-filters";
+import type { ScoreResult } from "@/lib/pipeline/steps/score";
+import {
+  claimOpportunity,
+  releaseOpportunity,
+  advanceStage,
+  getOpportunitiesByStage,
+} from "@/lib/pipeline/opportunities";
+import { addToWatchlist } from "@/lib/pipeline/watchlist";
+import { scoreAccountAgainstIcp } from "@/lib/pipeline/scoring-account";
+import { createLogger } from "@/lib/logger";
+
+const MAX_SCORES_PER_RUN = 10;
+const PIPELINE_MODEL = "claude-sonnet-4-6";
+
+export async function runScoreAccounts(
+  svc: SupabaseClient,
+  userId: string,
+  rubric: IcpRubric,
+  config: PipelineConfigRow,
+  runId?: string,
+): Promise<ScoreResult> {
+  const log = createLogger({ runId, userId, scope: "score-accounts" });
+
+  const opportunities = await getOpportunitiesByStage(
+    svc,
+    userId,
+    "discovered",
+    MAX_SCORES_PER_RUN,
+  );
+
+  const result: ScoreResult = {
+    processed: 0,
+    scored: 0,
+    filtered: 0,
+    errors: 0,
+  };
+
+  for (const opp of opportunities) {
+    // Phase 2 runs TheirStack; any 'discovered' row from another source
+    // belongs to a different persona's discovery step and should not be
+    // scored by the ICP scorer. Skip defensively — this keeps the ICP
+    // pipeline narrow even if the runner ordering ever co-mingles sources.
+    if (opp.source !== "theirstack") continue;
+
+    try {
+      const claimed = await claimOpportunity(svc, opp.id, userId);
+      if (!claimed) continue;
+
+      result.processed++;
+
+      const scoring = await scoreAccountAgainstIcp({
+        opp,
+        rubric,
+        userId,
+        svc,
+        model: PIPELINE_MODEL,
+        runId,
+      });
+
+      const { data: analysis, error: analysisError } = await svc
+        .from("analyses")
+        .insert({
+          user_id: userId,
+          skill_slug: "icp-account-fit",
+          company_name: opp.company_name,
+          role_title: null,
+          job_description: opp.job_description,
+          status: "complete",
+          input: {
+            company_name: opp.company_name,
+            company_domain: opp.company_domain,
+            source: "pipeline",
+          },
+          result: scoring.analysisResult,
+        })
+        .select("id")
+        .single();
+
+      if (analysisError) throw analysisError;
+
+      const passesThreshold = scoring.normalizedScore >= config.score_threshold;
+      const newStage = passesThreshold ? "scored" : "filtered";
+
+      const advanced = await advanceStage(
+        svc,
+        opp.id,
+        userId,
+        "discovered",
+        newStage,
+        {
+          score: scoring.normalizedScore,
+          score_components: {
+            firmo_fit: scoring.analysisResult.firmo_fit.score,
+            techno_fit: scoring.analysisResult.techno_fit.score,
+            hiring_signal_fit: scoring.analysisResult.hiring_signal_fit.score,
+            buyer_fit: scoring.analysisResult.buyer_fit.score,
+            proof_point_relevance:
+              scoring.analysisResult.proof_point_relevance.score,
+            disqualifier_risk: scoring.analysisResult.disqualifier_risk.score,
+            tier: scoring.analysisResult.tier,
+            verdict: scoring.analysisResult.verdict,
+          },
+          analysis_id: analysis.id,
+        },
+      );
+
+      if (!advanced) {
+        throw new Error(
+          `Stage precondition missed: expected 'discovered' for opportunity ${opp.id}`,
+        );
+      }
+
+      if (passesThreshold) result.scored++;
+      else result.filtered++;
+
+      if (scoring.normalizedScore >= 80) {
+        await addToWatchlist(svc, userId, opp.company_name, "auto");
+      }
+
+      await releaseOpportunity(svc, opp.id, userId);
+    } catch (err) {
+      result.errors++;
+      log.error("account scoring failed", err, { oppId: opp.id });
+      await svc
+        .from("opportunities")
+        .update({
+          last_error: err instanceof Error ? err.message : String(err),
+        })
+        .eq("id", opp.id)
+        .eq("user_id", userId);
+      await releaseOpportunity(svc, opp.id, userId);
+    }
+  }
+
+  return result;
+}
