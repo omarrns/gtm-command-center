@@ -34,6 +34,7 @@ import {
 } from "../interview-actions";
 import { ArtifactInput } from "./artifact-input";
 import { OrchestratorStatusPanel } from "./orchestrator-status-panel";
+import { SwitchPersonaControl } from "./switch-persona-control";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
@@ -151,7 +152,7 @@ function AgenticInterview({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, hasStored, interview.id, kickoff.status]);
+  }, [phase, hasStored, interview.id]);
 
   if (isExtracting) {
     return (
@@ -166,11 +167,19 @@ function AgenticInterview({
 
   if (phase === "artifacts") {
     return (
-      <ArtifactInput
-        interviewId={interview.id}
-        onStateUpdated={setOrchestratorState}
-        onReadyToChat={() => setPhase("chat")}
-      />
+      <div>
+        <div className="mx-auto flex max-w-2xl items-center justify-end px-6 pt-4">
+          <SwitchPersonaControl
+            interviewId={interview.id}
+            currentTemplateId={clientTemplate.id}
+          />
+        </div>
+        <ArtifactInput
+          interviewId={interview.id}
+          onStateUpdated={setOrchestratorState}
+          onReadyToChat={() => setPhase("chat")}
+        />
+      </div>
     );
   }
 
@@ -308,74 +317,82 @@ function AgenticChat({
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] w-full">
-      <div className="flex flex-col flex-1 min-w-0 max-w-2xl mx-auto">
-        <Conversation className="flex-1">
-          <ConversationContent className="max-w-2xl mx-auto w-full">
-            {messages.map((msg) => {
-              const text = extractDisplayText(msg);
-              if (!text) return null;
-              return (
-                <Message key={msg.id} from={msg.role}>
+    <div className="flex h-[calc(100vh-8rem)] w-full flex-col">
+      <div className="flex items-center justify-end px-6 pt-4 max-w-2xl mx-auto w-full">
+        <SwitchPersonaControl
+          interviewId={interview.id}
+          currentTemplateId={clientTemplate.id}
+        />
+      </div>
+      <div className="flex flex-1 min-w-0 w-full">
+        <div className="flex flex-col flex-1 min-w-0 max-w-2xl mx-auto">
+          <Conversation className="flex-1">
+            <ConversationContent className="max-w-2xl mx-auto w-full">
+              {messages.map((msg) => {
+                const text = extractDisplayText(msg);
+                if (!text) return null;
+                return (
+                  <Message key={msg.id} from={msg.role}>
+                    <MessageContent>
+                      {msg.role === "assistant" ? (
+                        <MessageResponse>{text}</MessageResponse>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{text}</p>
+                      )}
+                    </MessageContent>
+                  </Message>
+                );
+              })}
+
+              {awaitingAssistant && (
+                <Message from="assistant">
                   <MessageContent>
-                    {msg.role === "assistant" ? (
-                      <MessageResponse>{text}</MessageResponse>
-                    ) : (
-                      <p className="whitespace-pre-wrap">{text}</p>
-                    )}
+                    <Loader size={16} />
                   </MessageContent>
                 </Message>
-              );
-            })}
+              )}
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
 
-            {awaitingAssistant && (
-              <Message from="assistant">
-                <MessageContent>
-                  <Loader size={16} />
-                </MessageContent>
-              </Message>
-            )}
-          </ConversationContent>
-          <ConversationScrollButton />
-        </Conversation>
-
-        <div className="px-4 pb-4 pt-2 shrink-0">
-          <PromptInput
-            onSubmit={handleSubmit}
-            className="bg-card border border-[var(--color-border-strong)] shadow-sm rounded-xl overflow-hidden focus-within:border-[var(--color-blue)] focus-within:ring-2 focus-within:ring-[var(--color-blue-muted)] transition-colors"
-          >
-            <PromptInputTextarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Reply to continue…"
-              disabled={isStreaming}
-              className="bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0"
-            />
-            <PromptInputFooter className="bg-[var(--color-surface-muted)] border-t border-[var(--border)]">
-              <PromptInputTools>
-                <button
-                  type="button"
-                  onClick={onSwitchToManual}
-                  className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors px-2"
-                >
-                  Skip to manual entry
-                </button>
-              </PromptInputTools>
-              <PromptInputSubmit
-                status={status}
-                disabled={!input.trim() || isStreaming}
-                className="bg-[var(--color-blue)] text-white hover:bg-[var(--color-blue)]/90 disabled:bg-[var(--color-border)] disabled:text-[var(--color-text-subtle)]"
+          <div className="px-4 pb-4 pt-2 shrink-0">
+            <PromptInput
+              onSubmit={handleSubmit}
+              className="bg-card border border-[var(--color-border-strong)] shadow-sm rounded-xl overflow-hidden focus-within:border-[var(--color-blue)] focus-within:ring-2 focus-within:ring-[var(--color-blue-muted)] transition-colors"
+            >
+              <PromptInputTextarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Reply to continue…"
+                disabled={isStreaming}
+                className="bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0"
               />
-            </PromptInputFooter>
-          </PromptInput>
+              <PromptInputFooter className="bg-[var(--color-surface-muted)] border-t border-[var(--border)]">
+                <PromptInputTools>
+                  <button
+                    type="button"
+                    onClick={onSwitchToManual}
+                    className="text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors px-2"
+                  >
+                    Skip to manual entry
+                  </button>
+                </PromptInputTools>
+                <PromptInputSubmit
+                  status={status}
+                  disabled={!input.trim() || isStreaming}
+                  className="bg-[var(--color-blue)] text-white hover:bg-[var(--color-blue)]/90 disabled:bg-[var(--color-border)] disabled:text-[var(--color-text-subtle)]"
+                />
+              </PromptInputFooter>
+            </PromptInput>
+          </div>
         </div>
-      </div>
 
-      <div className="hidden lg:block w-80 shrink-0 h-full">
-        <OrchestratorStatusPanel
-          state={orchestratorState}
-          clientTemplate={clientTemplate}
-        />
+        <div className="hidden lg:block w-80 shrink-0 h-full">
+          <OrchestratorStatusPanel
+            state={orchestratorState}
+            clientTemplate={clientTemplate}
+          />
+        </div>
       </div>
     </div>
   );
