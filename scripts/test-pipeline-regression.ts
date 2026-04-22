@@ -707,6 +707,24 @@ async function main() {
     ),
     "NovaCore buyer_personas carries hiring_for='VP of Sales'",
   );
+
+  // Phase 3: score-accounts attempted for every TheirStack opportunity.
+  // Exa + Anthropic are stubbed to 503 above, so scoring fails per-row —
+  // the contract is that runScoreAccounts still claims and isolates each
+  // error (not the whole run) and records last_error. If a future change
+  // skips the scoring step entirely, processed will drop to 0.
+  assert(
+    gtmResult.score.processed === 2,
+    `gtm score.processed === 2 (got ${gtmResult.score.processed})`,
+  );
+  assert(
+    gtmResult.score.errors === 2,
+    `gtm score.errors === 2 under stubbed exa/anthropic (got ${gtmResult.score.errors})`,
+  );
+  assert(
+    gtmOpps.every((o) => typeof o.last_error === "string"),
+    "every gtm opportunity has last_error recorded from stubbed scoring",
+  );
   const jobSeekerOpps = tables.opportunities.filter(
     (o) => o.user_id === userId,
   );

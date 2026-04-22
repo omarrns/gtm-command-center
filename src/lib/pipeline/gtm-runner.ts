@@ -1,21 +1,21 @@
 /**
  * GTM Pipeline Runner.
  *
- * Phase 2 wires runDiscoverAccounts (TheirStack). Loads pipeline_config +
- * icp_rubric, validates the rubric shape, calls TheirStack, writes
- * opportunities with firmographic + buyer signals on the dual-persona
- * columns. Phase 3 will append runScoreAccounts after discover.
+ * Loads pipeline_config + icp_rubric, validates the rubric, then runs:
+ *   Phase 2: runDiscoverAccounts  (TheirStack → opportunities)
+ *   Phase 3: runScoreAccounts     (Exa + generateObject → analyses, stage advance)
  *
- * Downstream stages (research/enrich/draft) stay at zero counts until
- * the GTM outbound surface lands — there's nothing to research yet
- * because contact enrichment is deferred to a later phase.
+ * research/enrich/draft stay at zero counts until the GTM outbound
+ * surface lands — contact enrichment is deferred to a later phase.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PipelineConfigRow } from "@/lib/supabase/types";
 import type { PipelineRunResult } from "@/lib/pipeline/runner";
 import { runDiscoverAccounts } from "@/lib/pipeline/steps/discover-accounts";
+import { runScoreAccounts } from "@/lib/pipeline/steps/score-accounts";
 import type { DiscoverResult } from "@/lib/pipeline/steps/discover";
+import type { ScoreResult } from "@/lib/pipeline/steps/score";
 import { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
 import { createLogger, newRunId } from "@/lib/logger";
 
@@ -71,12 +71,20 @@ export async function runGtmPipeline(
     log.error("discover-accounts failed", err);
   }
 
+  let score: ScoreResult = { processed: 0, scored: 0, filtered: 0, errors: 0 };
+  try {
+    score = await runScoreAccounts(svc, userId, parsed.data, config, runId);
+  } catch (err) {
+    pipelineError = `score-accounts: ${err instanceof Error ? err.message : String(err)}`;
+    log.error("score-accounts failed", err);
+  }
+
   return {
     userId,
     startedAt,
     completedAt: new Date().toISOString(),
     discover,
-    score: { processed: 0, scored: 0, filtered: 0, errors: 0 },
+    score,
     research: { processed: 0, researched: 0, needsContact: 0, errors: 0 },
     enrich: {
       processed: 0,
