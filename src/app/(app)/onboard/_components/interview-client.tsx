@@ -319,13 +319,11 @@ function AgenticChat({
 
   return (
     <div className="flex h-[calc(100dvh-8rem)] w-full flex-col">
-      <div className="flex items-center justify-end px-6 pt-4 max-w-2xl mx-auto w-full">
-        <SwitchPersonaControl
-          interviewId={interview.id}
-          currentTemplateId={clientTemplate.id}
-        />
-      </div>
-      <div className="flex flex-1 min-h-0 min-w-0 w-full">
+      {/* Chat + orchestrator panel share a single row. pb-4 on the row
+          gives both children the same bottom gutter so their
+          boundaries align — previously the PromptInput carried its
+          own pb-4 which made it end 16px above the right panel. */}
+      <div className="flex flex-1 min-h-0 min-w-0 w-full pb-4">
         <div className="flex flex-col flex-1 min-h-0 min-w-0 max-w-2xl mx-auto">
           <Conversation className="flex-1 min-h-0">
             <ConversationContent className="max-w-2xl mx-auto w-full">
@@ -356,7 +354,7 @@ function AgenticChat({
             <ConversationScrollButton />
           </Conversation>
 
-          <div className="px-4 pb-4 pt-2 shrink-0">
+          <div className="px-4 pt-2 shrink-0">
             <PromptInput
               onSubmit={handleSubmit}
               className="bg-card border border-[var(--color-border-strong)] shadow-sm rounded-xl overflow-hidden focus-within:border-[var(--color-blue)] focus-within:ring-2 focus-within:ring-[var(--color-blue-muted)] transition-colors"
@@ -392,6 +390,12 @@ function AgenticChat({
           <OrchestratorStatusPanel
             state={orchestratorState}
             clientTemplate={clientTemplate}
+            headerAction={
+              <SwitchPersonaControl
+                interviewId={interview.id}
+                currentTemplateId={clientTemplate.id}
+              />
+            }
           />
         </div>
       </div>

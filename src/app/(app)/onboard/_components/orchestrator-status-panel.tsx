@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   CheckCircle2,
   AlertCircle,
@@ -16,6 +16,11 @@ import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 interface StatusPanelProps {
   state: OrchestratorState | null;
   clientTemplate: ClientInterviewTemplate;
+  // Optional header-right slot. Currently holds the SwitchPersonaControl
+  // so the persona switch sits inside the panel header instead of a
+  // floating bar above the chat. Kept generic so future callers can
+  // drop in other controls (a close button, a refresh action, etc.).
+  headerAction?: ReactNode;
 }
 
 function truncate(s: string, n: number): string {
@@ -26,6 +31,7 @@ function truncate(s: string, n: number): string {
 export function OrchestratorStatusPanel({
   state,
   clientTemplate,
+  headerAction,
 }: StatusPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -64,17 +70,20 @@ export function OrchestratorStatusPanel({
   }, [inferred.length]);
 
   return (
-    <aside className="border-l border-[var(--border)] bg-[var(--color-surface-muted)] flex flex-col overflow-hidden h-full">
-      <div className="px-4 py-3 shrink-0">
-        <h3 className="text-xs font-semibold text-[var(--color-text)]">
-          What the agent sees
-        </h3>
-        {state?.status === "analyzing" && (
-          <p className="text-[10px] text-[var(--color-text-subtle)] mt-1 flex items-center gap-1">
-            <Loader2 size={10} className="animate-spin" /> reading your
-            artifacts
-          </p>
-        )}
+    <aside className="border border-[var(--border)] bg-[var(--color-surface-muted)] flex flex-col overflow-hidden h-full">
+      <div className="px-4 py-3 shrink-0 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-xs font-semibold text-[var(--color-text)]">
+            What the agent sees
+          </h3>
+          {state?.status === "analyzing" && (
+            <p className="text-[10px] text-[var(--color-text-subtle)] mt-1 flex items-center gap-1">
+              <Loader2 size={10} className="animate-spin" /> reading your
+              artifacts
+            </p>
+          )}
+        </div>
+        {headerAction && <div className="shrink-0">{headerAction}</div>}
       </div>
 
       <Separator />
