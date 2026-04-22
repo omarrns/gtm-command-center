@@ -80,14 +80,14 @@ export function AppShell({
         onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
       />
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar onMenuClick={() => setSidebarOpen(true)} />
+        <TopBar onMenuClick={() => setSidebarOpen(true)} userType={userType} />
         <main className="flex-1 overflow-auto">
           <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
             {children}
           </div>
         </main>
       </div>
-      <LazyCommandPalette />
+      <LazyCommandPalette userType={userType} />
     </div>
   );
 }

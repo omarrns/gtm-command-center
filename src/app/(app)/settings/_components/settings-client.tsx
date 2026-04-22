@@ -32,6 +32,21 @@ export function SettingsClient({
   scoringProfile,
   userType,
 }: SettingsClientProps) {
+  // SPEC-3 polish: hide / reword job_search-specific panels for GTM.
+  // The Profile & Outreach card becomes ICP refresh; Gmail / search /
+  // scoring panels are entirely job_search-only in v1 and would only
+  // confuse a GTM user (no outreach pipeline, no JSearch discovery,
+  // no role-fit scoring).
+  const isGtm = userType === "gtm";
+  const profileTitle = isGtm ? "ICP & positioning" : "Profile & Outreach";
+  const profileDescription = isGtm
+    ? "Refresh your ICP rubric, exemplars, and product positioning. Discovery + outreach surfaces ship in a follow-up release."
+    : "Update your profile, positioning, and outreach preferences. Changes take effect on the next pipeline run.";
+  const profileHref = isGtm
+    ? "/onboard?mode=refresh&template=icp_definition"
+    : "/onboard?mode=refresh";
+  const profileLinkLabel = isGtm ? "Refresh ICP" : "Edit Profile";
+
   return (
     <div className="space-y-6">
       {gmailError && (
@@ -43,35 +58,38 @@ export function SettingsClient({
       <section className="surface p-5 space-y-3">
         <div className="flex items-center gap-2">
           <UserPen size={16} />
-          <h2 className="text-sm font-semibold">Profile &amp; Outreach</h2>
+          <h2 className="text-sm font-semibold">{profileTitle}</h2>
         </div>
         <p className="text-sm text-[var(--color-text-muted)]">
-          Update your profile, positioning, and outreach preferences. Changes
-          take effect on the next pipeline run.
+          {profileDescription}
         </p>
         <Link
-          href="/onboard?mode=refresh"
+          href={profileHref}
           className={buttonVariants({ variant: "ghost" })}
         >
           <ExternalLink size={13} />
-          Edit Profile
+          {profileLinkLabel}
         </Link>
       </section>
 
-      <SettingsGmailPanel
-        gmailConnected={gmailConnected}
-        gmailAddress={gmailAddress}
-      />
+      {!isGtm && (
+        <>
+          <SettingsGmailPanel
+            gmailConnected={gmailConnected}
+            gmailAddress={gmailAddress}
+          />
 
-      <SettingsSearchPanel
-        scoreThreshold={scoreThreshold}
-        dailySendCap={dailySendCap}
-        searchQueries={searchQueries}
-        searchLocations={searchLocations}
-      />
+          <SettingsSearchPanel
+            scoreThreshold={scoreThreshold}
+            dailySendCap={dailySendCap}
+            searchQueries={searchQueries}
+            searchLocations={searchLocations}
+          />
 
-      {scoringProfile && (
-        <SettingsScoringPanel scoringProfile={scoringProfile} />
+          {scoringProfile && (
+            <SettingsScoringPanel scoringProfile={scoringProfile} />
+          )}
+        </>
       )}
 
       <SwitchPersonaPlaceholder userType={userType} />
