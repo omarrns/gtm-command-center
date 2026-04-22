@@ -16,6 +16,7 @@
     "seed": "tsx scripts/seed-all.ts",
     "onboard:reset": "tsx scripts/onboard-reset.ts",
     "onboard:fixture": "tsx scripts/onboard-fixture.ts",
+    "onboard:to-review": "tsx scripts/onboard-to-review.ts",
     "test:sender-identity": "tsx scripts/test-sender-identity.ts",
     "test:extraction": "tsx scripts/test-extraction.ts",
     "test:onboarding-confirm": "tsx scripts/test-onboarding-confirm.ts",
@@ -24,6 +25,7 @@
     "test:scoring-normalize-per-template": "tsx scripts/test-scoring-normalize-per-template.ts",
     "test:icp-confirm": "tsx scripts/test-icp-confirm.ts",
     "test:icp-confirm-low-exemplar": "tsx scripts/test-icp-confirm-low-exemplar.ts",
+    "test:artifact-persistence": "tsx scripts/test-artifact-persistence.ts",
     "test:correctness": "tsx scripts/test-correctness-fixes.ts"
   },
   "dependencies": {
