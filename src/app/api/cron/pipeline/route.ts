@@ -17,8 +17,11 @@ import { createLogger, newRunId } from "@/lib/logger";
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  const cronRunId = newRunId();
-  const log = createLogger({ runId: cronRunId, scope: "cron.pipeline" });
+  // The cron handler itself doesn't get a runId. It's a thin dispatch shell —
+  // each user's workflow gets its own runId and that's the load-bearing ID
+  // for grep-based correlation. Vercel's function logs cover the dispatch
+  // shell's own failures (auth, DB query) at request granularity.
+  const log = createLogger({ scope: "cron.pipeline" });
 
   // Fail-closed: reject if CRON_SECRET is not configured
   const secret = process.env.CRON_SECRET;
@@ -64,17 +67,13 @@ export async function GET(request: Request) {
   for (const { user_id } of configs) {
     const userRunId = newRunId();
     try {
-      const run = await start(pipelineWorkflow, [user_id, userRunId]);
-      log.info("workflow dispatched", {
-        userId: user_id,
-        userRunId,
-        workflowRunId: run.runId,
-      });
+      await start(pipelineWorkflow, [user_id, userRunId]);
+      log.info("workflow dispatched", { userId: user_id, runId: userRunId });
       runs.push({ userId: user_id, runId: userRunId });
     } catch (err) {
       log.error("workflow dispatch failed", err, {
         userId: user_id,
-        userRunId,
+        runId: userRunId,
       });
       runs.push({
         userId: user_id,
@@ -84,10 +83,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return Response.json({
-    ok: true,
-    cronRunId,
-    processed: configs.length,
-    runs,
-  });
+  return Response.json({ ok: true, processed: configs.length, runs });
 }
