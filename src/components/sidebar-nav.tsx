@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Phone,
+  TrendingUp,
 } from "lucide-react";
 import {
   AnimatePresence,
@@ -40,6 +41,7 @@ function buildNav(userType: UserType | null): NavItem[] {
     return [
       { href: "/", label: "SignalBase", icon: CalendarCheck },
       { href: "/calls", label: "Calls", icon: Phone, badge: "POC" },
+      { href: "/trends", label: "Trends", icon: TrendingUp, badge: "POC" },
       { href: "/history", label: "History", icon: Clock },
       { href: "/watchlist", label: "Watchlist", icon: Eye },
       { href: "/settings", label: "Settings", icon: Settings },

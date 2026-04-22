@@ -2,7 +2,8 @@ export type CallStage =
   | "Renewal"
   | "Closed Won"
   | "Technical Evaluation"
-  | "Demo";
+  | "Demo"
+  | "Discovery";
 
 export type CallOutcome = "ongoing" | "won" | "lost";
 
@@ -34,6 +35,7 @@ export interface SalesCall {
   painPointCount: number;
   redFlagCount: number;
   outcome: CallOutcome;
+  lossReason?: string;
   analysis: CallAnalysis;
   transcript: string;
 }
