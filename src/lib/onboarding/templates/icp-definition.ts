@@ -13,6 +13,7 @@ import {
   type IcpExtraction,
 } from "@/lib/onboarding/icp-schemas";
 import type {
+  ArtifactKindContract,
   CompletionStatus,
   Dimension,
   InterviewTemplate,
@@ -21,6 +22,25 @@ import type {
 
 export type { IcpEdits, IcpExtraction } from "@/lib/onboarding/icp-schemas";
 export { icpExtractionSchema } from "@/lib/onboarding/icp-schemas";
+
+const ARTIFACT_KIND_CONTRACT: ArtifactKindContract = {
+  kindOptions: [
+    "positive_example",
+    "negative_example",
+    "buyer_persona",
+    "company_context",
+  ],
+  defaultTextKind: "company_context",
+  defaultFileKind: "company_context",
+  fileKindMatchers: [],
+  // Any URL that isn't a personal LinkedIn profile is treated as a
+  // good-fit customer artifact (the "Bad-fit" pill opts in via a kind
+  // override at submit time).
+  defaultUrlKind: "positive_example",
+  urlKindMatchers: [
+    { urlSubstring: "linkedin.com/in/", kind: "buyer_persona" },
+  ],
+};
 
 // ── Dimensions ─────────────────────────────────────────────────────────────
 
@@ -320,4 +340,5 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   completionCheck,
   normalizeScoringProfile,
   userTypeOnConfirm: "gtm",
+  artifactKindContract: ARTIFACT_KIND_CONTRACT,
 };

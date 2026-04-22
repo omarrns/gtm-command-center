@@ -29,7 +29,8 @@
     "test:artifact-persistence": "tsx scripts/test-artifact-persistence.ts",
     "test:persona-switch-artifact-retention": "tsx scripts/test-persona-switch-artifact-retention.ts",
     "test:correctness": "tsx scripts/test-correctness-fixes.ts",
-    "test:pipeline-regression": "tsx scripts/test-pipeline-regression.ts"
+    "test:pipeline-regression": "tsx scripts/test-pipeline-regression.ts",
+    "test:artifact-kind-per-template": "tsx scripts/test-artifact-kind-per-template.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",

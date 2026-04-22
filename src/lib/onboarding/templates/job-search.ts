@@ -16,11 +16,27 @@ import {
 import { extractSection } from "@/lib/onboarding/markdown";
 import { loadMemoryContext } from "@/lib/skills/context";
 import type {
+  ArtifactKindContract,
   CompletionStatus,
   Dimension,
   InterviewTemplate,
   OutputMapping,
 } from "./types";
+
+const ARTIFACT_KIND_CONTRACT: ArtifactKindContract = {
+  kindOptions: [
+    "linkedin",
+    "website",
+    "pasted_text",
+    "resume",
+    "uploaded_file",
+  ],
+  defaultTextKind: "pasted_text",
+  defaultFileKind: "uploaded_file",
+  fileKindMatchers: [{ fileNameSubstring: "resume", kind: "resume" }],
+  defaultUrlKind: "website",
+  urlKindMatchers: [{ urlSubstring: "linkedin.com", kind: "linkedin" }],
+};
 
 // Scoring vocabularies — job_search-specific (stage + domain matching).
 // Moved here from pipeline/scoring-profile.ts in Phase 1.d so the template
@@ -656,4 +672,5 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
   completionCheck,
   normalizeScoringProfile,
   userTypeOnConfirm: "job_seeker",
+  artifactKindContract: ARTIFACT_KIND_CONTRACT,
 };

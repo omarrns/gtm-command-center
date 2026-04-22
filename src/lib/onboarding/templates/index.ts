@@ -39,11 +39,15 @@ export function toClientTemplate(
     dimensions: template.agenticMode
       ? template.dimensions.map((d) => ({ key: d.key, label: d.label }))
       : [],
+    artifactKindContract: template.artifactKindContract,
   };
 }
 
 export type {
+  ArtifactKindContract,
   ClientInterviewTemplate,
+  FileKindMatcher,
   InterviewTemplate,
   InterviewTemplateId,
+  UrlKindMatcher,
 } from "./types";

@@ -14,6 +14,11 @@ import { z } from "zod";
 // adapter falls back to defaults instead of silently letting a broken
 // shape through. Per SPEC-3 audit finding (round 2, #2).
 
+// Rubric-level buyer roles — economic buyer / champion / end user — as
+// the *user* defined their ICP. Distinct from `opportunities.buyer_personas`
+// (JSONB), which is per-account pipeline data populated by the GTM
+// discovery step from TheirStack job metadata. The naming looks similar
+// because they're related concepts at different layers of the stack.
 export const buyerSchema = z.object({
   economic_buyer: z.string().default(""),
   champion: z.string().default(""),
