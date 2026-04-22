@@ -128,6 +128,9 @@ export function OnboardRouter({
         onBackToInterview={(updated) => {
           setInterview(updated);
         }}
+        onContinueToStory={(updated) => {
+          setInterview(updated);
+        }}
       />
     );
   }

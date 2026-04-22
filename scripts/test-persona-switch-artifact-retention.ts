@@ -133,6 +133,59 @@ async function abandonAndDetach(userId: string, interviewId: string) {
     .eq("interview_id", interviewId);
 }
 
+// Audit finding 3: when the target-template interview already exists,
+// the orphan-claim still needs to run against it. This scenario pins
+// that contract — simulates a user who previously started an ICP
+// interview, abandoned it, returned to a pre-existing job_search
+// interview, and expects their ICP artifacts to follow.
+async function testTargetAlreadyExists(userId: string) {
+  console.log(
+    "\n=== Scenario B: target-template interview already exists ===\n",
+  );
+  await resetUser(userId);
+
+  console.log("\n--- B1: pre-existing job_search interview + ICP start ---\n");
+  // Pre-existing target. User had a job_search interview going earlier.
+  const targetInterview = await createInterview(userId, "job_search");
+  // Fresh ICP interview with an artifact.
+  const sourceInterview = await createInterview(userId, "icp_definition");
+  const originalMarkdown = "# Orphan from ICP\n\nPlaceholder content.";
+  const artifactId = await insertArtifact(
+    userId,
+    sourceInterview,
+    "Source artifact",
+    originalMarkdown,
+  );
+
+  console.log("\n--- B2: abandon source + detach artifacts ---\n");
+  await abandonAndDetach(userId, sourceInterview);
+
+  console.log("\n--- B3: claim into pre-existing target ---\n");
+  const claimed = await claimOrphanedArtifacts(
+    supabase,
+    userId,
+    targetInterview,
+  );
+  assert(
+    claimed.ok && claimed.count === 1,
+    `claim into pre-existing target picks up the orphan (count=${claimed.count})`,
+  );
+
+  const { data: reattached } = await supabase
+    .from("onboarding_artifacts")
+    .select("interview_id, normalized_markdown")
+    .eq("id", artifactId)
+    .single();
+  assert(
+    reattached?.interview_id === targetInterview,
+    `artifact attached to pre-existing job_search interview (got ${reattached?.interview_id})`,
+  );
+  assert(
+    reattached?.normalized_markdown === originalMarkdown,
+    "content preserved through claim into pre-existing target",
+  );
+}
+
 async function main() {
   const userId =
     process.env.SEED_USER_ID ?? (await resolveUserId("omarns059@gmail.com"));
@@ -143,6 +196,9 @@ async function main() {
   console.log(`Testing with user ${userId}`);
 
   await resetUser(userId);
+  console.log(
+    "\n=== Scenario A: target-template interview does not exist ===\n",
+  );
 
   console.log("\n--- Step 1: start ICP interview + ingest artifact ---\n");
   const interviewA = await createInterview(userId, "icp_definition");
@@ -223,6 +279,8 @@ async function main() {
     pinnedToB?.source_label === "Customer Alpha",
     "source_label preserved",
   );
+
+  await testTargetAlreadyExists(userId);
 
   // Clean up.
   await resetUser(userId);

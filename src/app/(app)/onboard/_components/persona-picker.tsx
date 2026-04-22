@@ -22,7 +22,8 @@ export function PersonaPicker({ isRefresh }: PersonaPickerProps) {
         </h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
           This decides which interview you&apos;ll get and how results are
-          scored. You can switch later by resetting in Settings.
+          scored. Switching is free until you confirm — after that it requires a
+          reset in Settings.
         </p>
       </div>
 
