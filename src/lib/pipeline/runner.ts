@@ -7,7 +7,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PipelineConfigRow } from "@/lib/supabase/types";
+import type { PipelineConfigRow, UserType } from "@/lib/supabase/types";
 import {
   runDiscover,
   type DiscoverResult,
@@ -23,6 +23,7 @@ import {
   getOpportunitiesByStage,
   advanceStage,
 } from "@/lib/pipeline/opportunities";
+import { runGtmPipeline } from "@/lib/pipeline/gtm-runner";
 
 export interface PipelineRunResult {
   userId: string;
@@ -38,6 +39,25 @@ export interface PipelineRunResult {
 }
 
 export async function runPipeline(
+  svc: SupabaseClient,
+  userId: string,
+): Promise<PipelineRunResult> {
+  const { data: profile } = await svc
+    .from("profiles")
+    .select("user_type")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const userType = (profile?.user_type ?? "job_seeker") as UserType;
+
+  if (userType === "gtm") {
+    return runGtmPipeline(svc, userId);
+  }
+
+  return runJobSeekerPipeline(svc, userId);
+}
+
+async function runJobSeekerPipeline(
   svc: SupabaseClient,
   userId: string,
 ): Promise<PipelineRunResult> {

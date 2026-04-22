@@ -541,6 +541,50 @@ async function main() {
     "result.queuedRecovery is numeric",
   );
 
+  // ── GTM persona branch (Phase 1 gate) ───────────────────────────────────
+  //
+  // runPipeline reads profiles.user_type and routes. For a gtm user the
+  // stub runner must complete without producing rows or errors. If a later
+  // phase accidentally wires the job_seeker stages into the gtm path this
+  // check catches it.
+  console.log("\n--- GTM persona no-op ---");
+  const gtmUserId = "test-user-phase-1-gtm";
+  tables.pipeline_config.push({
+    id: nextId(),
+    user_id: gtmUserId,
+    search_queries: [],
+    search_locations: [],
+    score_threshold: 70,
+    daily_send_cap: 10,
+    activation_completed_at: new Date().toISOString(),
+  });
+  tables.profiles.push({
+    id: nextId(),
+    user_id: gtmUserId,
+    email: "gtm@example.com",
+    user_type: "gtm",
+  });
+
+  const gtmResult = await runPipeline(svc, gtmUserId);
+  const gtmOpps = tables.opportunities.filter((o) => o.user_id === gtmUserId);
+
+  assert(
+    gtmResult.discover.inserted === 0,
+    `gtm discover.inserted === 0 (got ${gtmResult.discover.inserted})`,
+  );
+  assert(
+    gtmOpps.length === 0,
+    `gtm opportunities count === 0 (got ${gtmOpps.length})`,
+  );
+  assert(
+    gtmResult.error === null,
+    `gtm result.error === null (got ${gtmResult.error})`,
+  );
+  assert(
+    opps.length === 3,
+    `job_seeker opportunities unaffected by gtm run (got ${opps.length})`,
+  );
+
   console.log("\n===================================================");
   if (failures > 0) {
     console.error(`FAILED: ${failures} assertion(s) did not pass`);
