@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { StoryHandoff } from "./story-handoff";
+import { HandoffCard } from "@/components/ui/handoff-card";
 import { StoryReader } from "./story-reader";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type {
@@ -39,7 +39,15 @@ export function StoryClient({ interview, isRefresh }: StoryClientProps) {
   };
 
   if (phase === "handoff") {
-    return <StoryHandoff onStart={() => setPhase("reading")} />;
+    return (
+      <HandoffCard
+        title="I've got enough to work with."
+        description="I took notes on everything. Want to read what I wrote about you?"
+        ctaLabel="Read my story"
+        ctaSubtext="Takes about thirty seconds."
+        onCta={() => setPhase("reading")}
+      />
+    );
   }
 
   return (
