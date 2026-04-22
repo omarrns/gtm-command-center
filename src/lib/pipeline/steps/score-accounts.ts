@@ -48,11 +48,11 @@ export async function runScoreAccounts(
   };
 
   for (const opp of opportunities) {
-    // Phase 2 runs TheirStack; any 'discovered' row from another source
-    // belongs to a different persona's discovery step and should not be
-    // scored by the ICP scorer. Skip defensively — this keeps the ICP
-    // pipeline narrow even if the runner ordering ever co-mingles sources.
-    if (opp.source !== "theirstack") continue;
+    // GTM sources only — both TheirStack (Phase 2) and exa-dormant
+    // (Phase 4) land on this scorer. Any other source ('jsearch',
+    // 'manual', etc.) belongs to the job_seeker runner and must not be
+    // mis-scored by the ICP rubric prompt.
+    if (opp.source !== "theirstack" && opp.source !== "exa-dormant") continue;
 
     try {
       const claimed = await claimOpportunity(svc, opp.id, userId);

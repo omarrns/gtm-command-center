@@ -134,7 +134,12 @@ export type OpportunityStage =
   | "replied"
   | "skipped";
 
-export type OpportunitySource = "jsearch" | "exa" | "manual" | "theirstack";
+export type OpportunitySource =
+  | "jsearch"
+  | "exa"
+  | "manual"
+  | "theirstack"
+  | "exa-dormant";
 
 export interface PipelineConfigRow {
   id: string;
