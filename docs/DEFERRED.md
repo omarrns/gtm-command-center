@@ -139,6 +139,38 @@ Living log of features we've considered, cut, and scheduled for future considera
 
 ---
 
+### Debug infra hardening — tests, streaming visibility, batch error aggregation, OTel
+
+**What.** Three follow-ups to the `debug-infra` branch (10 commits: structured `lib/logger.ts`, `ai_calls` capture table, `runGenerateObject` / `runClaudeJson` / `runClaudeText` wrappers, `useJobPoll` backoff + visibility, `error.tsx` digest surfacing, run-scoped logging across cron + workflow + 5 pipeline files + 6 server actions, `scripts/replay-ai-call.ts`):
+
+1. **Streaming chat `onError` handler** in `src/app/(app)/onboard/_components/interview-client.tsx` — wire `onError` on the `useChat` transport so stream aborts (network drop, function timeout) surface as a toast + log instead of stranding the UI on the last completed turn. Mid-stream failures are currently invisible.
+2. **Per-stage aggregated error log** in `src/lib/pipeline/workflow.ts` — workflow steps log per-error individually + final counts, but no `errors: [{ opportunityId, code, message }]` summary at stage end. Today reconstructing "which opportunities failed in this run" requires grepping individual error lines and joining by runId. Should be one line per stage: `{ stage, ok, failed, errors: [...] }`.
+3. **Tests for the new debug primitives.** Currently the regression baseline (`scripts/test-pipeline-path.ts` 30/2) only proves the pipeline still runs — nothing asserts:
+   - Logger emits valid JSON in prod and includes runId
+   - `captureAiCall` writes a row when scope provided, skips when not, writes-on-throw correctly
+   - `useJobPoll` backoff increases on consecutive failures, surfaces `pollingStopped` after 5
+   - `runGenerateObject` propagates the response while still capturing
+4. **`instrumentation.ts` + minimal OpenTelemetry spans** for cross-service traces (Anthropic → Supabase → JSearch / Exa / Firecrawl). Vercel surfaces these in the traces UI for free. Skipped in v1 because structured logs cover ~90% of debugging needs once `runId` correlation works — but spans become valuable when latency starts mattering (right now, debugging is a correctness problem, not a performance one).
+
+**Deferred from.** Debug-infra branch follow-ups. Captured in the audit done 2026-04-22.
+
+**Why deferred.** (1) is blocked on SPEC-3 — `interview-client.tsx` has unrelated WIP and the right time to add the `onError` handler is after the persona-aware chat ships and the file stops moving. (2) and (3) are pure hardening — they don't unlock new behavior, and the existing logs are already a step-change over the prior `console.log + Vercel logs + diagnostic scripts` baseline. Doing them now risks polishing infra nobody's strained yet. (4) is premature — OTel pays off when you have multiple latency consumers asking different questions; today there's one consumer (you, debugging in the Vercel UI).
+
+**Trigger to revisit.** (1): SPEC-3 Phase 6 polish ships and `interview-client.tsx` stops being touched daily. (2): one real incident where you couldn't tell which opportunities failed in a cron run by grepping the workflow log. (3): a regression in the logger / capture / poll primitives ships to prod and isn't caught — that's the test infra paying for itself. (4): you start asking "why is this slow" instead of "why is this wrong."
+
+**Dependencies.** SPEC-3 stable for (1). `ai_calls` migration applied to prod for any test that exercises capture end-to-end.
+
+**Rough scope.** Each is one commit on a `debug-infra-2` branch.
+
+- (1) ~30 lines in `interview-client.tsx` — `onError` callback, toast, structured log with stream metadata.
+- (2) ~50 lines across `workflow.ts` step functions — collect errors into a local array, log on stage exit. Step result types already include `errors: number`; extend to `errors: ErrorSummary[]`.
+- (3) New `scripts/test-debug-infra.ts` — ~150 lines, mirrors `test-pipeline-path.ts` style (in-process assertions, no test framework). Asserts JSON shape, capture write/skip, poll backoff via fake timers.
+- (4) `instrumentation.ts` ~20 lines (`@opentelemetry/api` already implicit via `@vercel/otel`); minor wrapping in `lib/ai/anthropic.ts` + `lib/pipeline/jsearch.ts`. New env: nothing — Vercel auto-collects.
+
+**Out of scope (remains deferred).** Sentry / Axiom / DataDog. Vercel's free function-log UI plus the `ai_calls` table + `replay-ai-call.ts` covers ~95% of debugging needs at single-user scale. The next paid observability layer pays for itself only with multi-user ops or paid alerting — neither currently relevant.
+
+---
+
 ### Live SSE stream for orchestrator reasoning
 
 **What.** Real-time streaming of the orchestrator's per-dimension inference to the status panel via SSE (`/api/onboard/orchestrator/stream`), using AI SDK v6 `streamText` with `sendReasoning: true`. Replaces v1's saved-state polling.
@@ -193,4 +225,22 @@ Not deferred — these are live decisions we'll need to make, tracked here so th
 
 Items that started on this list and have since shipped. Populate as we go.
 
-_(empty)_
+### Debug infrastructure baseline (2026-04-22)
+
+**What shipped.** Replaced the `console.log + Vercel function logs + 26 one-shot diagnostic scripts` debugging story with run-scoped structured logging, AI call replay, and client poll visibility. Branch: `debug-infra` (10 commits).
+
+- `src/lib/logger.ts` — `createLogger({ runId, userId, opportunityId, stage, scope })`, `child()` for context inheritance, JSON in prod / pretty in dev, `serializeError` captures stack. Web Crypto for runId so workflow runtime stays compatible.
+- `supabase/migrations/20260422000001_ai_calls.sql` — service-role-only debug table capturing every model call: prompts, response, tokens, latency, error, with `(run_id, scope_table, scope_id, call_purpose)` correlation.
+- `src/lib/ai/calls.ts` — `runGenerateObject` wrapper + `captureAiCall` best-effort writer with module-singleton service client. `lib/ai/anthropic.ts` `runClaudeJson` / `runClaudeText` accept optional `scope`.
+- `runId` plumbed through cron handlers (`/api/cron/{pipeline,replies,watchlist}`) → `pipelineWorkflow` → every step (`discover, score, research, enrich, draft, planPursuits, executePlans, recoverStranded`) → into pipeline files (`jsearch, watchlist, steps/discover, pursuit/execute-plan, activation`). Net: zero raw `console.*` in `src/lib/pipeline/**`.
+- 11 of 12 LLM call sites now capture (scoring, draft, planner, people-search, orchestrator analyze + update_dimension, manual-inject, jdRubric, createPrompt, createSkill, careerCoach, companyFitAnalyzer).
+- All 6 write server actions (`approve, skip, flag, applyManually, editDraft, manualInject`) gain scoped loggers recording intent + outcome.
+- `useJobPoll` exponential backoff (3s → 30s) with give-up after 5 consecutive failures; surfaces `fetchError` + `pollingStopped` to consumers. `analysis-detail.tsx` + `research-detail.tsx` render a destructive Alert with refresh prompt instead of an infinite spinner.
+- `src/app/(app)/error.tsx` captures + renders `error.digest` so users can quote it when reporting bugs.
+- `scripts/replay-ai-call.ts` — replay by id, list by `--opp <id>` / `--run <id>` / `--interview <id>`, diff captured response vs fresh call.
+
+**Audit context.** Original plan: `.claude/plans/you-are-a-debug-peppy-puppy.md` (Phase 1 logger / Phase 2 AI capture / Phase 3 client visibility / hotfix for Workflow `node:crypto` ban). Self-audit found over-engineering (unused `debug` level, `formatValue` truncation, `shortId` truncation, dead `schema_summary` column) and gaps (only `generateObject` wrapped initially, ~30 of ~50 console.\* still raw, server actions silently throwing, useJobPoll fix invisible to consumers, 3 redundant runIds). All audit findings closed in commits A–F on the same branch.
+
+**Verification.** `scripts/test-pipeline-path.ts` regression baseline 30 PASS / 2 FAIL preserved across all 10 commits (the 2 fails are pre-existing test-file string assertions unrelated to this work). `npx tsc --noEmit` clean. `pnpm dev` workflow bundle: `Created manifest with 12 steps, 1 workflow`.
+
+**Follow-ups.** See "Debug infra hardening" in the active deferrals section above.
