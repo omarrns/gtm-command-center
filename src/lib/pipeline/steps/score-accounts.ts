@@ -8,7 +8,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PipelineConfigRow } from "@/lib/supabase/types";
+import type { OpportunityRow, PipelineConfigRow } from "@/lib/supabase/types";
 import type { IcpRubric } from "@/lib/pipeline/icp-to-theirstack-filters";
 import type { ScoreResult } from "@/lib/pipeline/steps/score";
 import {
@@ -23,6 +23,99 @@ import { createLogger } from "@/lib/logger";
 
 const MAX_SCORES_PER_RUN = 10;
 const PIPELINE_MODEL = "claude-sonnet-4-6";
+
+export interface ScoreOneAccountResult {
+  newStage: "scored" | "filtered";
+  normalizedScore: number;
+}
+
+/**
+ * Score a single account opportunity and persist analysis + stage
+ * advance + (optional) watchlist side effect. Throws on any failure so
+ * callers record last_error and continue / return an error response.
+ *
+ * Shared between runScoreAccounts (batch loop) and the TheirStack
+ * webhook handler (single-row real-time path). Does NOT claim or
+ * release — callers own the claim lifecycle.
+ */
+export async function scoreOneAccount(
+  svc: SupabaseClient,
+  userId: string,
+  opp: OpportunityRow,
+  rubric: IcpRubric,
+  config: PipelineConfigRow,
+  options?: { model?: string; runId?: string },
+): Promise<ScoreOneAccountResult> {
+  const scoring = await scoreAccountAgainstIcp({
+    opp,
+    rubric,
+    userId,
+    svc,
+    model: options?.model ?? PIPELINE_MODEL,
+    runId: options?.runId,
+  });
+
+  const { data: analysis, error: analysisError } = await svc
+    .from("analyses")
+    .insert({
+      user_id: userId,
+      skill_slug: "icp-account-fit",
+      company_name: opp.company_name,
+      role_title: null,
+      job_description: opp.job_description,
+      status: "complete",
+      input: {
+        company_name: opp.company_name,
+        company_domain: opp.company_domain,
+        source: "pipeline",
+      },
+      result: scoring.analysisResult,
+    })
+    .select("id")
+    .single();
+
+  if (analysisError) throw analysisError;
+
+  const passesThreshold = scoring.normalizedScore >= config.score_threshold;
+  const newStage: "scored" | "filtered" = passesThreshold
+    ? "scored"
+    : "filtered";
+
+  const advanced = await advanceStage(
+    svc,
+    opp.id,
+    userId,
+    "discovered",
+    newStage,
+    {
+      score: scoring.normalizedScore,
+      score_components: {
+        firmo_fit: scoring.analysisResult.firmo_fit.score,
+        techno_fit: scoring.analysisResult.techno_fit.score,
+        hiring_signal_fit: scoring.analysisResult.hiring_signal_fit.score,
+        buyer_fit: scoring.analysisResult.buyer_fit.score,
+        proof_point_relevance:
+          scoring.analysisResult.proof_point_relevance.score,
+        disqualifier_risk: scoring.analysisResult.disqualifier_risk.score,
+        tier: scoring.analysisResult.tier,
+        verdict: scoring.analysisResult.verdict,
+      },
+      analysis_id: analysis.id,
+    },
+  );
+
+  if (!advanced) {
+    throw new Error(
+      `Stage precondition missed: expected 'discovered' for opportunity ${opp.id}`,
+    );
+  }
+
+  if (scoring.normalizedScore >= 80) {
+    await addToWatchlist(svc, userId, opp.company_name, "auto");
+  }
+
+  return { newStage, normalizedScore: scoring.normalizedScore };
+}
 
 export async function runScoreAccounts(
   svc: SupabaseClient,
@@ -60,74 +153,20 @@ export async function runScoreAccounts(
 
       result.processed++;
 
-      const scoring = await scoreAccountAgainstIcp({
+      const { newStage } = await scoreOneAccount(
+        svc,
+        userId,
         opp,
         rubric,
-        userId,
-        svc,
-        model: PIPELINE_MODEL,
-        runId,
-      });
-
-      const { data: analysis, error: analysisError } = await svc
-        .from("analyses")
-        .insert({
-          user_id: userId,
-          skill_slug: "icp-account-fit",
-          company_name: opp.company_name,
-          role_title: null,
-          job_description: opp.job_description,
-          status: "complete",
-          input: {
-            company_name: opp.company_name,
-            company_domain: opp.company_domain,
-            source: "pipeline",
-          },
-          result: scoring.analysisResult,
-        })
-        .select("id")
-        .single();
-
-      if (analysisError) throw analysisError;
-
-      const passesThreshold = scoring.normalizedScore >= config.score_threshold;
-      const newStage = passesThreshold ? "scored" : "filtered";
-
-      const advanced = await advanceStage(
-        svc,
-        opp.id,
-        userId,
-        "discovered",
-        newStage,
+        config,
         {
-          score: scoring.normalizedScore,
-          score_components: {
-            firmo_fit: scoring.analysisResult.firmo_fit.score,
-            techno_fit: scoring.analysisResult.techno_fit.score,
-            hiring_signal_fit: scoring.analysisResult.hiring_signal_fit.score,
-            buyer_fit: scoring.analysisResult.buyer_fit.score,
-            proof_point_relevance:
-              scoring.analysisResult.proof_point_relevance.score,
-            disqualifier_risk: scoring.analysisResult.disqualifier_risk.score,
-            tier: scoring.analysisResult.tier,
-            verdict: scoring.analysisResult.verdict,
-          },
-          analysis_id: analysis.id,
+          model: PIPELINE_MODEL,
+          runId,
         },
       );
 
-      if (!advanced) {
-        throw new Error(
-          `Stage precondition missed: expected 'discovered' for opportunity ${opp.id}`,
-        );
-      }
-
-      if (passesThreshold) result.scored++;
+      if (newStage === "scored") result.scored++;
       else result.filtered++;
-
-      if (scoring.normalizedScore >= 80) {
-        await addToWatchlist(svc, userId, opp.company_name, "auto");
-      }
 
       await releaseOpportunity(svc, opp.id, userId);
     } catch (err) {

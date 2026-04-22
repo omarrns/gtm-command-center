@@ -1,0 +1,269 @@
+/**
+ * POST /api/webhooks/theirstack?user=<uuid>
+ *
+ * Real-time inbound lane for TheirStack `job.new` events. When a saved
+ * search in the TheirStack dashboard matches a new posting, the event
+ * hits this endpoint within seconds instead of waiting for the next
+ * /api/cron/pipeline tick.
+ *
+ * Flow:
+ *   verify HMAC-SHA256 signature over raw body  →  parse as TheirStack
+ *   job shape (zod)  →  insert opportunity with source='theirstack'
+ *   (unique constraint dedups duplicate deliveries)  →  claim  →
+ *   scoreOneAccount (analysis + stage advance + watchlist side effect)
+ *   →  release.
+ *
+ * Setup (one-time, out-of-code):
+ *   1. Create a saved search in the TheirStack dashboard that matches
+ *      the user's rubric filters (or use a superset; the ICP scorer
+ *      filters downstream).
+ *   2. Point `job.new` at `https://<host>/api/webhooks/theirstack?user=<userId>`.
+ *   3. Set `THEIRSTACK_WEBHOOK_SIGNING_SECRET` in env.
+ *
+ * The /api/cron/pipeline sweep continues to run every 6 hours as a
+ * fallback for missed webhooks.
+ */
+
+import { NextResponse } from "next/server";
+import crypto from "node:crypto";
+import { z } from "zod";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { jobSchema } from "@/lib/integrations/theirstack";
+import { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
+import { createOpportunity } from "@/lib/pipeline/opportunities";
+import {
+  claimOpportunity,
+  releaseOpportunity,
+} from "@/lib/pipeline/opportunities";
+import { scoreOneAccount } from "@/lib/pipeline/steps/score-accounts";
+import type { OpportunityRow, PipelineConfigRow } from "@/lib/supabase/types";
+import { createLogger, newRunId } from "@/lib/logger";
+
+export const maxDuration = 60;
+
+// TheirStack's webhook docs describe HMAC-SHA256 signing with the raw
+// request body. Header name is not exhaustively documented; adjust
+// SIGNATURE_HEADER if the dashboard setup uses a different name.
+const SIGNATURE_HEADER = "x-theirstack-signature";
+
+const payloadSchema = z
+  .object({
+    type: z.string().optional(),
+    job: jobSchema,
+  })
+  .passthrough();
+
+function verifySignature(
+  secret: string,
+  rawBody: string,
+  providedSignature: string | null,
+): boolean {
+  if (!providedSignature) return false;
+  // Support both `sha256=<hex>` (GitHub/Slack style) and bare hex.
+  const normalized = providedSignature.startsWith("sha256=")
+    ? providedSignature.slice("sha256=".length)
+    : providedSignature;
+
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody)
+    .digest("hex");
+
+  const a = Buffer.from(expected, "hex");
+  const b = Buffer.from(normalized, "hex");
+  if (a.length === 0 || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+export async function POST(request: Request) {
+  const runId = newRunId();
+  const log = createLogger({ runId, scope: "webhook.theirstack" });
+
+  const secret = process.env.THEIRSTACK_WEBHOOK_SIGNING_SECRET;
+  if (!secret) {
+    log.error("THEIRSTACK_WEBHOOK_SIGNING_SECRET not configured");
+    return new Response("Server misconfigured", { status: 500 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get("user");
+  if (!userId) {
+    log.warn("missing ?user=<uuid>");
+    return new Response("Missing user", { status: 400 });
+  }
+
+  const rawBody = await request.text();
+  const signature = request.headers.get(SIGNATURE_HEADER);
+
+  if (!verifySignature(secret, rawBody, signature)) {
+    log.warn("signature verification failed", { userId });
+    return new Response("Invalid signature", { status: 401 });
+  }
+
+  let parsedBody: unknown;
+  try {
+    parsedBody = JSON.parse(rawBody);
+  } catch {
+    return new Response("Invalid JSON", { status: 400 });
+  }
+
+  const payload = payloadSchema.safeParse(parsedBody);
+  if (!payload.success) {
+    log.warn("payload shape rejected", { issue: payload.error.message });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Payload validation failed: ${payload.error.message}`,
+      },
+      { status: 400 },
+    );
+  }
+
+  const job = payload.data.job;
+  const userLog = log.child({ userId, jobId: job.id });
+
+  const svc = createSupabaseServiceClient();
+
+  const [scoringRes, configRes] = await Promise.all([
+    svc
+      .from("user_scoring_profiles")
+      .select("icp_rubric")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    svc.from("pipeline_config").select("*").eq("user_id", userId).maybeSingle(),
+  ]);
+
+  const rawRubric = scoringRes.data?.icp_rubric ?? null;
+  const config = configRes.data as PipelineConfigRow | null;
+
+  if (!rawRubric || !config) {
+    userLog.warn("user missing rubric or pipeline_config — 422");
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "User has no confirmed ICP rubric or pipeline config",
+      },
+      { status: 422 },
+    );
+  }
+
+  const rubric = icpRubricSchema.safeParse(rawRubric);
+  if (!rubric.success) {
+    userLog.error("icp_rubric failed schema validation", rubric.error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `icp_rubric invalid: ${rubric.error.message}`,
+      },
+      { status: 422 },
+    );
+  }
+
+  const companyName = job.company_object?.name ?? job.company ?? null;
+  if (!companyName) {
+    userLog.warn("job missing company name — skipping");
+    return NextResponse.json({ ok: true, skipped: "no company name" });
+  }
+  const companyDomain =
+    job.company_object?.domain ?? job.company_domain ?? null;
+
+  let created: OpportunityRow | null;
+  try {
+    created = await createOpportunity(svc, userId, {
+      source: "theirstack",
+      external_id: job.id,
+      company_name: companyName,
+      company_domain: companyDomain,
+      role_title: job.job_title,
+      job_url: job.url ?? undefined,
+      job_description: job.description ?? undefined,
+      job_posted_at: job.date_posted ?? undefined,
+      trigger_signals: [
+        {
+          funding_stage: job.company_object?.funding_stage ?? null,
+          employee_count: job.company_object?.employee_count ?? null,
+          industry_id: job.company_object?.industry_id ?? null,
+          industry: job.company_object?.industry ?? null,
+          annual_revenue_usd: job.company_object?.annual_revenue_usd ?? null,
+          country_code: job.company_object?.country_code ?? null,
+          posted_at: job.date_posted ?? null,
+          source: "theirstack-webhook",
+        },
+      ],
+      buyer_personas: [
+        {
+          hiring_for: job.job_title,
+          seniority: job.seniority ?? null,
+          location: job.short_location ?? job.location ?? null,
+          remote: job.remote ?? null,
+          source: "theirstack-webhook",
+        },
+      ],
+    });
+  } catch (err) {
+    userLog.error("opportunity insert failed", err);
+    return NextResponse.json(
+      { ok: false, error: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    );
+  }
+
+  if (!created) {
+    userLog.info("duplicate webhook delivery — opportunity already exists");
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
+
+  try {
+    const claimed = await claimOpportunity(svc, created.id, userId);
+    if (!claimed) {
+      // Another cron run is scoring this row. Not a failure — return 200
+      // so TheirStack doesn't retry the webhook.
+      userLog.info("opportunity already claimed by another process");
+      return NextResponse.json({
+        ok: true,
+        opportunityId: created.id,
+        claimed: false,
+      });
+    }
+
+    const { newStage, normalizedScore } = await scoreOneAccount(
+      svc,
+      userId,
+      created,
+      rubric.data,
+      config,
+      { runId },
+    );
+    await releaseOpportunity(svc, created.id, userId);
+
+    userLog.info("webhook scored", {
+      oppId: created.id,
+      newStage,
+      normalizedScore,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      opportunityId: created.id,
+      newStage,
+      normalizedScore,
+    });
+  } catch (err) {
+    userLog.error("scoring failed after insert", err, { oppId: created.id });
+    await svc
+      .from("opportunities")
+      .update({
+        last_error: err instanceof Error ? err.message : String(err),
+      })
+      .eq("id", created.id)
+      .eq("user_id", userId);
+    await releaseOpportunity(svc, created.id, userId);
+
+    return NextResponse.json({
+      ok: true,
+      opportunityId: created.id,
+      scored: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}

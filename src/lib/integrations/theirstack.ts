@@ -82,7 +82,7 @@ const companyObjectSchema = z
   })
   .passthrough();
 
-const jobSchema = z
+export const jobSchema = z
   .object({
     // TheirStack returns numeric IDs for jobs. Normalise to string so the
     // opportunities.external_id column (text) handles it.
