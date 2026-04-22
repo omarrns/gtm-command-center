@@ -113,6 +113,10 @@ interface BaseInterviewTemplate<E, X> {
 export interface InterviewerContext extends InterviewPromptContext {
   nextDimension: Dimension;
   currentHypothesis: string;
+  // Optional, ICP-only: count of succeeded `positive_example` artifacts
+  // for this interview. Drives the exemplar-scarcity branching in the
+  // ICP interviewer prompt. job_search ignores this field.
+  positiveExemplarCount?: number;
 }
 
 // A template either runs the legacy extract-then-review flow or the agentic

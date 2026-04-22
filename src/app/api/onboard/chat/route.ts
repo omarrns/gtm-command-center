@@ -12,6 +12,7 @@ import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplate } from "@/lib/onboarding/templates/types";
 import {
+  loadPositiveExemplarCount,
   nextDimensionToAsk,
   updateDimensionFromAnswer,
 } from "@/lib/onboarding/orchestrator/run";
@@ -172,11 +173,19 @@ async function handleAgenticTurn(
     state.dimensions[next.key]?.summary ??
     "(no prior inference — artifacts yielded nothing for this dimension)";
 
+  // ICP exemplar-scarcity guidance needs the positive count. Skipped for
+  // job_search to avoid an unnecessary DB hit per turn.
+  const positiveExemplarCount =
+    template.id === "icp_definition"
+      ? await loadPositiveExemplarCount(svc, interview.id)
+      : undefined;
+
   const interviewerSystem = template.interviewerSystemPrompt({
     isRefresh: interview.is_refresh,
     existingProfile,
     nextDimension: next,
     currentHypothesis: hypothesis,
+    positiveExemplarCount,
   });
 
   // Always push — askedDimensionKeys is a log of ask events, not a set.
