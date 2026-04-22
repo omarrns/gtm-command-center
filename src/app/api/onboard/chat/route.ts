@@ -19,7 +19,8 @@ import {
   emptyOrchestratorState,
   type OrchestratorState,
 } from "@/lib/onboarding/orchestrator/types";
-import { toJobSearchConfirmEdits } from "@/lib/onboarding/orchestrator/to-confirm-edits";
+import { toConfirmEditsForTemplate } from "@/lib/onboarding/orchestrator/to-confirm-edits";
+import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
 
 export const maxDuration = 120;
 
@@ -122,10 +123,15 @@ async function handleAgenticTurn(
       nextDimensionKey: null,
     };
 
-    // Hydrate extracted_* from orchestrator so the review UI initializes
-    // from the orchestrator's inferred values, not empty defaults. Without
-    // this the user's review submit would overwrite orchestrator output.
-    const { edits: initialReviewEdits } = toJobSearchConfirmEdits(finalState);
+    // Hydrate the unified `extracted` slot from orchestrator so the review
+    // UI initializes from the orchestrator's inferred values, not empty
+    // defaults. Without this the user's review submit would overwrite
+    // orchestrator output. job_search additionally writes the legacy 4
+    // columns until the DEFERRED cleanup drops them.
+    const { edits: initialReviewEdits } = toConfirmEditsForTemplate(
+      finalState,
+      template,
+    );
 
     const wrapUpSystem = `You are wrapping up an interview. Briefly thank the user and tell them the review screen is next. Keep it to 1–2 sentences. End with ${template.completionMarker} on its own line. Do NOT ask questions.`;
 
@@ -140,17 +146,22 @@ async function handleAgenticTurn(
       sendReasoning: false,
       originalMessages: messages,
       onFinish: async ({ messages: finalMessages }) => {
+        const updatePayload: Record<string, unknown> = {
+          messages: finalMessages,
+          orchestrator_state: finalState,
+          status: "review",
+          extracted: initialReviewEdits,
+          updated_at: new Date().toISOString(),
+        };
+        if (template.id === "job_search") {
+          const js = initialReviewEdits as JobSearchEdits;
+          updatePayload.extracted_profile = js.profile;
+          updatePayload.extracted_search = js.search;
+          updatePayload.extracted_outreach = js.outreach;
+        }
         await svc
           .from("onboarding_interviews")
-          .update({
-            messages: finalMessages,
-            orchestrator_state: finalState,
-            status: "review",
-            extracted_profile: initialReviewEdits.profile,
-            extracted_search: initialReviewEdits.search,
-            extracted_outreach: initialReviewEdits.outreach,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq("id", interview.id);
       },
     });
