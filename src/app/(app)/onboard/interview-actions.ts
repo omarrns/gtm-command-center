@@ -105,7 +105,7 @@ export async function getOrCreateInterviewAction(
     .select("*")
     .eq("user_id", user.id)
     .eq("template_id", templateId)
-    .in("status", ["in_progress", "extracting", "review"])
+    .in("status", ["in_progress", "extracting", "review", "story_review"])
     .maybeSingle();
 
   if (existingErr) {
@@ -613,10 +613,14 @@ export async function startAgenticInterviewAction(
 // to BOTH the unified `extracted` column (what performConfirm reads first)
 // AND the legacy job_search columns. Mirrors the dual-write pattern in
 // extractAndReviewAction and the chat route's wrap-up.
+export type StartStoryPhaseResult =
+  | { ok: true; interview: OnboardingInterviewRow }
+  | { ok: false; error: string };
+
 export async function startStoryPhaseAction(
   interviewId: string,
   edits: JobSearchEdits,
-): Promise<ActionResult> {
+): Promise<StartStoryPhaseResult> {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
 
@@ -629,6 +633,23 @@ export async function startStoryPhaseAction(
 
   if (fetchErr || !interview) {
     return { ok: false, error: "Interview not found" };
+  }
+
+  // Idempotency: a second click after a successful first one finds status
+  // already at story_review. Refetch the full row and return it instead of
+  // erroring — the client can sync local state and route to the story view.
+  if (interview.status === "story_review") {
+    const { data: existing } = await svc
+      .from("onboarding_interviews")
+      .select("*")
+      .eq("id", interviewId)
+      .single();
+    if (existing) {
+      return {
+        ok: true,
+        interview: existing as OnboardingInterviewRow,
+      };
+    }
   }
 
   if (interview.status !== "review") {
@@ -656,7 +677,11 @@ export async function startStoryPhaseAction(
     outreach: edits.outreach,
   };
 
-  const { error: updateErr } = await svc
+  // Compare-and-set on status guards against a concurrent second writer.
+  // Returning the full row in one round-trip lets the client setInterview
+  // directly without a follow-up refetch — that's what fixes the
+  // router.refresh() vs useState-cache mismatch.
+  const { data: updated, error: updateErr } = await svc
     .from("onboarding_interviews")
     .update({
       status: "story_review",
@@ -666,12 +691,18 @@ export async function startStoryPhaseAction(
       extracted_outreach: edits.outreach,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", interviewId);
+    .eq("id", interviewId)
+    .eq("status", "review")
+    .select("*")
+    .single();
 
   if (updateErr) return { ok: false, error: updateErr.message };
+  if (!updated) {
+    return { ok: false, error: "Interview status changed under us — reload" };
+  }
 
   revalidatePath("/onboard");
-  return { ok: true };
+  return { ok: true, interview: updated as OnboardingInterviewRow };
 }
 
 // Transition story_review → review without dropping streamed insights so

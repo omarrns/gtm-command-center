@@ -35,8 +35,14 @@ export async function performConfirm(
     return { ok: false, error: "Interview not found" };
   }
 
-  if (interview.status !== "review") {
-    return { ok: false, error: "Interview is not in review" };
+  // Both `review` and `story_review` are valid pre-confirm states. Legacy
+  // flow goes review → confirmed; agentic with the career-story screen
+  // goes review → story_review → confirmed.
+  if (interview.status !== "review" && interview.status !== "story_review") {
+    return {
+      ok: false,
+      error: `Interview is not ready to confirm (status: ${interview.status})`,
+    };
   }
 
   const template = getTemplate(interview.template_id);

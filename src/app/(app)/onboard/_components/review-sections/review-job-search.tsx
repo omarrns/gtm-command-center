@@ -57,6 +57,7 @@ interface ReviewJobSearchProps {
   clientTemplate: ClientInterviewTemplate;
   isRefresh: boolean;
   onBackToInterview: (interview: OnboardingInterviewRow) => void;
+  onContinueToStory: (interview: OnboardingInterviewRow) => void;
   existingData?: ExistingData;
 }
 
@@ -65,6 +66,7 @@ export function ReviewJobSearch({
   clientTemplate,
   isRefresh,
   onBackToInterview,
+  onContinueToStory,
   existingData,
 }: ReviewJobSearchProps) {
   const router = useRouter();
@@ -205,6 +207,9 @@ export function ReviewJobSearch({
   // Agentic path: hand off to the story phase. The career-story screen
   // streams the seven insight sections, accepts inline edits, and only
   // then calls confirm. Legacy path: confirm directly (no story phase).
+  // Sync local OnboardRouter state via the onContinueToStory callback —
+  // router.refresh() alone wouldn't update the parent's useState, leaving
+  // the router stuck on `review` even though the DB row moved.
   function handlePrimary() {
     if (clientTemplate.agenticMode) {
       startTransition(async () => {
@@ -213,7 +218,7 @@ export function ReviewJobSearch({
           toast.error(result.error ?? "Couldn't start story phase");
           return;
         }
-        router.refresh();
+        onContinueToStory(result.interview);
       });
       return;
     }

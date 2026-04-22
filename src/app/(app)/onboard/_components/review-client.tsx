@@ -21,6 +21,7 @@ interface ReviewClientProps {
   clientTemplate: ClientInterviewTemplate;
   isRefresh: boolean;
   onBackToInterview: (interview: OnboardingInterviewRow) => void;
+  onContinueToStory: (interview: OnboardingInterviewRow) => void;
   existingData?: ExistingData;
 }
 
@@ -36,6 +37,7 @@ export function ReviewClient({
   clientTemplate,
   isRefresh,
   onBackToInterview,
+  onContinueToStory,
   existingData,
 }: ReviewClientProps) {
   if (clientTemplate.id === "icp_definition") {
@@ -48,6 +50,7 @@ export function ReviewClient({
       clientTemplate={clientTemplate}
       isRefresh={isRefresh}
       onBackToInterview={onBackToInterview}
+      onContinueToStory={onContinueToStory}
       existingData={existingData}
     />
   );
