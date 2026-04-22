@@ -17,7 +17,6 @@ import {
   nextDimensionToAsk,
 } from "@/lib/onboarding/orchestrator/run";
 import { toConfirmEditsForTemplate } from "@/lib/onboarding/orchestrator/to-confirm-edits";
-import { claimOrphanedArtifacts } from "@/lib/onboarding/artifacts/reassign";
 import {
   emptyOrchestratorState,
   type OrchestratorState,
@@ -25,6 +24,7 @@ import {
 import { runClaudeText } from "@/lib/ai/anthropic";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { performConfirm, type ConfirmEdits } from "./confirm-logic";
+import { getOrCreateInterview } from "./get-or-create-interview";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { UIMessage } from "ai";
 
@@ -87,7 +87,6 @@ export async function getOrCreateInterviewAction(
 > {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
-  const template = getTemplate(templateId);
   console.log(
     "[getOrCreateInterview] userId:",
     user.id,
@@ -96,75 +95,7 @@ export async function getOrCreateInterviewAction(
     "templateId:",
     templateId,
   );
-
-  // Check for existing active interview for this template. Per-template
-  // scoping matches the partial unique index; different templates can have
-  // concurrent active interviews for the same user.
-  const { data: existing, error: existingErr } = await svc
-    .from("onboarding_interviews")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("template_id", templateId)
-    .in("status", ["in_progress", "extracting", "review", "story_review"])
-    .maybeSingle();
-
-  if (existingErr) {
-    console.error("[getOrCreateInterview] query error:", existingErr.message);
-  }
-
-  if (existing) {
-    console.log(
-      "[getOrCreateInterview] found existing interview:",
-      existing.id,
-      "status:",
-      existing.status,
-    );
-    return { ok: true, interview: existing as OnboardingInterviewRow };
-  }
-
-  console.log("[getOrCreateInterview] no existing interview, creating new one");
-
-  const { data: created, error } = await svc
-    .from("onboarding_interviews")
-    .insert({
-      user_id: user.id,
-      is_refresh: isRefresh,
-      template_id: templateId,
-      template_version: template.version,
-      status: "in_progress",
-      messages: [],
-      topics_covered: [],
-    })
-    .select("*")
-    .single();
-
-  if (error) {
-    console.error(
-      "[getOrCreateInterview] insert error:",
-      error.message,
-      error.details,
-      error.code,
-    );
-    return { ok: false, error: error.message };
-  }
-
-  console.log("[getOrCreateInterview] created interview:", created?.id);
-
-  // SPEC-3 Phase 4.c: when a new interview is created, claim any
-  // orphaned artifacts (interview_id IS NULL) for this user. Supports
-  // the persona-switch flow — abandonInterviewAction nulls the old
-  // interview's artifacts so they reattach here. No-op when there are
-  // no orphans. Non-fatal: artifacts can be re-uploaded if claim fails.
-  if (created?.id) {
-    const claimed = await claimOrphanedArtifacts(svc, user.id, created.id);
-    if (claimed.count > 0) {
-      console.log(
-        `[getOrCreateInterview] claimed ${claimed.count} orphaned artifact(s) → interview ${created.id}`,
-      );
-    }
-  }
-
-  return { ok: true, interview: created as OnboardingInterviewRow };
+  return getOrCreateInterview(svc, user.id, isRefresh, templateId);
 }
 
 // ── Extract and Review ──
