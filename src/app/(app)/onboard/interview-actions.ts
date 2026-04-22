@@ -8,6 +8,7 @@ import { runExtractionFromTranscript } from "@/lib/onboarding/extraction";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
 import type {
+  ExtractionInsights,
   JobSearchEdits,
   JobSearchExtraction,
 } from "@/lib/onboarding/templates/job-search";
@@ -16,6 +17,7 @@ import {
   nextDimensionToAsk,
 } from "@/lib/onboarding/orchestrator/run";
 import { toConfirmEditsForTemplate } from "@/lib/onboarding/orchestrator/to-confirm-edits";
+import { claimOrphanedArtifacts } from "@/lib/onboarding/artifacts/reassign";
 import {
   emptyOrchestratorState,
   type OrchestratorState,
@@ -147,6 +149,21 @@ export async function getOrCreateInterviewAction(
   }
 
   console.log("[getOrCreateInterview] created interview:", created?.id);
+
+  // SPEC-3 Phase 4.c: when a new interview is created, claim any
+  // orphaned artifacts (interview_id IS NULL) for this user. Supports
+  // the persona-switch flow — abandonInterviewAction nulls the old
+  // interview's artifacts so they reattach here. No-op when there are
+  // no orphans. Non-fatal: artifacts can be re-uploaded if claim fails.
+  if (created?.id) {
+    const claimed = await claimOrphanedArtifacts(svc, user.id, created.id);
+    if (claimed.count > 0) {
+      console.log(
+        `[getOrCreateInterview] claimed ${claimed.count} orphaned artifact(s) → interview ${created.id}`,
+      );
+    }
+  }
+
   return { ok: true, interview: created as OnboardingInterviewRow };
 }
 
@@ -302,6 +319,11 @@ export async function extractAndReviewAction(
 export async function confirmInterviewAction(
   interviewId: string,
   edits: ConfirmEdits,
+  // Optional. Only set when the user edited at least one section on the
+  // story screen. Merged into both extracted.insights AND extracted_insights
+  // before performConfirm runs, so the interview_insights memory_doc
+  // transform reads the user's edited copy.
+  editedInsights?: ExtractionInsights,
 ): Promise<ActionResult> {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
@@ -311,7 +333,7 @@ export async function confirmInterviewAction(
   // confirming, then delegate to the unchanged performConfirm pathway.
   const { data: row } = await svc
     .from("onboarding_interviews")
-    .select("template_id, orchestrator_state, messages, extracted_insights")
+    .select("template_id, orchestrator_state, extracted")
     .eq("id", interviewId)
     .eq("user_id", user.id)
     .single();
@@ -328,41 +350,24 @@ export async function confirmInterviewAction(
         edits,
       );
 
-      // Synthesize insights from the transcript so agentic users get the
-      // same interview_insights memory doc that legacy users do. Skipped
-      // on re-confirm (idempotent) via the null-check on extracted_insights.
-      // Non-fatal: if insights synthesis fails, confirm still succeeds and
-      // the user keeps the 4 durable memory docs.
-      // ICP-only NOTE: insights is a job_search-specific extraction leaf;
-      // skipped entirely for ICP since its extraction shape doesn't carry
-      // it.
-      if (template.id === "job_search" && !row.extracted_insights) {
-        try {
-          const messages = (row.messages ?? []) as UIMessage[];
-          if (messages.length > 0) {
-            const extraction = await runExtractionFromTranscript(
-              messages,
-              template,
-            );
-            // Agentic insights synthesis is job_search-specific (ICP has no
-            // insights leaf). Cast is safe because template.agenticMode is
-            // only true for job_search in this branch today; if/when ICP
-            // adds its own synthesis, this block narrows per template.id.
-            const js = extraction as JobSearchExtraction;
-            await svc
-              .from("onboarding_interviews")
-              .update({
-                extracted_insights: js.insights,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", interviewId);
-          }
-        } catch (err) {
-          console.error(
-            "[confirmInterviewAction] insights synthesis failed:",
-            err instanceof Error ? err.message : String(err),
-          );
-        }
+      // If the user edited the streamed insights on the story screen,
+      // persist them to both the unified column (what performConfirm reads
+      // first) and the legacy column. One DB write covers both. The story
+      // route already populated these columns when the stream finished —
+      // this only fires when the user changed something afterward.
+      if (editedInsights) {
+        const updatedExtracted = {
+          ...((row.extracted as Record<string, unknown>) ?? {}),
+          insights: editedInsights,
+        };
+        await svc
+          .from("onboarding_interviews")
+          .update({
+            extracted: updatedExtracted,
+            extracted_insights: editedInsights,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", interviewId);
       }
 
       await svc
@@ -417,6 +422,28 @@ export async function abandonInterviewAction(
 
   if (error) {
     return { ok: false, error: error.message };
+  }
+
+  // SPEC-3 Phase 4.c: detach this interview's artifacts so the next
+  // interview (different template) can claim them via
+  // getOrCreateInterviewAction's orphan-claim step. Keeps raw user
+  // content alive across persona switches without destroying it or
+  // leaving it pinned to a dead interview row. Non-fatal — the abandon
+  // itself succeeded; a failed null just means orphans won't be reused.
+  const { error: detachErr } = await svc
+    .from("onboarding_artifacts")
+    .update({
+      interview_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", user.id)
+    .eq("interview_id", interviewId);
+
+  if (detachErr) {
+    console.error(
+      `[abandonInterview] artifact detach failed for interview ${interviewId}:`,
+      detachErr.message,
+    );
   }
 
   revalidatePath("/onboard");
@@ -578,4 +605,96 @@ export async function startAgenticInterviewAction(
   if (updateError) return { ok: false, error: updateError.message };
 
   return { ok: true, message: assistantMessage };
+}
+
+// ── Story Phase (agentic only — stream insights then confirm) ──
+
+// Transition review → story_review. Persists the user's review-screen edits
+// to BOTH the unified `extracted` column (what performConfirm reads first)
+// AND the legacy job_search columns. Mirrors the dual-write pattern in
+// extractAndReviewAction and the chat route's wrap-up.
+export async function startStoryPhaseAction(
+  interviewId: string,
+  edits: JobSearchEdits,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
+
+  const { data: interview, error: fetchErr } = await svc
+    .from("onboarding_interviews")
+    .select("id, user_id, status, template_id, extracted")
+    .eq("id", interviewId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (fetchErr || !interview) {
+    return { ok: false, error: "Interview not found" };
+  }
+
+  if (interview.status !== "review") {
+    return {
+      ok: false,
+      error: `Cannot start story phase from status: ${interview.status}`,
+    };
+  }
+
+  const template = getTemplate(interview.template_id as InterviewTemplateId);
+  if (!template.agenticMode) {
+    return { ok: false, error: "Story phase requires agentic template" };
+  }
+  if (!template.insightsSchema) {
+    return {
+      ok: false,
+      error: "Template does not define insights synthesis",
+    };
+  }
+
+  const updatedExtracted = {
+    ...((interview.extracted as Record<string, unknown>) ?? {}),
+    profile: edits.profile,
+    search: edits.search,
+    outreach: edits.outreach,
+  };
+
+  const { error: updateErr } = await svc
+    .from("onboarding_interviews")
+    .update({
+      status: "story_review",
+      extracted: updatedExtracted,
+      extracted_profile: edits.profile,
+      extracted_search: edits.search,
+      extracted_outreach: edits.outreach,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", interviewId);
+
+  if (updateErr) return { ok: false, error: updateErr.message };
+
+  revalidatePath("/onboard");
+  return { ok: true };
+}
+
+// Transition story_review → review without dropping streamed insights so
+// re-entry from review skips the handoff and lands directly in reading
+// mode.
+export async function backToReviewFromStoryAction(
+  interviewId: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
+
+  const { error } = await svc
+    .from("onboarding_interviews")
+    .update({
+      status: "review",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", interviewId)
+    .eq("user_id", user.id)
+    .eq("status", "story_review");
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/onboard");
+  return { ok: true };
 }
