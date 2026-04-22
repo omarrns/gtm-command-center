@@ -1,3 +1,31 @@
+// =============================================================================
+// EditableProseSection
+// =============================================================================
+//
+// Click-to-edit prose section. Display mode shows the value as a paragraph
+// (kind="text") or a bulleted list (kind="list"); clicking the value flips
+// the section to a textarea that commits on blur. Designed for long-form
+// content where editing should feel like correcting a document, not filling
+// out a form — there's no "Edit" button, no save/cancel, just click to type.
+//
+// List values are entered as one item per line in edit mode; blank lines
+// are dropped, items are trimmed.
+//
+// Props (discriminated union by `kind`):
+//   title     — section heading (rendered uppercase + muted)
+//   kind      — "text" or "list"
+//   value     — current value (string for text, string[] for list)
+//   onCommit  — called on blur with the new value (only when changed)
+//   editable  — when false, click does nothing — useful while a value is
+//               still streaming in and shouldn't be touched yet
+//
+// Animation: section fades + rises on mount. The internal textarea has no
+// resize handle and grows to fit content via row count.
+//
+// Pairs naturally with StreamingDocumentReader, which renders one of these
+// per section descriptor.
+// =============================================================================
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -23,11 +51,6 @@ type EditableProseSectionProps =
   | EditableProseSectionTextProps
   | EditableProseSectionListProps;
 
-// Click-to-edit prose section. Display mode shows a paragraph (kind=text)
-// or bulleted list (kind=list); click flips to a textarea that commits on
-// blur. List values are entered one item per line. Designed for long-form
-// content where inline editing should feel like correcting a doc, not
-// filling a form.
 export function EditableProseSection(props: EditableProseSectionProps) {
   const [editing, setEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

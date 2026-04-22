@@ -1,3 +1,29 @@
+// =============================================================================
+// HandoffCard
+// =============================================================================
+//
+// Centered, ceremonial "next phase" card. Use to mark a transition between
+// two chunks of work where the user should pause and commit before
+// proceeding. Single CTA by design — the moment IS the click; a secondary
+// option dilutes the ceremony.
+//
+// Typical use cases:
+//   • Kickoff before a long-running stream (give the wait a meaning).
+//   • A phase boundary in a multi-step flow that deserves visual weight.
+//   • Any "are you ready" moment where two clicks beat one.
+//
+// Props:
+//   title         — single-line headline ("I've got enough to work with.")
+//   description   — one short sentence framing what's next
+//   ctaLabel      — primary action ("Read my story")
+//   onCta         — fired on click
+//   ctaSubtext    — optional muted line under the button (e.g. expected duration)
+//   ctaDisabled   — optional, disables the CTA
+//
+// Layout: max-w-md, centered, surface-style card, fade-in + small Y rise on
+// mount. No header chrome — meant to be the only thing on screen.
+// =============================================================================
+
 "use client";
 
 import { motion } from "motion/react";
@@ -12,10 +38,6 @@ interface HandoffCardProps {
   ctaDisabled?: boolean;
 }
 
-// Centered "next phase" ceremony card. Use when a feature transitions
-// the user from one chunk of work to another and the moment deserves a
-// pause — e.g. before kicking off a long-running stream the user should
-// anticipate. Single CTA by design; the commitment is the click.
 export function HandoffCard({
   title,
   description,
