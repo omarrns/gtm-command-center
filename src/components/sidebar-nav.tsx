@@ -7,10 +7,11 @@ import {
   Clock,
   Eye,
   Settings,
-  LogOut,
+  Power,
   BarChart2,
   PanelLeftClose,
   PanelLeftOpen,
+  Phone,
 } from "lucide-react";
 import {
   AnimatePresence,
@@ -27,6 +28,7 @@ interface NavItem {
   href: string;
   label: string;
   icon: typeof CalendarCheck;
+  badge?: string;
 }
 
 // SPEC-3 Phase 6.c: persona-aware nav. GTM relabels "Today" → "ICP"
@@ -36,7 +38,8 @@ interface NavItem {
 function buildNav(userType: UserType | null): NavItem[] {
   if (userType === "gtm") {
     return [
-      { href: "/", label: "ICP", icon: CalendarCheck },
+      { href: "/", label: "SignalBase", icon: CalendarCheck },
+      { href: "/calls", label: "Calls", icon: Phone, badge: "POC" },
       { href: "/history", label: "History", icon: Clock },
       { href: "/watchlist", label: "Watchlist", icon: Eye },
       { href: "/settings", label: "Settings", icon: Settings },
@@ -166,9 +169,14 @@ function SidebarContent({
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={FADE}
-                      className="relative z-10 whitespace-nowrap"
+                      className="relative z-10 flex items-center gap-1.5 whitespace-nowrap"
                     >
                       {item.label}
+                      {item.badge && (
+                        <span className="rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide bg-[var(--color-blue-muted)] text-[var(--color-blue)] leading-none">
+                          {item.badge}
+                        </span>
+                      )}
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -199,7 +207,7 @@ function SidebarContent({
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
               )}
             >
-              <LogOut size={14} aria-hidden="true" />
+              <Power size={14} aria-hidden="true" />
             </button>
           </form>
         ) : (
@@ -227,7 +235,7 @@ function SidebarContent({
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
                   )}
                 >
-                  <LogOut size={14} aria-hidden="true" />
+                  <Power size={14} aria-hidden="true" />
                   Sign out
                 </button>
               </form>
