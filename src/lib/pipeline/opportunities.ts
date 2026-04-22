@@ -18,7 +18,9 @@ interface CreateOpportunityInput {
   source: OpportunitySource;
   external_id: string;
   company_name: string;
-  role_title: string;
+  // Nullable for GTM dormant-ICP rows (Phase 4) where there's no hiring
+  // role. TheirStack rows always carry the job_title.
+  role_title: string | null;
   job_url?: string;
   job_description?: string;
   job_posted_at?: string;
@@ -31,6 +33,10 @@ interface CreateOpportunityInput {
   job_salary_currency?: string | null;
   job_salary_period?: string | null;
   job_required_skills?: string[] | null;
+  // GTM columns (SPEC-3 dual-persona schema). All nullable.
+  company_domain?: string | null;
+  trigger_signals?: Record<string, unknown>[] | null;
+  buyer_personas?: Record<string, unknown>[] | null;
 }
 
 /**
