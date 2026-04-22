@@ -30,6 +30,7 @@ import {
 } from "@/lib/pipeline/people-search";
 import { addToWatchlist } from "@/lib/pipeline/watchlist";
 import type { PursuitPlanEntry } from "@/lib/pipeline/workflow";
+import { createLogger, type Logger } from "@/lib/logger";
 
 /* ── Result types ────────────────────────────────────────────────── */
 
@@ -48,7 +49,9 @@ export async function executePlans(
   svc: SupabaseClient,
   userId: string,
   plans: PursuitPlanEntry[],
+  runId?: string,
 ): Promise<ExecutorResult> {
+  const log = createLogger({ runId, userId, scope: "executor" });
   const result: ExecutorResult = {
     processed: 0,
     researched: 0,
@@ -59,14 +62,18 @@ export async function executePlans(
   };
 
   for (const entry of plans) {
+    const oppLog = log.child({
+      opportunityId: entry.opportunityId,
+      company: entry.companyName,
+    });
     try {
       result.processed++;
 
       if (entry.plan.mode === "skip") {
-        await executeSkip(svc, userId, entry);
+        await executeSkip(svc, userId, entry, oppLog);
         result.skipped++;
       } else {
-        const outcome = await executePursuit(svc, userId, entry);
+        const outcome = await executePursuit(svc, userId, entry, oppLog);
         if (outcome === "researched") result.researched++;
         else if (outcome === "needs_contact") result.needsContact++;
         else if (outcome === "skipped") result.skipped++;
@@ -77,18 +84,16 @@ export async function executePlans(
         try {
           await addToWatchlist(svc, userId, entry.companyName, "auto");
           result.watchlisted++;
-        } catch {
+        } catch (err) {
           // Watchlist failure is non-blocking
-          console.log(
-            `[executor] watchlist add failed for ${entry.companyName}`,
-          );
+          oppLog.warn("watchlist add failed", {
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
     } catch (err) {
       result.errors++;
-      console.log(
-        `[executor] error processing ${entry.companyName}: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      oppLog.error("error processing entry", err);
 
       // Write error to opportunity
       await svc
@@ -110,10 +115,9 @@ async function executeSkip(
   svc: SupabaseClient,
   userId: string,
   entry: PursuitPlanEntry,
+  log: Logger,
 ): Promise<void> {
-  console.log(
-    `[executor] skipping ${entry.companyName}: ${entry.plan.skip_reason}`,
-  );
+  log.info("skipping", { reason: entry.plan.skip_reason });
 
   const advanced = await advanceStage(
     svc,
@@ -127,9 +131,7 @@ async function executeSkip(
   );
 
   if (!advanced) {
-    console.log(
-      `[executor] skip stage transition missed for ${entry.companyName} — already moved`,
-    );
+    log.warn("skip stage transition missed — already moved");
   }
 }
 
@@ -139,16 +141,16 @@ async function executePursuit(
   svc: SupabaseClient,
   userId: string,
   entry: PursuitPlanEntry,
+  log: Logger,
 ): Promise<"researched" | "needs_contact" | "skipped"> {
-  console.log(
-    `[executor] pursuing ${entry.companyName}: mode=${entry.plan.mode}, target=${entry.plan.target_contact}`,
-  );
+  log.info("pursuing", {
+    mode: entry.plan.mode,
+    target: entry.plan.target_contact,
+  });
 
   const claimed = await claimOpportunity(svc, entry.opportunityId, userId);
   if (!claimed) {
-    console.log(
-      `[executor] could not claim ${entry.companyName} — already processing`,
-    );
+    log.warn("could not claim — already processing");
     return "needs_contact";
   }
 
@@ -160,9 +162,7 @@ async function executePursuit(
       .single();
 
     if (!opp || opp.stage !== "scored") {
-      console.log(
-        `[executor] ${entry.companyName} not in scored stage (${opp?.stage}) — skipping`,
-      );
+      log.warn("not in scored stage — skipping", { actualStage: opp?.stage });
       return "needs_contact";
     }
 
@@ -180,16 +180,23 @@ async function executePursuit(
     // Fallback chain: try each archetype in order
     for (const archetype of archetypes) {
       attemptedTargets.push(archetype);
-      console.log(
-        `[executor] ${entry.companyName}: trying archetype=${archetype}`,
-      );
+      log.info("trying archetype", { archetype });
 
       research = await researchPeople(
         opp.company_name,
         opp.role_title,
         userId,
         svc,
-        { targetContact: archetype },
+        {
+          targetContact: archetype,
+          scope: {
+            runId: log.context.runId as string | undefined,
+            userId,
+            scopeTable: "opportunities",
+            scopeId: entry.opportunityId,
+            callPurpose: "people_search",
+          },
+        },
       );
 
       // Store research report for this attempt
@@ -244,16 +251,15 @@ async function executePursuit(
           );
         }
 
-        console.log(
-          `[executor] ${entry.companyName}: researched → ${research.recipientName} (archetype=${archetype})`,
-        );
+        log.info("researched", {
+          recipientName: research.recipientName,
+          archetype,
+        });
 
         return "researched";
       }
 
-      console.log(
-        `[executor] ${entry.companyName}: no enrichable contact for archetype=${archetype}`,
-      );
+      log.info("no enrichable contact", { archetype });
 
       // Light mode stops after first failed attempt — don't retry fallbacks
       if (entry.plan.mode === "light") break;
@@ -263,9 +269,10 @@ async function executePursuit(
     const targetStage =
       entry.plan.mode === "light" ? "skipped" : "needs_contact";
 
-    console.log(
-      `[executor] ${entry.companyName}: no contact after [${attemptedTargets.join(", ")}] → ${targetStage}`,
-    );
+    log.info("no contact after fallbacks", {
+      attemptedTargets,
+      targetStage,
+    });
 
     const advanced = await advanceStage(
       svc,

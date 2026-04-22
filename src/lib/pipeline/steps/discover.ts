@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PipelineConfigRow } from "@/lib/supabase/types";
 import { searchJobs } from "@/lib/pipeline/jsearch";
 import { createOpportunity } from "@/lib/pipeline/opportunities";
+import { createLogger } from "@/lib/logger";
 
 const MAX_DISCOVERIES_PER_RUN = 10;
 
@@ -21,7 +22,9 @@ export async function runDiscover(
   svc: SupabaseClient,
   userId: string,
   config: PipelineConfigRow,
+  runId?: string,
 ): Promise<DiscoverResult> {
+  const log = createLogger({ runId, userId, scope: "discover" });
   const jobs = await searchJobs(
     config.search_queries,
     config.search_locations,
@@ -57,10 +60,7 @@ export async function runDiscover(
       if (created) inserted++;
     } catch (err) {
       // Per-job isolation: log and continue so one bad insert doesn't skip the rest
-      console.error(
-        `[discover] Failed to insert job ${job.job_id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      log.error("failed to insert job", err, { jobId: job.job_id });
     }
   }
 

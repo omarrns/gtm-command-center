@@ -17,6 +17,7 @@ import type { PipelineConfigRow, OpportunityRow } from "@/lib/supabase/types";
 import { searchJobs } from "@/lib/pipeline/jsearch";
 import { createOpportunity } from "@/lib/pipeline/opportunities";
 import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
+import { createLogger, type Logger } from "@/lib/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,6 +67,7 @@ export async function runActivationSearch(
   config: PipelineConfigRow,
 ): Promise<ActivationSearchResult> {
   const startTime = Date.now();
+  const log = createLogger({ userId, scope: "activation" });
 
   const stats: ActivationStats = {
     discovered: 0,
@@ -125,7 +127,7 @@ export async function runActivationSearch(
 
       if (opp) {
         stats.inserted++;
-        await scoreAndAdvance(svc, userId, opp, config, stats);
+        await scoreAndAdvance(svc, userId, opp, config, stats, log);
       } else {
         const { data: existing } = await svc
           .from("opportunities")
@@ -143,14 +145,16 @@ export async function runActivationSearch(
             existing as OpportunityRow,
             config,
             stats,
+            log,
           );
         }
       }
     } catch (err) {
-      console.error(
-        `[activation] Job ${i + 1}/${rawJobs.length} failed (${job.employer_name}):`,
-        err instanceof Error ? err.message : err,
-      );
+      log.error("job processing failed", err, {
+        index: i + 1,
+        total: rawJobs.length,
+        employer: job.employer_name,
+      });
       stats.errors++;
     }
   }
@@ -161,15 +165,19 @@ export async function runActivationSearch(
   // 5. Flag activation as complete (success path)
   const completion = await markActivationComplete(svc, userId);
   if (!completion.ok) {
-    console.error(
-      "[activation] Failed to set activation_completed_at:",
-      completion.error,
-    );
+    log.error("failed to set activation_completed_at", undefined, {
+      error: completion.error,
+    });
   }
 
-  console.log(
-    `[activation] Complete in ${Date.now() - startTime}ms — ${stats.discovered} discovered, ${stats.scored} scored, ${stats.filtered} filtered, ${stats.errors} errors, ${results.length} results`,
-  );
+  log.info("complete", {
+    durationMs: Date.now() - startTime,
+    discovered: stats.discovered,
+    scored: stats.scored,
+    filtered: stats.filtered,
+    errors: stats.errors,
+    results: results.length,
+  });
 
   return { results, stats };
 }
@@ -187,6 +195,7 @@ async function scoreAndAdvance(
   opp: OpportunityRow,
   config: PipelineConfigRow,
   stats: ActivationStats,
+  log: Logger,
 ): Promise<void> {
   try {
     const { newStage } = await scoreOneOpportunity(svc, userId, opp, config, {
@@ -208,10 +217,11 @@ async function scoreAndAdvance(
       })
       .eq("id", opp.id)
       .eq("user_id", userId);
-    console.error(
-      `[activation:score] FAILED for ${opp.company_name} — ${opp.role_title}:`,
-      err instanceof Error ? err.message : err,
-    );
+    log.error("score failed", err, {
+      opportunityId: opp.id,
+      company: opp.company_name,
+      role: opp.role_title,
+    });
   }
 }
 
