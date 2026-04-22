@@ -13,6 +13,7 @@ import {
   PanelLeftOpen,
   Phone,
   TrendingUp,
+  Inbox,
 } from "lucide-react";
 import {
   AnimatePresence,
@@ -32,14 +33,15 @@ interface NavItem {
   badge?: string;
 }
 
-// SPEC-3 Phase 6.c: persona-aware nav. GTM relabels "Today" → "ICP"
-// (same / route — that's where IcpDashboard lives) and hides
-// /analytics (no pipeline output to chart in v1). job_seeker / null
-// keep the original five-item nav.
+// Persona-aware nav. GTM gets SignalBase (rubric viewer at /icp) +
+// Accounts (the tier-scored pipeline queue at /accounts — the
+// GTM-shape equivalent of job_seeker's Today tab). job_seeker / null
+// keeps the original five-item nav.
 function buildNav(userType: UserType | null): NavItem[] {
   if (userType === "gtm") {
     return [
-      { href: "/", label: "SignalBase", icon: CalendarCheck },
+      { href: "/icp", label: "SignalBase", icon: CalendarCheck },
+      { href: "/accounts", label: "Accounts", icon: Inbox },
       { href: "/calls", label: "Calls", icon: Phone, badge: "POC" },
       { href: "/trends", label: "Trends", icon: TrendingUp, badge: "POC" },
       { href: "/history", label: "History", icon: Clock },
