@@ -133,8 +133,34 @@ const THEIRSTACK_FIXTURE = [
   },
 ];
 
+// Phase 4 dormant-ICP fixture. Three Exa search results; one overlaps
+// with the TheirStack company_domain set so runDiscoverDormant's dedup
+// path is exercised.
+const EXA_DORMANT_FIXTURE = [
+  {
+    title: "Formstack | Revenue ops platform",
+    url: "https://formstack.example/about",
+    text: "Formstack is a revenue operations platform for B2B SaaS.",
+  },
+  {
+    title: "NewDormant — Series B data infra",
+    url: "https://newdormant.io",
+    text: "NewDormant builds data infrastructure for Series B companies.",
+  },
+  {
+    title: "AnotherDormant",
+    url: "https://anotherdormant.io/company",
+    text: "AnotherDormant is a GTM tooling company.",
+  },
+];
+
 const originalFetch = globalThis.fetch;
 let jsearchCallCount = 0;
+// When true, the global fetch stub returns EXA_DORMANT_FIXTURE for
+// /search calls. Stays false during Phase 3 scoring so exaFindCompany
+// 503s on purpose (keeps per-opp error isolation assertions stable);
+// flipped to true right before Phase 4's runDiscoverDormant call.
+let exaReturnsDormantFixture = false;
 
 globalThis.fetch = (async (input: any, init?: RequestInit) => {
   const url = typeof input === "string" ? input : input.toString();
@@ -157,11 +183,17 @@ globalThis.fetch = (async (input: any, init?: RequestInit) => {
     }) as unknown as Response;
   }
 
-  // Any other outbound call (Anthropic, Exa, etc.) is intentionally
-  // failed so score/research/enrich/draft fail with isolated per-opp
-  // errors. Phase 0 does not assert downstream stage success — only
-  // that runDiscover creates opportunities and runPipeline returns
-  // without throwing.
+  if (url.includes("api.exa.ai/search") && exaReturnsDormantFixture) {
+    return new Response(JSON.stringify({ results: EXA_DORMANT_FIXTURE }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }) as unknown as Response;
+  }
+
+  // Any other outbound call (Anthropic, Exa scoring lookups, etc.) is
+  // intentionally failed so score/research/enrich/draft fail with
+  // isolated per-opp errors. The runner still returns a structured
+  // result — that's what we're gating on for the job_seeker path.
   return new Response('{"error":"stubbed-in-test"}', {
     status: 503,
     headers: { "content-type": "application/json" },
@@ -731,6 +763,70 @@ async function main() {
   assert(
     jobSeekerOpps.length === 3,
     `job_seeker opportunities unaffected by gtm run (got ${jobSeekerOpps.length})`,
+  );
+
+  // ── Phase 4: dormant-ICP discovery (Exa) ───────────────────────────────
+  //
+  // Fixture has 3 URLs; one (formstack.example) overlaps with the
+  // TheirStack set seeded earlier in this GTM user's opportunities, so
+  // runDiscoverDormant must skip it. Exa + Anthropic scoring stays 503
+  // so downstream assertions on score.errors don't move.
+  console.log("\n--- GTM discover-dormant (exa) ---");
+  exaReturnsDormantFixture = true;
+  const { runDiscoverDormant } =
+    await import("../src/lib/pipeline/steps/discover-dormant");
+  const icpRubricForDormant = (tables.user_scoring_profiles.find(
+    (r) => r.user_id === gtmUserId,
+  )?.icp_rubric ?? {}) as any;
+  const dormant = await runDiscoverDormant(svc, gtmUserId, icpRubricForDormant);
+
+  const dormantOpps = tables.opportunities.filter(
+    (o) => o.user_id === gtmUserId && o.source === "exa-dormant",
+  );
+
+  assert(
+    dormant.found === 3,
+    `dormant.found === 3 from exa fixture (got ${dormant.found})`,
+  );
+  assert(
+    dormant.inserted === 2,
+    `dormant.inserted === 2 after dedup vs theirstack (got ${dormant.inserted})`,
+  );
+  assert(
+    dormantOpps.length === 2,
+    `exa-dormant opportunities count === 2 (got ${dormantOpps.length})`,
+  );
+  assert(
+    dormantOpps.every((o) => o.role_title === null),
+    "every exa-dormant opportunity has role_title=null",
+  );
+  assert(
+    dormantOpps.every(
+      (o) =>
+        typeof o.company_domain === "string" && o.company_domain.length > 0,
+    ),
+    "every exa-dormant opportunity has company_domain",
+  );
+  assert(
+    dormantOpps.every(
+      (o) =>
+        Array.isArray(o.trigger_signals) &&
+        (o.trigger_signals as Record<string, unknown>[])[0]?.source ===
+          "exa-dormant",
+    ),
+    "every exa-dormant opportunity carries matched_on_query trigger",
+  );
+  assert(
+    dormantOpps.some((o) => o.company_domain === "newdormant.io"),
+    "newdormant.io inserted as exa-dormant",
+  );
+  assert(
+    dormantOpps.some((o) => o.company_domain === "anotherdormant.io"),
+    "anotherdormant.io inserted as exa-dormant",
+  );
+  assert(
+    !dormantOpps.some((o) => o.company_domain === "formstack.example"),
+    "formstack.example NOT re-inserted (dedup against theirstack set)",
   );
 
   console.log("\n===================================================");
