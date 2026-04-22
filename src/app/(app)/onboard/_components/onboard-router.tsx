@@ -1,21 +1,29 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition, useEffect, useRef } from "react";
-import { MessageSquare, ClipboardList, Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { InterviewClient } from "./interview-client";
 import { ReviewClient } from "./review-client";
 import { OnboardClient } from "./onboard-client";
+import { StoryClient } from "./story-client";
 import {
   getOrCreateInterviewAction,
   extractAndReviewAction,
 } from "../interview-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
-import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
+import type {
+  ClientInterviewTemplate,
+  InterviewTemplateId,
+} from "@/lib/onboarding/templates/types";
 
 interface OnboardRouterProps {
   interview: OnboardingInterviewRow | null;
   clientTemplate: ClientInterviewTemplate;
+  // SPEC-3 Phase 4.b: resolved template from URL / user_type / picker.
+  // Passed explicitly so the client doesn't re-resolve from props.
+  templateId: InterviewTemplateId;
   isRefresh: boolean;
   gmailConnected: boolean;
   // Props forwarded to OnboardClient (manual mode)
@@ -33,11 +41,19 @@ interface OnboardRouterProps {
   existingOutreach: string | null;
 }
 
+// Short, user-facing labels for each persona. Surfaced on the choice
+// screen + anywhere the active template should be visible.
+const TEMPLATE_LABEL: Record<InterviewTemplateId, string> = {
+  job_search: "Job search",
+  icp_definition: "Company ICP",
+};
+
 type Mode = "choice" | "interview" | "manual";
 
 export function OnboardRouter({
   interview: initialInterview,
   clientTemplate,
+  templateId,
   isRefresh,
   gmailConnected,
   completedSteps,
@@ -90,6 +106,11 @@ export function OnboardRouter({
         </p>
       </div>
     );
+  }
+
+  // ── Story phase (agentic-only intermediate between review and confirmed) ──
+  if (interview && interview.status === "story_review") {
+    return <StoryClient interview={interview} isRefresh={isRefresh} />;
   }
 
   // ── Review mode ──
@@ -146,7 +167,10 @@ export function OnboardRouter({
   function startInterview() {
     if (isPending || interview) return;
     startTransition(async () => {
-      const result = await getOrCreateInterviewAction(isRefresh);
+      // Thread templateId through so the right persona's interview row is
+      // created. Without this, the action defaults to 'job_search' and
+      // ICP users would get a job_search interview under the covers.
+      const result = await getOrCreateInterviewAction(isRefresh, templateId);
       if (result.ok) {
         setInterview(result.interview);
         setMode("interview");
@@ -156,69 +180,60 @@ export function OnboardRouter({
     });
   }
 
+  const personaLabel = TEMPLATE_LABEL[templateId];
+  const personaDescription =
+    templateId === "icp_definition"
+      ? "We'll build your ICP rubric from exemplar customers, buyer personas, and your product context."
+      : "We need to understand who you are to find and score opportunities for you.";
+
   return (
     <div className="mx-auto max-w-2xl p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <Link
+          href="/onboard"
+          className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+        >
+          <ArrowLeft size={12} />
+          Switch persona
+        </Link>
+        <span className="rounded-full border border-[var(--color-border-strong)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
+          {personaLabel}
+        </span>
+      </div>
+
       <div className="mb-8">
         <h1 className="text-xl font-bold tracking-tight">
           {isRefresh ? "Profile Refresh" : "Set up your pipeline"}
         </h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
+        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
           {isRefresh
             ? "Update your profile so the pipeline uses your latest context."
-            : "We need to understand who you are to find and score opportunities for you."}
+            : personaDescription}
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* Interview option */}
-        <button
-          type="button"
-          onClick={startInterview}
-          disabled={isPending}
-          className="surface p-5 text-left hover:border-[var(--color-blue)] transition-colors"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-8 w-8 rounded-full bg-[var(--color-blue-muted)] flex items-center justify-center">
-              <MessageSquare size={16} className="text-[var(--color-blue)]" />
-            </div>
-            <h2 className="text-sm font-semibold">Chat with AI coach</h2>
+      <button
+        type="button"
+        onClick={startInterview}
+        disabled={isPending}
+        className="surface p-5 text-left hover:border-[var(--color-blue)] transition-colors max-w-sm"
+      >
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold">Chat with AI coach</h2>
+        </div>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          Answer a few questions conversationally. Takes ~5 minutes and produces
+          richer data for scoring and outreach.
+        </p>
+        {isPending && (
+          <div className="mt-3">
+            <Loader2
+              size={14}
+              className="animate-spin text-[var(--color-blue)]"
+            />
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Answer a few questions conversationally. Takes ~5 minutes and
-            produces richer data for scoring and outreach.
-          </p>
-          {isPending && (
-            <div className="mt-3">
-              <Loader2
-                size={14}
-                className="animate-spin text-[var(--color-blue)]"
-              />
-            </div>
-          )}
-        </button>
-
-        {/* Manual option */}
-        <button
-          type="button"
-          onClick={() => setMode("manual")}
-          disabled={isPending}
-          className="surface p-5 text-left hover:border-[var(--color-blue)] transition-colors"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-8 w-8 rounded-full bg-[var(--muted)] flex items-center justify-center">
-              <ClipboardList
-                size={16}
-                className="text-[var(--color-text-muted)]"
-              />
-            </div>
-            <h2 className="text-sm font-semibold">Fill in manually</h2>
-          </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Enter your profile, search preferences, and outreach style in a
-            form. Takes ~3 minutes.
-          </p>
-        </button>
-      </div>
+        )}
+      </button>
     </div>
   );
 }
