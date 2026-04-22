@@ -443,6 +443,7 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
     prompt: markdown.slice(0, 8000),
     model: "claude-haiku-4-5-20251001",
     maxTokens: 128,
+    scope: { userId: user.id, callPurpose: "manual_inject_extract" },
   });
 
   const opp = await createOpportunity(svc, user.id, {

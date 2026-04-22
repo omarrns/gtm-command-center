@@ -1,12 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { anthropic } from "@ai-sdk/anthropic";
-import { generateObject } from "ai";
 import { z } from "zod";
 import type {
   Dimension,
   InterviewTemplate,
 } from "@/lib/onboarding/templates/types";
 import type { OnboardingArtifactRow } from "@/lib/supabase/types";
+import { runGenerateObject } from "@/lib/ai/calls";
 import type {
   OrchestratorDimension,
   OrchestratorProvenance,
@@ -194,8 +193,8 @@ export async function analyzeArtifacts(
     .filter(Boolean)
     .join("\n\n");
 
-  const { object } = await generateObject({
-    model: anthropic(template.orchestratorModel),
+  const object = await runGenerateObject({
+    model: template.orchestratorModel,
     system: template.orchestratorSystemPrompt({
       isRefresh: ctx.isRefresh,
       existingProfile: ctx.existingProfile,
@@ -203,6 +202,11 @@ export async function analyzeArtifacts(
     prompt,
     schema: analysisResultSchema,
     maxOutputTokens: template.orchestratorMaxOutputTokens,
+    scope: {
+      scopeTable: "onboarding_interviews",
+      scopeId: interviewId,
+      callPurpose: "orchestrator.analyze",
+    },
   });
 
   const now = new Date().toISOString();
@@ -387,12 +391,17 @@ export async function updateDimensionFromAnswer(
     `Update the dimension based on the user's answer. The user is the source of truth; confidence should be high (>=0.9) unless their answer is ambiguous.`,
   ].join("\n\n");
 
-  const { object } = await generateObject({
-    model: anthropic(template.orchestratorModel),
+  const object = await runGenerateObject({
+    model: template.orchestratorModel,
     system: template.orchestratorSystemPrompt({ isRefresh: false }),
     prompt,
     schema: singleDimensionResultSchema,
     maxOutputTokens: 512,
+    scope: {
+      scopeTable: "onboarding_interviews",
+      scopeId: interviewId,
+      callPurpose: "orchestrator.update_dimension",
+    },
   });
 
   const now = new Date().toISOString();

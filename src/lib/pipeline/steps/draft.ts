@@ -32,6 +32,7 @@ export interface DraftResult {
 export async function runDraft(
   svc: SupabaseClient,
   userId: string,
+  runId?: string,
 ): Promise<DraftResult> {
   const opportunities = await getOpportunitiesByStage(
     svc,
@@ -48,7 +49,7 @@ export async function runDraft(
       if (!claimed) continue;
 
       result.processed++;
-      await processOneDraft(svc, userId, opp);
+      await processOneDraft(svc, userId, opp, runId);
       result.drafted++;
 
       await releaseOpportunity(svc, opp.id, userId);
@@ -78,6 +79,7 @@ async function processOneDraft(
   svc: SupabaseClient,
   userId: string,
   opp: OpportunityRow,
+  runId?: string,
 ): Promise<void> {
   const memoryCtx = await loadMemoryContext(userId, svc);
   const sender = extractSenderIdentity(memoryCtx, memoryCtx.displayName);
@@ -128,6 +130,13 @@ Never mention internal scoring, dealbreakers, or strategy notes.`;
     system,
     prompt,
     maxTokens: 4096,
+    scope: {
+      runId,
+      userId,
+      scopeTable: "opportunities",
+      scopeId: opp.id,
+      callPurpose: "draft",
+    },
   });
 
   if (!draftOutput.subject || !draftOutput.body) {

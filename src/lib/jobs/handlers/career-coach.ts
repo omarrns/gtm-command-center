@@ -38,6 +38,12 @@ export async function runCareerCoachJob(job: JobRow, svc: SupabaseClient) {
     system: buildCareerCoachSystem(sender),
     prompt: buildCareerCoachPrompt({ transcript, memory, recentTrail }),
     maxTokens: 4096,
+    scope: {
+      userId: job.user_id,
+      scopeTable: "coaching_sessions",
+      scopeId: session_id,
+      callPurpose: "career_coach",
+    },
   });
 
   const typedResult = result as Record<string, unknown>;

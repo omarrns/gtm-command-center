@@ -35,6 +35,7 @@ export async function generatePromptAction(formData: FormData) {
     system: buildCreatePromptSystem(sender),
     prompt: buildCreatePromptPrompt(inputs),
     maxTokens: 4096,
+    scope: { userId: user.id, callPurpose: "create_prompt" },
   });
 
   return { result };
@@ -63,6 +64,7 @@ export async function generateSkillAction(formData: FormData) {
     system: buildCreateSkillSystem(sender),
     prompt: buildCreateSkillPrompt(inputs),
     maxTokens: 4096,
+    scope: { userId: user.id, callPurpose: "create_skill" },
   });
 
   return { result };
