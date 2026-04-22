@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { ExternalLink, UserPen } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import type { UserScoringProfileRow } from "@/lib/supabase/types";
+import type { UserScoringProfileRow, UserType } from "@/lib/supabase/types";
 import { SettingsGmailPanel } from "./settings-gmail-panel";
 import { SettingsSearchPanel } from "./settings-search-panel";
 import { SettingsScoringPanel } from "./settings-scoring-panel";
+import { SwitchPersonaPlaceholder } from "./switch-persona-placeholder";
 
 interface SettingsClientProps {
   gmailConnected: boolean;
@@ -17,6 +18,7 @@ interface SettingsClientProps {
   searchQueries: string[];
   searchLocations: string[];
   scoringProfile: UserScoringProfileRow | null;
+  userType: UserType | null;
 }
 
 export function SettingsClient({
@@ -28,6 +30,7 @@ export function SettingsClient({
   searchQueries,
   searchLocations,
   scoringProfile,
+  userType,
 }: SettingsClientProps) {
   return (
     <div className="space-y-6">
@@ -70,6 +73,8 @@ export function SettingsClient({
       {scoringProfile && (
         <SettingsScoringPanel scoringProfile={scoringProfile} />
       )}
+
+      <SwitchPersonaPlaceholder userType={userType} />
     </div>
   );
 }
