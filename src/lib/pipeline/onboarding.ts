@@ -8,11 +8,10 @@ export interface OnboardingStatus {
 }
 
 // Maps a user_type to the template whose completionCheck decides whether
-// that persona is "done onboarding." Until profiles.user_type lands in
-// Phase 2, every caller passes 'job_seeker' and behavior is unchanged.
+// that persona is "done onboarding."
 const USER_TYPE_TO_TEMPLATE: Record<string, InterviewTemplateId> = {
   job_seeker: "job_search",
-  // gtm → icp_definition (lands in Phase 3; widens InterviewTemplateId then).
+  gtm: "icp_definition",
 };
 
 /**

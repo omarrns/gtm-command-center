@@ -3,8 +3,13 @@ import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { isOnboardingComplete } from "@/lib/pipeline/onboarding";
 import { getOpportunitiesByStages } from "@/lib/pipeline/opportunities";
-import type { OpportunityRow, OpportunityStage } from "@/lib/supabase/types";
+import type {
+  OpportunityRow,
+  OpportunityStage,
+  UserType,
+} from "@/lib/supabase/types";
 import { TodayClient } from "./_components/today-client";
+import { IcpDashboard } from "./_components/icp-dashboard";
 import {
   loadDraftsMap,
   loadAnalysisSummaries,
@@ -24,10 +29,39 @@ export default async function TodayPage() {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
 
+  // SPEC-3 Phase 6.b: persona branch happens BEFORE the activation /
+  // pipeline_config gate. GTM users have no /activate flow, no
+  // opportunities pipeline in v1 — their homepage IS the ICP
+  // dashboard. Onboarding completeness is still gated, just via the
+  // template-aware check.
+  const { data: profile } = await svc
+    .from("profiles")
+    .select("user_type")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const userType = (profile?.user_type as UserType | null) ?? null;
+
   // Onboarding gate
   const skipOnboarding =
     process.env.DEV_SKIP_ONBOARDING === "true" &&
     process.env.NODE_ENV === "development";
+
+  if (!skipOnboarding) {
+    const onboarding = await isOnboardingComplete(
+      svc,
+      user.id,
+      userType ?? "job_seeker",
+    );
+    if (!onboarding.complete) {
+      redirect("/onboard");
+    }
+  }
+
+  // GTM lands on the ICP dashboard — no pipeline_config / activation
+  // path applies to this persona in v1.
+  if (userType === "gtm") {
+    return <IcpDashboard userId={user.id} />;
+  }
 
   const { data: pipelineConfig } = await svc
     .from("pipeline_config")
@@ -36,11 +70,6 @@ export default async function TodayPage() {
     .maybeSingle();
 
   if (!skipOnboarding) {
-    const onboarding = await isOnboardingComplete(svc, user.id);
-    if (!onboarding.complete) {
-      redirect("/onboard");
-    }
-
     if (pipelineConfig && !pipelineConfig.activation_completed_at) {
       redirect("/activate");
     }
