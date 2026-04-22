@@ -5,6 +5,9 @@
 
 import { z } from "zod";
 import { assertEnv } from "@/lib/utils";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger({ scope: "jsearch" });
 
 const JSearchResultSchema = z.object({
   job_id: z.string(),
@@ -81,7 +84,7 @@ async function fetchJSearch(
     const remaining = res.headers.get("x-ratelimit-requests-remaining");
     const limit = res.headers.get("x-ratelimit-requests-limit");
     if (remaining !== null) {
-      console.log(`[jsearch] quota: ${remaining}/${limit} requests remaining`);
+      log.info("quota", { remaining, limit });
     }
 
     if (res.ok) {
@@ -90,10 +93,9 @@ async function fetchJSearch(
       return rawRows.flatMap((raw: unknown) => {
         const result = JSearchResultSchema.safeParse(raw);
         if (!result.success) {
-          console.warn(
-            "[jsearch] Skipping malformed record:",
-            result.error.issues[0],
-          );
+          log.warn("skipping malformed record", {
+            issue: result.error.issues[0],
+          });
           return [];
         }
         return [result.data];
@@ -105,9 +107,13 @@ async function fetchJSearch(
       const waitMs = retryAfter
         ? parseInt(retryAfter, 10) * 1000
         : INITIAL_BACKOFF_MS * Math.pow(2, attempt);
-      console.warn(
-        `[jsearch] 429 rate-limited (${remaining ?? "?"}/${limit ?? "?"} remaining), retrying in ${waitMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
-      );
+      log.warn("429 rate-limited, retrying", {
+        remaining,
+        limit,
+        waitMs,
+        attempt: attempt + 1,
+        maxRetries: MAX_RETRIES,
+      });
       await sleep(waitMs);
       continue;
     }

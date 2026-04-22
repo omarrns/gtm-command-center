@@ -108,7 +108,7 @@ async function stepDiscover(
   });
   log.info("starting");
   const svc = createSupabaseServiceClient();
-  const result = await runDiscover(svc, userId, config);
+  const result = await runDiscover(svc, userId, config, runId);
   log.info("done", { found: result.found, inserted: result.inserted });
   return result;
 }
@@ -356,7 +356,7 @@ async function stepExecutePlans(
   });
   log.info("starting", { plans: plans.length });
   const svc = createSupabaseServiceClient();
-  const result = await executePlans(svc, userId, plans);
+  const result = await executePlans(svc, userId, plans, runId);
   log.info("done", {
     researched: result.researched,
     skipped: result.skipped,
