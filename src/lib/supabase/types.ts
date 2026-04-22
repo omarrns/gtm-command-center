@@ -246,6 +246,7 @@ export type OnboardingInterviewStatus =
   | "in_progress"
   | "extracting"
   | "review"
+  | "story_review"
   | "confirmed"
   | "abandoned";
 

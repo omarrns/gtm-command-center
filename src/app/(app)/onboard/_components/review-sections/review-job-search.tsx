@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   confirmInterviewAction,
   backToInterviewAction,
+  startStoryPhaseAction,
 } from "../../interview-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
@@ -182,37 +183,49 @@ export function ReviewJobSearch({
     });
   }
 
-  function handleConfirm() {
-    startTransition(async () => {
-      const result = await confirmInterviewAction(interview.id, {
-        profile: { positioning, careerHighlights, proofPoints, technicalTools },
-        search: {
-          searchQueries,
-          searchLocations,
-          scoreThreshold,
-          dailySendCap,
-        },
-        outreach: {
-          greenFlags,
-          redFlags,
-          outreachTone,
-          whatsWorked,
-          whatToAvoid,
-        },
-      });
+  function buildEdits() {
+    return {
+      profile: { positioning, careerHighlights, proofPoints, technicalTools },
+      search: {
+        searchQueries,
+        searchLocations,
+        scoreThreshold,
+        dailySendCap,
+      },
+      outreach: {
+        greenFlags,
+        redFlags,
+        outreachTone,
+        whatsWorked,
+        whatToAvoid,
+      },
+    };
+  }
 
+  // Agentic path: hand off to the story phase. The career-story screen
+  // streams the seven insight sections, accepts inline edits, and only
+  // then calls confirm. Legacy path: confirm directly (no story phase).
+  function handlePrimary() {
+    if (clientTemplate.agenticMode) {
+      startTransition(async () => {
+        const result = await startStoryPhaseAction(interview.id, buildEdits());
+        if (!result.ok) {
+          toast.error(result.error ?? "Couldn't start story phase");
+          return;
+        }
+        router.refresh();
+      });
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await confirmInterviewAction(interview.id, buildEdits());
       if (!result.ok) {
         toast.error(result.error ?? "Confirmation failed");
         return;
       }
-
       toast.success("Profile saved!");
-
-      if (isRefresh) {
-        router.push("/settings");
-      } else {
-        router.push("/activate");
-      }
+      router.push(isRefresh ? "/settings" : "/activate");
     });
   }
 
@@ -311,8 +324,14 @@ export function ReviewJobSearch({
           <ArrowLeft size={14} />
           Back to interview
         </Button>
-        <Button type="button" onClick={handleConfirm} disabled={isPending}>
-          {isPending ? "Saving..." : "Confirm & Continue"}
+        <Button type="button" onClick={handlePrimary} disabled={isPending}>
+          {isPending
+            ? clientTemplate.agenticMode
+              ? "Continuing..."
+              : "Saving..."
+            : clientTemplate.agenticMode
+              ? "Continue to story"
+              : "Confirm & Continue"}
         </Button>
       </div>
     </div>

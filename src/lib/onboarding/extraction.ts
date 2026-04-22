@@ -2,21 +2,7 @@ import type { UIMessage } from "ai";
 import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import type { InterviewTemplate } from "./templates/types";
-
-function formatTranscript(messages: UIMessage[]): string {
-  const lines: string[] = [];
-
-  for (const msg of messages) {
-    const role = msg.role === "assistant" ? "Coach" : "User";
-    for (const part of msg.parts) {
-      if (part.type === "text" && part.text.trim()) {
-        lines.push(`${role}: ${part.text.trim()}`);
-      }
-    }
-  }
-
-  return lines.join("\n\n");
-}
+import { formatTranscript } from "./transcript";
 
 /**
  * Run Opus over a transcript + return a shape matching the template's

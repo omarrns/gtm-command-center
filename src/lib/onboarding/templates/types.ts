@@ -132,6 +132,13 @@ export type InterviewTemplate<E = unknown, X = unknown> =
       orchestratorMaxOutputTokens: number;
       orchestratorSystemPrompt: (ctx: InterviewPromptContext) => string;
       interviewerSystemPrompt: (ctx: InterviewerContext) => string;
+      // Story-screen synthesis. Streamed via /api/onboard/story/stream so
+      // the user watches the insight sections appear instead of staring at
+      // a hidden 30-second wait inside confirm. Optional on the agentic
+      // branch — templates without an insights leaf (e.g. ICP) skip the
+      // story phase and route review → confirmed directly.
+      insightsSchema?: z.ZodType<unknown, z.ZodTypeDef, unknown>;
+      insightsSystemPrompt?: string;
     });
 
 // Client-safe projection. Client components cannot receive zod schemas,

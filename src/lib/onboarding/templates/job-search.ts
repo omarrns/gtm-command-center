@@ -8,6 +8,11 @@ import {
   REFRESH_OPENING_MESSAGE,
 } from "@/lib/onboarding/interview-prompt";
 import { EXTRACTION_SYSTEM_PROMPT } from "@/lib/onboarding/extraction-prompt";
+import { INSIGHTS_SYSTEM_PROMPT } from "@/lib/onboarding/story-prompt";
+import {
+  insightsSchema,
+  type ExtractionInsights,
+} from "@/lib/onboarding/insights-schema";
 import { extractSection } from "@/lib/onboarding/markdown";
 import { loadMemoryContext } from "@/lib/skills/context";
 import type {
@@ -288,16 +293,6 @@ const outreachSchema = z.object({
   whatToAvoid: z.string().default(""),
 });
 
-const insightsSchema = z.object({
-  career_narrative: z.string().default(""),
-  decision_drivers: z.array(z.string()).default([]),
-  unstated_preferences: z.array(z.string()).default([]),
-  strongest_stories: z.array(z.string()).default([]),
-  positioning_alternatives: z.array(z.string()).default([]),
-  risk_tolerance: z.string().default(""),
-  communication_style_notes: z.string().default(""),
-});
-
 export const jobSearchExtractionSchema = z.object({
   profile: profileSchema,
   search: searchSchema,
@@ -309,7 +304,9 @@ export type JobSearchExtraction = z.infer<typeof jobSearchExtractionSchema>;
 export type ExtractionProfile = z.infer<typeof profileSchema>;
 export type ExtractionSearch = z.infer<typeof searchSchema>;
 export type ExtractionOutreach = z.infer<typeof outreachSchema>;
-export type ExtractionInsights = z.infer<typeof insightsSchema>;
+// Re-export for back-compat — review-section-insights.tsx imports this name
+// from this module. New code should import from @/lib/onboarding/insights-schema.
+export type { ExtractionInsights };
 
 const TONE_LABELS = {
   casual: "Casual",
@@ -650,6 +647,9 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
   extractionSystemPrompt: EXTRACTION_SYSTEM_PROMPT,
   extractionModel: "claude-opus-4-6",
   extractionMaxOutputTokens: 4096,
+
+  insightsSchema,
+  insightsSystemPrompt: INSIGHTS_SYSTEM_PROMPT,
 
   editsSchema,
   outputs,
