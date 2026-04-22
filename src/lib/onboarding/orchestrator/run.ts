@@ -33,9 +33,22 @@ const dimensionAnalysisSchema = z.object({
     .default([]),
 });
 
-const analysisResultSchema = z.object({
-  dimensions: z.record(z.string(), dimensionAnalysisSchema),
-});
+// Built per-template from `template.dimensions` so the JSON schema is a
+// closed object with known keys. Anthropic's structured-output endpoint
+// rejects `additionalProperties: <schema>` (what z.record emits) and
+// requires `additionalProperties: false`.
+function buildAnalysisResultSchema(dimensions: readonly Dimension[]) {
+  const shape: Record<
+    string,
+    z.ZodOptional<typeof dimensionAnalysisSchema>
+  > = {};
+  for (const dim of dimensions) {
+    shape[dim.key] = dimensionAnalysisSchema.optional();
+  }
+  return z.object({
+    dimensions: z.object(shape),
+  });
+}
 
 const singleDimensionResultSchema = z.object({
   value: z.unknown(),
@@ -200,7 +213,7 @@ export async function analyzeArtifacts(
       existingProfile: ctx.existingProfile,
     }),
     prompt,
-    schema: analysisResultSchema,
+    schema: buildAnalysisResultSchema(template.dimensions),
     maxOutputTokens: template.orchestratorMaxOutputTokens,
     scope: {
       scopeTable: "onboarding_interviews",
