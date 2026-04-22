@@ -176,6 +176,7 @@ function AgenticInterview({
         </div>
         <ArtifactInput
           interviewId={interview.id}
+          templateId={clientTemplate.id}
           onStateUpdated={setOrchestratorState}
           onReadyToChat={() => setPhase("chat")}
         />
