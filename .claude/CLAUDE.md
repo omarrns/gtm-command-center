@@ -187,7 +187,7 @@ All use `maxDuration = 300`.
 
 ## Design System
 
-Implementation companion to `.impeccable.md` (design language, personality, principles).
+Implementation companion to `DESIGN.md` (design language, personality, principles).
 
 ### Tokens (in `globals.css`)
 
