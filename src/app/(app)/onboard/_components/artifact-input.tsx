@@ -9,13 +9,14 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { CyclicLoader } from "@/components/ui/cyclic-loader";
 import type {
   OnboardingArtifactRow,
   OnboardingArtifactStatus,
 } from "@/lib/supabase/types";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
+import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
 
 interface ArtifactResponse {
   artifact: OnboardingArtifactRow;
@@ -42,6 +43,7 @@ async function readArtifactResponse(res: Response): Promise<ArtifactResponse> {
 
 interface ArtifactInputProps {
   interviewId: string;
+  templateId: InterviewTemplateId;
   onStateUpdated: (state: OrchestratorState) => void;
   onReadyToChat: () => void;
 }
@@ -57,12 +59,52 @@ type ArtifactListItem = Pick<
   | "error_message"
 >;
 
-function isUrl(value: string): boolean {
-  return /^https?:\/\//.test(value.trim());
+// Accepts `https://linkedin.com/in/foo`, `linkedin.com/in/foo`, and
+// `www.linkedin.com/in/foo`. Returns the normalized URL or null for things
+// that should be treated as pasted text (multi-word resume snippets, etc.).
+function parseUrlLike(value: string): string | null {
+  const v = value.trim();
+  if (!v || /\s/.test(v) || v.length > 500) return null;
+  const candidate = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+  try {
+    const u = new URL(candidate);
+    if (!u.hostname.includes(".")) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
 }
 
-function detectKindFromUrl(url: string): string {
-  return url.toLowerCase().includes("linkedin.com") ? "linkedin" : "website";
+function detectKindFromUrl(
+  url: string,
+  templateId: InterviewTemplateId,
+): string {
+  const lower = url.toLowerCase();
+  if (templateId === "icp_definition") {
+    // A person's LinkedIn profile is almost always a buyer_persona
+    // artifact; any other URL (including linkedin.com/company/...) is
+    // treated as a positive_example customer unless the user explicitly
+    // overrides the kind via the "Bad-fit" pill.
+    if (lower.includes("linkedin.com/in/")) return "buyer_persona";
+    return "positive_example";
+  }
+  return lower.includes("linkedin.com") ? "linkedin" : "website";
+}
+
+// Default kind for pasted text / uploaded files when no explicit kind
+// override is in play. ICP defaults to company_context (product decks,
+// buying-committee notes, long-form context); job_search keeps its
+// existing resume heuristic.
+function defaultTextKind(templateId: InterviewTemplateId): string {
+  return templateId === "icp_definition" ? "company_context" : "pasted_text";
+}
+
+function defaultFileKind(
+  templateId: InterviewTemplateId,
+  fileName: string,
+): string {
+  if (templateId === "icp_definition") return "company_context";
+  return fileName.toLowerCase().includes("resume") ? "resume" : "uploaded_file";
 }
 
 function statusIcon(status: OnboardingArtifactStatus) {
@@ -93,12 +135,18 @@ function artifactLabel(a: ArtifactListItem): string {
 
 export function ArtifactInput({
   interviewId,
+  templateId,
   onStateUpdated,
   onReadyToChat,
 }: ArtifactInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [artifacts, setArtifacts] = useState<ArtifactListItem[]>([]);
   const [isUploading, startUpload] = useTransition();
+  // ICP-only: pill-driven kind override. Cleared after each submit.
+  // Lets the "Bad-fit URL" pill flag the next submit as
+  // negative_example without needing a separate input mode. job_search
+  // pills don't touch this — their hints just prefill the textarea.
+  const [kindOverride, setKindOverride] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -112,11 +160,17 @@ export function ArtifactInput({
   async function submit() {
     const value = inputValue.trim();
     if (!value || isUploading) return;
+    const submitted = value;
+    const normalizedUrl = parseUrlLike(value);
+    const override = kindOverride;
     startUpload(async () => {
       try {
-        const body = isUrl(value)
-          ? { interviewId, kind: detectKindFromUrl(value), url: value }
-          : { interviewId, kind: "pasted_text", text: value };
+        const resolvedKind = normalizedUrl
+          ? (override ?? detectKindFromUrl(normalizedUrl, templateId))
+          : (override ?? defaultTextKind(templateId));
+        const body = normalizedUrl
+          ? { interviewId, kind: resolvedKind, url: normalizedUrl }
+          : { interviewId, kind: resolvedKind, text: value };
 
         const res = await fetch("/api/onboard/artifacts", {
           method: "POST",
@@ -125,32 +179,39 @@ export function ArtifactInput({
         });
         const data = await readArtifactResponse(res);
         setArtifacts((prev) => [...prev, data.artifact]);
-        setInputValue("");
+        // Only wipe the textarea if the user hasn't started composing
+        // the next paste while this request was in flight.
+        setInputValue((curr) => (curr.trim() === submitted ? "" : curr));
         if (textareaRef.current) textareaRef.current.style.height = "auto";
         if (data.orchestratorState) onStateUpdated(data.orchestratorState);
         if (data.artifact.status === "failed" && data.artifact.error_message) {
           toast.warning(data.artifact.error_message);
         }
+        if (data.artifact.status === "succeeded") {
+          onReadyToChat();
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
         toast.error(msg);
+      } finally {
+        setKindOverride(null);
       }
     });
   }
 
   async function submitFile(file: File) {
-    if (!file || isUploading) return;
+    if (!file) return;
+    if (isUploading) {
+      toast.info("Hang on — finishing the previous upload");
+      return;
+    }
+    const override = kindOverride;
     startUpload(async () => {
       try {
         const form = new FormData();
         form.append("file", file);
         form.append("interviewId", interviewId);
-        form.append(
-          "kind",
-          file.name.toLowerCase().includes("resume")
-            ? "resume"
-            : "uploaded_file",
-        );
+        form.append("kind", override ?? defaultFileKind(templateId, file.name));
         const res = await fetch("/api/onboard/artifacts", {
           method: "POST",
           body: form,
@@ -161,9 +222,14 @@ export function ArtifactInput({
         if (data.artifact.status === "failed" && data.artifact.error_message) {
           toast.warning(data.artifact.error_message);
         }
+        if (data.artifact.status === "succeeded") {
+          onReadyToChat();
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
         toast.error(msg);
+      } finally {
+        setKindOverride(null);
       }
     });
   }
@@ -175,45 +241,99 @@ export function ArtifactInput({
     }
   }
 
-  const hasAnySuccess = artifacts.some((a) => a.status === "succeeded");
+  const hasLinkedInFailure = artifacts.some(
+    (a) =>
+      a.status === "failed" &&
+      (a.source_url ?? "").toLowerCase().includes("linkedin.com"),
+  );
 
-  const pills: Array<{ label: string; hint?: string; action?: () => void }> = [
-    { label: "LinkedIn URL", hint: "https://linkedin.com/in/" },
-    { label: "Paste resume", hint: "" },
-    { label: "Upload PDF", action: () => fileRef.current?.click() },
-  ];
+  const copy = buildCopy(templateId);
+
+  // Pill click may prefill the textarea (hint), trigger a side effect
+  // (action), AND/OR set the kind override for the next submit. ICP
+  // uses the override to tag negative exemplars; job_search doesn't
+  // need it.
+  const pills: Array<{
+    label: string;
+    hint?: string;
+    action?: () => void;
+    kindOverride?: string;
+  }> =
+    templateId === "icp_definition"
+      ? [
+          {
+            label: "Good-fit customer URL",
+            hint: "https://",
+            kindOverride: "positive_example",
+          },
+          {
+            label: "Bad-fit URL",
+            hint: "https://",
+            kindOverride: "negative_example",
+          },
+          {
+            label: "Buyer LinkedIn",
+            hint: "https://linkedin.com/in/",
+            kindOverride: "buyer_persona",
+          },
+          {
+            label: "Upload deck",
+            action: () => fileRef.current?.click(),
+            kindOverride: "company_context",
+          },
+        ]
+      : [
+          { label: "LinkedIn URL", hint: "https://linkedin.com/in/" },
+          { label: "Paste resume", hint: "" },
+          { label: "Upload PDF", action: () => fileRef.current?.click() },
+        ];
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 py-12">
       {/* Hero heading */}
       <div className="text-center mb-10">
         <h1 className="text-3xl font-bold tracking-tight mb-3">
-          Help me, help you.
+          {copy.heroTitle}
         </h1>
         <p className="text-sm text-[var(--color-text-muted)] max-w-sm leading-relaxed">
-          Drop a LinkedIn URL, paste your resume, or upload a PDF. The more
-          context you share, the smarter the agent gets before it asks you
-          anything.
+          {copy.heroSubtitle}
         </p>
       </div>
 
+      {isUploading && (
+        <CyclicLoader messages={copy.cyclicMessages} className="mb-3" />
+      )}
+
       {/* Artifact chips */}
       {artifacts.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3 w-full max-w-lg">
-          {artifacts.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center gap-1.5 text-xs bg-[var(--color-surface-muted)] border border-[var(--border)] rounded-full px-3 py-1.5 max-w-[280px]"
-            >
-              {statusIcon(a.status)}
-              <span className="truncate">{artifactLabel(a)}</span>
-              {a.status === "failed" && a.error_message && (
-                <span className="text-[var(--color-danger)] ml-1 truncate">
-                  — {a.error_message}
-                </span>
-              )}
-            </div>
-          ))}
+        <div className="w-full max-w-lg mb-3">
+          <div className="flex flex-wrap gap-2">
+            {artifacts.map((a) => (
+              <div
+                key={a.id}
+                className="flex items-center gap-1.5 text-xs bg-[var(--color-surface-muted)] border border-[var(--border)] rounded-full px-3 py-1.5 max-w-[280px]"
+              >
+                {statusIcon(a.status)}
+                <span className="truncate">{artifactLabel(a)}</span>
+                {a.status === "failed" && a.error_message && (
+                  <span className="text-[var(--color-danger)] ml-1 truncate">
+                    — {a.error_message}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          {hasLinkedInFailure && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-2">
+              {copy.linkedInFailureHint}
+            </p>
+          )}
+          {kindOverride && (
+            <p className="text-xs text-[var(--color-blue)] mt-2">
+              Next submission will be tagged as{" "}
+              <strong>{humanizeKind(kindOverride)}</strong>.
+            </p>
+          )}
         </div>
       )}
 
@@ -227,8 +347,7 @@ export function ArtifactInput({
             autoResize();
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Drop a LinkedIn URL, paste your resume, or describe what you're looking for…"
-          disabled={isUploading}
+          placeholder={copy.placeholder}
           rows={3}
           className="w-full bg-transparent px-4 pt-4 pb-2 text-sm resize-none outline-none placeholder:text-[var(--color-text-subtle)] min-h-[88px] max-h-[200px]"
         />
@@ -236,7 +355,6 @@ export function ArtifactInput({
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            disabled={isUploading}
             title="Upload PDF"
             className="p-1.5 rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] transition-colors"
           >
@@ -268,7 +386,6 @@ export function ArtifactInput({
         type="file"
         accept="application/pdf,.pdf"
         className="sr-only"
-        disabled={isUploading}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) submitFile(file);
@@ -277,12 +394,18 @@ export function ArtifactInput({
       />
 
       {/* Quick action pills */}
-      <div className="flex items-center gap-2 mt-4 flex-wrap justify-center">
+      <div className="flex items-center gap-2 mt-6 flex-wrap justify-center">
         {pills.map((pill) => (
           <button
             key={pill.label}
             type="button"
             onClick={() => {
+              // Set override BEFORE firing the action, so a pill that
+              // both opens the file dialog (e.g. "Upload deck") and
+              // carries a kind override tags the next upload correctly.
+              if (pill.kindOverride) {
+                setKindOverride(pill.kindOverride);
+              }
               if (pill.action) {
                 pill.action();
                 return;
@@ -298,24 +421,61 @@ export function ArtifactInput({
           </button>
         ))}
       </div>
-
-      {/* Primary + escape-hatch actions */}
-      <div className="flex flex-col items-center gap-3 mt-8">
-        {hasAnySuccess && (
-          <Button type="button" onClick={onReadyToChat}>
-            Start interview
-          </Button>
-        )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onReadyToChat}
-          className="text-[var(--color-text-subtle)]"
-        >
-          {hasAnySuccess ? "Skip to interview" : "Continue without context"}
-        </Button>
-      </div>
     </div>
   );
+}
+
+// ── Copy ────────────────────────────────────────────────────────────────────
+
+interface InputCopy {
+  heroTitle: string;
+  heroSubtitle: string;
+  placeholder: string;
+  cyclicMessages: string[];
+  linkedInFailureHint: string;
+}
+
+function buildCopy(templateId: InterviewTemplateId): InputCopy {
+  if (templateId === "icp_definition") {
+    return {
+      heroTitle: "Who do you want more of?",
+      heroSubtitle:
+        "Drop customers you'd clone, bad-fit examples, or your product context. The more exemplars I see, the sharper the ICP rubric gets before the first question.",
+      placeholder:
+        "Paste a customer URL, a buyer's LinkedIn, or describe your product and target accounts…",
+      cyclicMessages: [
+        "Reading your exemplars…",
+        "Spotting firmographic patterns…",
+        "Mapping the buyer committee…",
+        "Building the rubric before the first question…",
+      ],
+      linkedInFailureHint:
+        "LinkedIn often blocks automated reads. Try pasting the profile text or uploading a relevant PDF instead.",
+    };
+  }
+  return {
+    heroTitle: "Help me, help you.",
+    heroSubtitle:
+      "Drop a LinkedIn URL, paste your resume, or upload a PDF. The more context you share, the smarter the agent gets before it asks you anything.",
+    placeholder:
+      "Drop a LinkedIn URL, paste your resume, or describe what you're looking for…",
+    cyclicMessages: [
+      "Reading your career history…",
+      "Spotting your strongest signals…",
+      "Mapping your positioning…",
+      "Building context before the first question…",
+    ],
+    linkedInFailureHint:
+      "LinkedIn often blocks automated reads. Try pasting your profile text or uploading your resume PDF instead.",
+  };
+}
+
+function humanizeKind(kind: string): string {
+  const map: Record<string, string> = {
+    positive_example: "good-fit customer",
+    negative_example: "bad-fit example",
+    buyer_persona: "buyer persona",
+    company_context: "company context",
+  };
+  return map[kind] ?? kind.replace(/_/g, " ");
 }
