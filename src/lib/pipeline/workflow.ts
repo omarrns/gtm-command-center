@@ -194,7 +194,7 @@ async function stepDraft(userId: string, runId: string): Promise<DraftResult> {
   });
   log.info("starting");
   const svc = createSupabaseServiceClient();
-  const result = await runDraft(svc, userId);
+  const result = await runDraft(svc, userId, runId);
   log.info("done", {
     processed: result.processed,
     drafted: result.drafted,
@@ -303,6 +303,13 @@ async function stepPlanPursuits(
         sender,
         scoreThreshold: config.score_threshold,
         scoringProfile,
+        scope: {
+          runId,
+          userId,
+          scopeTable: "opportunities",
+          scopeId: opp.id,
+          callPurpose: "plan_pursuit",
+        },
       };
 
       const plan = await planPursuit(ctx);

@@ -39,6 +39,7 @@ export async function runJdRubricAction(formData: FormData) {
       memory,
     }),
     maxTokens: 4096,
+    scope: { userId: user.id, callPurpose: "jd_fit_rubric" },
   });
 
   // Save analysis record
