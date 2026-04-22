@@ -17,8 +17,6 @@
  *   stageLog.error("jsearch failed", err, { opportunityId });
  */
 
-import { randomUUID } from "node:crypto";
-
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface LogContext {
@@ -44,7 +42,10 @@ export interface Logger {
 }
 
 export function newRunId(): string {
-  return randomUUID();
+  // Web Crypto: works in browser, Node 19+, edge, and Vercel Workflow runtime.
+  // `node:crypto` would break Workflow bundling for any workflow function that
+  // transitively imports this file.
+  return globalThis.crypto.randomUUID();
 }
 
 export function createLogger(context: LogContext = {}): Logger {
