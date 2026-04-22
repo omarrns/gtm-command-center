@@ -127,7 +127,7 @@ async function stepScore(
   });
   log.info("starting");
   const svc = createSupabaseServiceClient();
-  const result = await runScore(svc, userId, config);
+  const result = await runScore(svc, userId, config, runId);
   log.info("done", {
     processed: result.processed,
     scored: result.scored,
