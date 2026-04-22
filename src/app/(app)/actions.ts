@@ -226,6 +226,11 @@ export async function skipOpportunityAction(
 ): Promise<{ ok: boolean; error?: string }> {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+  const log = createLogger({
+    scope: "action.skip",
+    userId: user.id,
+    opportunityId,
+  });
 
   // Get current stage to use as precondition
   const { data: opp, error: fetchError } = await svc
@@ -236,11 +241,13 @@ export async function skipOpportunityAction(
     .single();
 
   if (fetchError || !opp) {
+    log.warn("opportunity not found", { fetchError: fetchError?.message });
     return { ok: false, error: "Opportunity not found" };
   }
 
   const currentStage = opp.stage as OpportunityStage;
   if (!SKIPPABLE_STAGES.includes(currentStage)) {
+    log.warn("skip rejected — non-skippable stage", { currentStage });
     return { ok: false, error: `Cannot skip from stage: ${currentStage}` };
   }
 
@@ -253,9 +260,11 @@ export async function skipOpportunityAction(
   );
 
   if (!advanced) {
+    log.warn("skip stage transition lost a race", { currentStage });
     return { ok: false, error: "Stage changed concurrently, please refresh" };
   }
 
+  log.info("skipped", { fromStage: currentStage });
   revalidatePath("/");
   return { ok: true };
 }
@@ -271,6 +280,11 @@ export async function editDraftAction(
 ): Promise<{ ok: boolean; error?: string }> {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+  const log = createLogger({
+    scope: "action.editDraft",
+    userId: user.id,
+    draftId,
+  });
 
   // Validate ownership
   const { data: draft, error: fetchError } = await svc
@@ -281,6 +295,7 @@ export async function editDraftAction(
     .single();
 
   if (fetchError || !draft) {
+    log.warn("draft not found");
     return { ok: false, error: "Draft not found" };
   }
 
@@ -291,6 +306,7 @@ export async function editDraftAction(
     .eq("user_id", user.id);
 
   if (updateError) {
+    log.error("draft update failed", updateError);
     return { ok: false, error: updateError.message };
   }
 
@@ -307,6 +323,11 @@ export async function flagCompanyAction(
 ): Promise<{ ok: boolean; error?: string }> {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+  const log = createLogger({
+    scope: "action.flag",
+    userId: user.id,
+    opportunityId,
+  });
 
   // Get opportunity for company name and current stage
   const { data: opp, error: fetchError } = await svc
@@ -317,6 +338,7 @@ export async function flagCompanyAction(
     .single();
 
   if (fetchError || !opp) {
+    log.warn("opportunity not found");
     return { ok: false, error: "Opportunity not found" };
   }
 
@@ -328,6 +350,9 @@ export async function flagCompanyAction(
     "manual",
   );
   if (watchlistResult.status === "error") {
+    log.error("watchlist add failed", undefined, {
+      message: watchlistResult.message,
+    });
     return {
       ok: false,
       error: `Failed to add to watchlist: ${watchlistResult.message}`,
@@ -345,6 +370,7 @@ export async function flagCompanyAction(
       "skipped",
     );
     if (!skipped) {
+      log.warn("flagged but skip lost a race", { currentStage });
       return {
         ok: false,
         error:
@@ -353,6 +379,10 @@ export async function flagCompanyAction(
     }
   }
 
+  log.info("flagged + skipped", {
+    company: opp.company_name,
+    fromStage: currentStage,
+  });
   revalidatePath("/");
   return { ok: true };
 }
@@ -366,6 +396,11 @@ export async function applyManuallyAction(
 ): Promise<{ ok: boolean; error?: string }> {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+  const log = createLogger({
+    scope: "action.applyManually",
+    userId: user.id,
+    opportunityId,
+  });
 
   // Direct update — bypasses advanceStage() since we're jumping straight to
   // "sent" without the Gmail send flow. Guard prevents double-applying
@@ -383,14 +418,19 @@ export async function applyManuallyAction(
     .not("stage", "in", "(sent,replied,skipped,sending)")
     .select("id");
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    log.error("update failed", error);
+    return { ok: false, error: error.message };
+  }
   if (!data?.length) {
+    log.warn("not found or terminal");
     return {
       ok: false,
       error: "Opportunity not found or already in a terminal stage",
     };
   }
 
+  log.info("marked sent (manual apply)");
   revalidatePath("/");
   return { ok: true };
 }
@@ -409,6 +449,11 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
 }> {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+  const log = createLogger({
+    scope: "action.manualInject",
+    userId: user.id,
+    jobUrl,
+  });
 
   const { data: config, error: configError } = await svc
     .from("pipeline_config")
@@ -417,6 +462,7 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
     .single();
 
   if (configError || !config) {
+    log.warn("pipeline_config missing");
     return { ok: false, error: "Pipeline config not found" };
   }
 
@@ -424,6 +470,7 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
   try {
     markdown = await firecrawlScrape(jobUrl);
   } catch (err) {
+    log.error("firecrawl scrape failed", err);
     return {
       ok: false,
       error: `Could not fetch the job page: ${err instanceof Error ? err.message : String(err)}`,
@@ -431,6 +478,7 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
   }
 
   if (!markdown.trim()) {
+    log.warn("scraped page is empty");
     return { ok: false, error: "Job page returned empty content" };
   }
 
@@ -456,6 +504,7 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
   });
 
   if (!opp) {
+    log.info("dedup hit — already added in last 30 days");
     return {
       ok: false,
       error: "Duplicate — this role was already added within the last 30 days",
@@ -470,6 +519,13 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
     { source: "manual" },
   );
 
+  log.info("injected + scored", {
+    opportunityId: opp.id,
+    company: parsed.company_name,
+    role: parsed.role_title,
+    score: normalizedScore,
+    newStage,
+  });
   revalidatePath("/");
   return {
     ok: true,

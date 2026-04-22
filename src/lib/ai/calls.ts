@@ -14,8 +14,17 @@
 import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import type { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createLogger } from "@/lib/logger";
+
+// Module-scoped service client — avoid constructing one per AI call. The
+// supabase-js client is safe to share across concurrent requests in serverless.
+let cachedClient: SupabaseClient | null = null;
+function getClient(): SupabaseClient {
+  if (!cachedClient) cachedClient = createSupabaseServiceClient();
+  return cachedClient;
+}
 
 export interface AiCallScope {
   runId?: string;
@@ -46,13 +55,22 @@ export async function captureAiCall(
   call: CapturedCall,
 ): Promise<void> {
   // Skip capture when there's no correlation context — debugging value
-  // would be near-zero (no way to find this row later).
+  // would be near-zero (no way to find this row later). Warn so a new
+  // call site that forgets to pass scope is visible at dev time.
   if (!scope?.userId && !scope?.runId && !scope?.scopeId) {
+    if (process.env.NODE_ENV !== "production") {
+      const log = createLogger({ scope: "ai.capture" });
+      log.warn("skipping capture — no scope provided", {
+        model: call.model,
+        callKind: call.callKind,
+        callPurpose: scope?.callPurpose,
+      });
+    }
     return;
   }
 
   try {
-    const svc = createSupabaseServiceClient();
+    const svc = getClient();
     await svc.from("ai_calls").insert({
       run_id: scope.runId ?? null,
       user_id: scope.userId ?? null,
