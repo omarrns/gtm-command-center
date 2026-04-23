@@ -49,6 +49,7 @@ export async function runDiscoverAccounts(
   log.info(`theirstack returned ${jobs.length} jobs (≈${jobs.length} credits)`);
 
   let inserted = 0;
+  let skippedNoDomain = 0;
   for (const job of jobs) {
     if (inserted >= MAX_DISCOVERIES_PER_RUN) break;
 
@@ -58,6 +59,20 @@ export async function runDiscoverAccounts(
 
     if (!companyName) {
       log.warn("skipping job with no company name", { jobId: job.id });
+      continue;
+    }
+
+    // Non-null company_domain is a plan-level contract for the GTM
+    // pipeline: the scoring prompt references it, and Phase 4 dormant
+    // dedup keys on it. TheirStack occasionally returns jobs without
+    // a resolved domain (stealth / early-stage); skip-and-log rather
+    // than inserting a row that breaks dedup downstream.
+    if (!companyDomain) {
+      skippedNoDomain++;
+      log.warn("skipping job with no company_domain", {
+        jobId: job.id,
+        companyName,
+      });
       continue;
     }
 
@@ -79,6 +94,10 @@ export async function runDiscoverAccounts(
     } catch (err) {
       log.error("failed to insert account", err, { jobId: job.id });
     }
+  }
+
+  if (skippedNoDomain > 0) {
+    log.info(`skipped ${skippedNoDomain} job(s) without company_domain`);
   }
 
   return { found: jobs.length, inserted };

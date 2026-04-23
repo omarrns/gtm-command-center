@@ -126,11 +126,16 @@ export async function runScoreAccounts(
 ): Promise<ScoreResult> {
   const log = createLogger({ runId, userId, scope: "score-accounts" });
 
+  // Scope the batch to GTM sources at query time so stale jsearch /
+  // manual discovered rows can't fill the window and starve the scorer.
+  // The belt-and-suspenders check inside the loop is kept as a
+  // defensive guardrail in case a caller ever widens this query.
   const opportunities = await getOpportunitiesByStage(
     svc,
     userId,
     "discovered",
     MAX_SCORES_PER_RUN,
+    { sources: ["theirstack", "exa-dormant"] },
   );
 
   const result: ScoreResult = {
@@ -141,10 +146,6 @@ export async function runScoreAccounts(
   };
 
   for (const opp of opportunities) {
-    // GTM sources only — both TheirStack (Phase 2) and exa-dormant
-    // (Phase 4) land on this scorer. Any other source ('jsearch',
-    // 'manual', etc.) belongs to the job_seeker runner and must not be
-    // mis-scored by the ICP rubric prompt.
     if (opp.source !== "theirstack" && opp.source !== "exa-dormant") continue;
 
     try {

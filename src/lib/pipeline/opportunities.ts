@@ -253,23 +253,38 @@ export async function getOpportunitiesHistory(
 /**
  * Get opportunities at a specific stage (for pipeline runner batch processing).
  * Includes both unclaimed rows and stale claims (>10 min) for recovery.
+ *
+ * Optional `sources` scopes the batch to specific discovery sources.
+ * Without it the GTM account scorer would starve behind stale
+ * jsearch/manual rows: a 10-row window filled by non-GTM discoveries
+ * filtered in memory produces zero TheirStack/exa-dormant scorings per
+ * tick. Pushing the filter into the query guarantees forward progress.
  */
 export async function getOpportunitiesByStage(
   svc: SupabaseClient,
   userId: string,
   stage: OpportunityStage,
   limit: number,
+  options?: { sources?: OpportunitySource[] },
 ): Promise<OpportunityRow[]> {
   const staleCutoff = new Date(
     Date.now() - STALE_CLAIM_MINUTES * 60 * 1000,
   ).toISOString();
 
-  const { data, error } = await svc
+  let query = svc
     .from("opportunities")
     .select("*")
     .eq("user_id", userId)
     .eq("stage", stage)
-    .or(`processing_started_at.is.null,processing_started_at.lt.${staleCutoff}`)
+    .or(
+      `processing_started_at.is.null,processing_started_at.lt.${staleCutoff}`,
+    );
+
+  if (options?.sources && options.sources.length > 0) {
+    query = query.in("source", options.sources);
+  }
+
+  const { data, error } = await query
     .order("discovered_at", { ascending: true })
     .limit(limit);
 

@@ -171,6 +171,20 @@ Living log of features we've considered, cut, and scheduled for future considera
 
 ---
 
+### TheirStack industry + keyword-slug filter lookup tables
+
+**What.** `icpToTheirStackFilters()` currently omits `industry_id_or` and `company_keyword_slug_or/not` from the TheirStack query even though the rubric has `firmographics.industries` and `technographics.required_tools/excluded_tools`. Those TheirStack filters require LinkedIn Industry Codes V2 (numeric) and TheirStack's internal slug vocab, neither of which is a 1:1 mapping from the rubric's free-text fields.
+
+**Deferred from.** icp-pipeline Phase 2 (`.claude/plans/icp-account-pipeline-theirstack.md` Open Questions §1 + §2).
+
+**Why deferred.** Two options were considered: (a) ship a static JSON map of the top ~150 LinkedIn industries and ~100 tool slugs; (b) call TheirStack's lookup endpoint per run. Neither is load-bearing for Phase 2's value prop — the scoring prompt (`buildIcpAccountFitPrompt`) uses industries + required_tools + excluded_tools directly in the rubric section, so every candidate TheirStack returns still gets scored against those dimensions. The only cost of deferring is that TheirStack's upstream filter is broader than ideal (more candidates to score → more credit spend), not that rubric dimensions are ignored.
+
+**Trigger to revisit.** When credit spend becomes a constraint (current cron schedule ≈ 8 pulls × 25 jobs/week = 200 credits, comfortably inside the free tier), OR when a third rubric lands that uses industry/tech filtering as its primary discriminator.
+
+**Rough scope.** 1–2 commits: static JSON maps in `src/lib/integrations/theirstack-vocab.ts` covering the top N industries + slugs; mapping function consults the map, falls back to omitting the filter on miss; surface map coverage in the discover-accounts log line so we know when coverage is too sparse.
+
+---
+
 ### Live SSE stream for orchestrator reasoning
 
 **What.** Real-time streaming of the orchestrator's per-dimension inference to the status panel via SSE (`/api/onboard/orchestrator/stream`), using AI SDK v6 `streamText` with `sendReasoning: true`. Replaces v1's saved-state polling.

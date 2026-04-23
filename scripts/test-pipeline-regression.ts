@@ -131,6 +131,26 @@ const THEIRSTACK_FIXTURE = [
       country_code: "US",
     },
   },
+  // Codex audit #2: a TheirStack row with no resolvable domain must be
+  // skipped by runDiscoverAccounts rather than inserted — dormant dedup
+  // and the scoring prompt both assume non-null company_domain.
+  {
+    id: 9003,
+    job_title: "Founding Engineer",
+    description: "Pre-seed stealth; no public domain yet.",
+    date_posted: new Date().toISOString(),
+    short_location: "Remote",
+    remote: true,
+    seniority: "senior",
+    company: "StealthCo",
+    company_domain: null,
+    company_object: {
+      name: "StealthCo",
+      domain: null,
+      funding_stage: "seed",
+      country_code: "US",
+    },
+  },
 ];
 
 // Phase 4 dormant-ICP fixture. Three Exa search results; one overlaps
@@ -675,24 +695,62 @@ async function main() {
     },
   });
 
+  // Codex audit #1: simulate persona-switch cruft — 10 stale jsearch
+  // rows at stage='discovered' for this GTM user. Without the
+  // in-query source filter, getOpportunitiesByStage's LIMIT 10 window
+  // would be consumed by these rows and TheirStack accounts would
+  // never reach the scorer. With the fix, the query excludes them
+  // and the 2 TheirStack rows are processed normally.
+  const staleSeedTime = new Date(
+    Date.now() - 12 * 60 * 60 * 1000,
+  ).toISOString();
+  for (let i = 0; i < 10; i++) {
+    tables.opportunities.push({
+      id: nextId(),
+      user_id: gtmUserId,
+      source: "jsearch",
+      external_id: `stale-jsearch-${i}`,
+      company_name: `StaleCo ${i}`,
+      role_title: "Any Role",
+      stage: "discovered",
+      discovered_at: staleSeedTime,
+      updated_at: staleSeedTime,
+      processing_started_at: null,
+      attempt_count: 0,
+      enrichment_attempts: 0,
+      max_enrichment_attempts: 3,
+      score: null,
+    });
+  }
+
   const gtmResult = await runPipeline(svc, gtmUserId);
-  const gtmOpps = tables.opportunities.filter((o) => o.user_id === gtmUserId);
+  // Scope assertions to TheirStack rows only — the 10 stale jsearch
+  // seeds from the starvation fixture live in the same user's opps.
+  const gtmOpps = tables.opportunities.filter(
+    (o) => o.user_id === gtmUserId && o.source === "theirstack",
+  );
 
   assert(
     gtmResult.error === null,
     `gtm result.error === null (got ${gtmResult.error})`,
   );
   assert(
-    gtmResult.discover.found === 2,
-    `gtm discover.found === 2 (got ${gtmResult.discover.found})`,
+    gtmResult.discover.found === 3,
+    `gtm discover.found === 3 from theirstack fixture (got ${gtmResult.discover.found})`,
   );
+  // Codex audit #2: the 3rd fixture row (StealthCo) has company_domain=null
+  // and must be skipped by runDiscoverAccounts. Inserted stays at 2.
   assert(
     gtmResult.discover.inserted === 2,
-    `gtm discover.inserted === 2 (got ${gtmResult.discover.inserted})`,
+    `gtm discover.inserted === 2 (null-domain row skipped) (got ${gtmResult.discover.inserted})`,
   );
   assert(
     gtmOpps.length === 2,
     `gtm opportunities count === 2 (got ${gtmOpps.length})`,
+  );
+  assert(
+    !gtmOpps.some((o) => o.company_name === "StealthCo"),
+    "StealthCo (no domain) NOT inserted — null-domain guardrail enforced",
   );
   assert(
     gtmOpps.every((o) => o.source === "theirstack"),
@@ -703,7 +761,7 @@ async function main() {
       (o) =>
         typeof o.company_domain === "string" && o.company_domain.length > 0,
     ),
-    "every gtm opportunity has company_domain",
+    "every gtm opportunity has non-null company_domain",
   );
   assert(
     gtmOpps.every(
@@ -747,7 +805,20 @@ async function main() {
   // skips the scoring step entirely, processed will drop to 0.
   assert(
     gtmResult.score.processed === 2,
-    `gtm score.processed === 2 (got ${gtmResult.score.processed})`,
+    `gtm score.processed === 2 — 10 stale jsearch rows did NOT starve the GTM scorer (got ${gtmResult.score.processed})`,
+  );
+  // Codex audit #1: the stale jsearch rows must remain untouched —
+  // still at stage='discovered', unclaimed, unscored.
+  const staleRowsAfter = tables.opportunities.filter(
+    (o) => o.user_id === gtmUserId && o.source === "jsearch",
+  );
+  assert(
+    staleRowsAfter.length === 10,
+    `10 stale jsearch rows still present (got ${staleRowsAfter.length})`,
+  );
+  assert(
+    staleRowsAfter.every((o) => o.stage === "discovered" && o.score === null),
+    "stale jsearch rows NOT touched by GTM scorer (still discovered + unscored)",
   );
   assert(
     gtmResult.score.errors === 2,
@@ -846,8 +917,8 @@ async function main() {
   );
 
   assert(
-    activationResult.stats.discovered === 2,
-    `activation discovered === 2 from theirstack fixture (got ${activationResult.stats.discovered})`,
+    activationResult.stats.discovered === 3,
+    `activation discovered === 3 from theirstack fixture — raw count pre-filter (got ${activationResult.stats.discovered})`,
   );
   assert(
     activationResult.stats.errors === 2,
