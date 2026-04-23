@@ -1,5 +1,6 @@
 "use client";
 
+import { FadeIn } from "@/components/ui/fade-in";
 import {
   BarChart,
   Bar,
@@ -153,7 +154,7 @@ export function AnalyticsDashboardClient({ rows }: { rows: AnalyticsRow[] }) {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <FadeIn className="space-y-6 p-6">
       <Card>
         <CardHeader>
           <CardTitle>Discovery over time</CardTitle>
@@ -357,6 +358,6 @@ export function AnalyticsDashboardClient({ rows }: { rows: AnalyticsRow[] }) {
           )}
         </CardContent>
       </Card>
-    </div>
+    </FadeIn>
   );
 }

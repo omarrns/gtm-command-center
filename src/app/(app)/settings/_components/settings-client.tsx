@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FadeIn } from "@/components/ui/fade-in";
 import { ExternalLink, UserPen } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import type { UserScoringProfileRow, UserType } from "@/lib/supabase/types";
@@ -48,7 +49,7 @@ export function SettingsClient({
   const profileLinkLabel = isGtm ? "Refresh ICP" : "Edit Profile";
 
   return (
-    <div className="space-y-6">
+    <FadeIn className="space-y-6">
       {gmailError && (
         <div className="rounded-lg border border-[var(--color-danger)] bg-red-50 dark:bg-red-950/20 px-4 py-3 text-sm text-[var(--color-danger)]">
           Gmail connection failed: {gmailError.replace(/_/g, " ")}
@@ -93,6 +94,6 @@ export function SettingsClient({
       )}
 
       <SwitchPersonaPlaceholder userType={userType} />
-    </div>
+    </FadeIn>
   );
 }
