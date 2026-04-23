@@ -142,6 +142,11 @@ function toScoreSubject(job: TheirStackJob): ScoreAccountSubject | null {
   if (!companyName) return null;
   const companyDomain =
     job.company_object?.domain ?? job.company_domain ?? null;
+  // Match discover-accounts: rows without a resolvable domain can't be
+  // enriched or dedup'd downstream. Activation stays preview-only, but
+  // the UX is better off not showing an account the user can't do
+  // anything with.
+  if (!companyDomain) return null;
 
   return {
     id: `activation-${job.id}`,
