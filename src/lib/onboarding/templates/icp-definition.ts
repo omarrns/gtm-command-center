@@ -289,7 +289,7 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   dimensions,
   rubricSchema: icpRubricSchema,
   orchestratorModel: "claude-opus-4-6",
-  orchestratorMaxOutputTokens: 4096,
+  orchestratorMaxOutputTokens: 8192,
   orchestratorSystemPrompt: () => ICP_ORCHESTRATOR_SYSTEM_PROMPT,
   // positiveExemplarCount comes from the call sites (chat/route +
   // startAgenticInterviewAction) which load it from onboarding_artifacts

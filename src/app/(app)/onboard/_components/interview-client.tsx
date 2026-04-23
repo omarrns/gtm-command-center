@@ -34,7 +34,6 @@ import {
 } from "../interview-actions";
 import { ArtifactInput } from "./artifact-input";
 import { OrchestratorStatusPanel } from "./orchestrator-status-panel";
-import { SwitchPersonaControl } from "./switch-persona-control";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
@@ -168,12 +167,6 @@ function AgenticInterview({
   if (phase === "artifacts") {
     return (
       <div>
-        <div className="mx-auto flex max-w-2xl items-center justify-end px-6 pt-4">
-          <SwitchPersonaControl
-            interviewId={interview.id}
-            currentTemplateId={clientTemplate.id}
-          />
-        </div>
         <ArtifactInput
           interviewId={interview.id}
           clientTemplate={clientTemplate}
@@ -381,12 +374,6 @@ function AgenticChat({
           <OrchestratorStatusPanel
             state={orchestratorState}
             clientTemplate={clientTemplate}
-            headerAction={
-              <SwitchPersonaControl
-                interviewId={interview.id}
-                currentTemplateId={clientTemplate.id}
-              />
-            }
           />
         </div>
       </div>

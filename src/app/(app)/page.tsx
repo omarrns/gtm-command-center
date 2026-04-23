@@ -9,7 +9,6 @@ import type {
   UserType,
 } from "@/lib/supabase/types";
 import { TodayClient } from "./_components/today-client";
-import { IcpDashboard } from "./_components/icp-dashboard";
 import {
   loadDraftsMap,
   loadAnalysisSummaries,
@@ -29,11 +28,9 @@ export default async function TodayPage() {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
 
-  // SPEC-3 Phase 6.b: persona branch happens BEFORE the activation /
-  // pipeline_config gate. GTM users have no /activate flow, no
-  // opportunities pipeline in v1 — their homepage IS the ICP
-  // dashboard. Onboarding completeness is still gated, just via the
-  // template-aware check.
+  // GTM users always redirect to /icp (their onboarding + dashboard hub).
+  // Load user_type first so the onboarding redirect and persona branch
+  // both use the same value.
   const { data: profile } = await svc
     .from("profiles")
     .select("user_type")
@@ -53,14 +50,13 @@ export default async function TodayPage() {
       userType ?? "job_seeker",
     );
     if (!onboarding.complete) {
-      redirect("/onboard");
+      redirect(userType === "gtm" ? "/icp" : "/onboard");
     }
   }
 
-  // GTM lands on the ICP dashboard — no pipeline_config / activation
-  // path applies to this persona in v1.
+  // GTM users live at /icp — both onboarding and post-onboarding dashboard.
   if (userType === "gtm") {
-    return <IcpDashboard userId={user.id} />;
+    redirect("/icp");
   }
 
   const { data: pipelineConfig } = await svc

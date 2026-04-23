@@ -2,9 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
-import { Command, Menu, Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { DevPersonaToggle } from "@/components/dev-persona-toggle";
 import type { UserType } from "@/lib/supabase/types";
+
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 const THEME_SWAP = { duration: 0.2, ease: "easeOut" } as const;
 
@@ -33,7 +36,8 @@ export function TopBar({ onMenuClick, userType }: TopBarProps) {
   // because that's what the homepage renders for them; job_seeker
   // and null keep "Today". Other titles are persona-agnostic.
   const baseTitle = key ? TITLES[key] : "GTM Command Center";
-  const title = key === "/" && userType === "gtm" ? "ICP" : baseTitle;
+  const isSignalBase = key === "/" && userType === "gtm";
+  const title = isSignalBase ? "SignalBase" : baseTitle;
 
   return (
     <header className="h-14 border-b border-[var(--color-border)] bg-[var(--color-bg)] flex items-center justify-between px-4 md:px-8">
@@ -46,11 +50,18 @@ export function TopBar({ onMenuClick, userType }: TopBarProps) {
         >
           <Menu size={18} />
         </button>
-        <h1 className="text-base font-semibold tracking-tight text-[var(--color-text)]">
+        <h1
+          className={
+            isSignalBase
+              ? "text-lg font-medium tracking-tight text-[var(--color-text)]"
+              : "text-base font-semibold tracking-tight text-[var(--color-text)]"
+          }
+        >
           {title}
         </h1>
       </div>
       <div className="flex items-center gap-2">
+        {IS_DEV && <DevPersonaToggle currentType={userType} />}
         <button
           type="button"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -77,11 +88,7 @@ export function TopBar({ onMenuClick, userType }: TopBarProps) {
           }
           className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] px-3 py-1.5 rounded-md border border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] transition-colors"
         >
-          <Command size={12} />
-          <span>Command</span>
-          <kbd className="font-mono text-xs text-[var(--color-text-subtle)]">
-            ⌘K
-          </kbd>
+          <span>Search</span>
         </button>
       </div>
     </header>

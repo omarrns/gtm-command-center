@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { TopBar } from "@/components/top-bar";
 import { LazyCommandPalette } from "@/components/lazy-command-palette";
@@ -54,23 +53,8 @@ export function AppShell({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const pathname = usePathname();
-  const isOnboarding = pathname.startsWith("/onboard");
-
-  if (isOnboarding) {
-    return (
-      <div className="min-h-screen">
-        <main className="flex-1 overflow-auto">
-          <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
-            {children}
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       <SidebarNav
         user={user}
         userType={userType}

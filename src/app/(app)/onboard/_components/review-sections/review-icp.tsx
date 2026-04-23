@@ -101,7 +101,7 @@ export function ReviewIcp({
         return;
       }
       toast.success("ICP saved!");
-      router.push(isRefresh ? "/settings" : "/");
+      router.push(isRefresh ? "/settings" : "/icp");
     });
   }
 
