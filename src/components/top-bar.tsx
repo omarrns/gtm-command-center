@@ -35,7 +35,9 @@ export function TopBar({ onMenuClick, userType }: TopBarProps) {
   // SPEC-3 polish: persona drives the / label. GTM users see "ICP"
   // because that's what the homepage renders for them; job_seeker
   // and null keep "Today". Other titles are persona-agnostic.
-  const baseTitle = key ? TITLES[key] : "GTM Command Center";
+  const personaFallback =
+    userType === "job_seeker" ? "Job Search" : "GTM Command Center";
+  const baseTitle = key ? TITLES[key] : personaFallback;
   const isSignalBase = key === "/" && userType === "gtm";
   const title = isSignalBase ? "SignalBase" : baseTitle;
 
