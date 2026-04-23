@@ -40,12 +40,10 @@ interface NavItem {
 function buildNav(userType: UserType | null): NavItem[] {
   if (userType === "gtm") {
     return [
-      { href: "/icp", label: "SignalBase", icon: CalendarCheck },
+      { href: "/icp", label: "ICP System Prompt", icon: CalendarCheck },
       { href: "/accounts", label: "Accounts", icon: Inbox },
       { href: "/calls", label: "Calls", icon: Phone, badge: "POC" },
       { href: "/trends", label: "Trends", icon: TrendingUp, badge: "POC" },
-      { href: "/history", label: "History", icon: Clock },
-      { href: "/watchlist", label: "Watchlist", icon: Eye },
       { href: "/settings", label: "Settings", icon: Settings },
     ];
   }
