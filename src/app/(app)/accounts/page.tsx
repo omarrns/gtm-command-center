@@ -8,11 +8,14 @@ import { icpAccountAnalysisSchema } from "@/lib/pipeline/scoring-account";
 import { AccountCard } from "../_components/account-card";
 import { FadeIn } from "@/components/ui/fade-in";
 
-// GTM-only queue of scored accounts. Pure read from persisted pipeline
-// output — no live API calls, no scoring, no watchlist side effects
-// here. Those are owned by /api/cron/pipeline, /api/cron/dormant-discover,
-// and /api/webhooks/theirstack. This surface is just "show me what the
-// pipeline produced since I last looked."
+// GTM-only queue of accounts the pipeline promoted for the user. Rows
+// stay here across downstream stage transitions (scored → researched →
+// needs_contact, etc.) and only leave when the user explicitly dismisses
+// them (stage='skipped' via skipOpportunityAction / flagCompanyAction).
+// Pure read from persisted pipeline output — no live API calls, no
+// scoring, no watchlist side effects here. Those are owned by
+// /api/cron/pipeline, /api/cron/dormant-discover, and
+// /api/webhooks/theirstack.
 
 export default async function AccountsPage() {
   const user = await requireUser();
@@ -28,12 +31,16 @@ export default async function AccountsPage() {
     redirect("/");
   }
 
+  // Show every account the pipeline promoted, regardless of downstream
+  // pursuit outcome. Exclude only: discovered (not yet scored), filtered
+  // (below threshold — never belonged here), and skipped (explicit user
+  // dismissal). See feedback_accounts_never_auto_remove.md.
   const { data: oppsRaw } = await svc
     .from("opportunities")
     .select("*")
     .eq("user_id", user.id)
     .in("source", ["theirstack", "exa-dormant"])
-    .eq("stage", "scored")
+    .not("stage", "in", "(discovered,filtered,skipped)")
     .order("score", { ascending: false, nullsFirst: false })
     .limit(50);
 
@@ -66,11 +73,11 @@ export default async function AccountsPage() {
       <div className="mx-auto max-w-2xl px-6 py-10 space-y-6">
         <PageHeader
           title="Accounts"
-          description="Tier-scored accounts from the TheirStack + Exa dormant pipelines."
+          description="Accounts the pipeline promoted from TheirStack + Exa dormant. Stay here until you skip."
         />
         <EmptyState
-          message="No scored accounts yet"
-          hint="The main pipeline runs every 6 hours; the dormant sweep runs Monday 12:00 UTC. Fresh Tier-A picks will land here as they score above your threshold."
+          message="No promoted accounts yet"
+          hint="The main pipeline runs every 6 hours; the dormant sweep runs Monday 12:00 UTC. Accounts scoring above your threshold land here and stay until you dismiss them."
         />
       </div>
     );
@@ -80,7 +87,7 @@ export default async function AccountsPage() {
     <FadeIn className="mx-auto max-w-2xl px-6 py-10 space-y-6">
       <PageHeader
         title="Accounts"
-        description={`${opps.length} scored ${opps.length === 1 ? "account" : "accounts"} above your threshold, freshest first.`}
+        description={`${opps.length} promoted ${opps.length === 1 ? "account" : "accounts"}, highest-scoring first. Dismiss to move to History.`}
       />
       <div className="space-y-2">
         {opps.map((o) => {
