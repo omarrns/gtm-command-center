@@ -1,11 +1,16 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
+import { captureAiCall, type AiCallScope } from "@/lib/ai/calls";
 
 /**
  * Claude calls via Vercel AI SDK v6 + @ai-sdk/anthropic.
  *
  * Auth: OIDC via `vercel env pull` — AI Gateway handles provider auth,
  * routing, failover, and cost tracking on deploy.
+ *
+ * Both helpers accept an optional `scope` for ai_calls capture so any
+ * call can be replayed by id later. When omitted, capture is skipped
+ * (best-effort observability — never breaks the actual call).
  */
 
 const DEFAULT_MODEL = "claude-opus-4-6";
@@ -23,18 +28,46 @@ export async function runClaudeJson<T = unknown>({
   prompt,
   model: modelName = DEFAULT_MODEL,
   maxTokens = 4096,
+  scope,
 }: {
   system: string;
   prompt: string;
   model?: string;
   maxTokens?: number;
+  scope?: AiCallScope;
 }): Promise<T> {
-  const { text } = await generateText({
-    model: model(modelName),
-    system,
-    prompt,
-    maxOutputTokens: maxTokens,
-  });
+  const start = Date.now();
+  let text = "";
+  let usage: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  } = {};
+
+  try {
+    const result = await generateText({
+      model: model(modelName),
+      system,
+      prompt,
+      maxOutputTokens: maxTokens,
+    });
+    text = result.text;
+    usage = {
+      inputTokens: result.usage?.inputTokens ?? undefined,
+      outputTokens: result.usage?.outputTokens ?? undefined,
+      totalTokens: result.usage?.totalTokens ?? undefined,
+    };
+  } catch (err) {
+    await captureAiCall(scope, {
+      model: modelName,
+      callKind: "json",
+      systemPrompt: system,
+      userPrompt: prompt,
+      latencyMs: Date.now() - start,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
 
   const cleaned = text
     .trim()
@@ -43,8 +76,32 @@ export async function runClaudeJson<T = unknown>({
     .trim();
 
   try {
-    return JSON.parse(cleaned) as T;
+    const parsed = JSON.parse(cleaned) as T;
+    await captureAiCall(scope, {
+      model: modelName,
+      callKind: "json",
+      systemPrompt: system,
+      userPrompt: prompt,
+      responseText: text,
+      responseObject: parsed as unknown,
+      ...usage,
+      latencyMs: Date.now() - start,
+    });
+    return parsed;
   } catch (err) {
+    // Capture the FULL response text — the audit specifically called out
+    // that the previous `text.slice(0, 500)` truncation in the error message
+    // threw away the data needed to debug the parse failure.
+    await captureAiCall(scope, {
+      model: modelName,
+      callKind: "json",
+      systemPrompt: system,
+      userPrompt: prompt,
+      responseText: text,
+      ...usage,
+      latencyMs: Date.now() - start,
+      error: `JSON parse failed: ${(err as Error).message}`,
+    });
     throw new Error(
       `Failed to parse Claude response as JSON: ${(err as Error).message}\n\nRaw:\n${text.slice(0, 500)}`,
     );
@@ -56,17 +113,43 @@ export async function runClaudeText({
   prompt,
   model: modelName = DEFAULT_MODEL,
   maxTokens = 4096,
+  scope,
 }: {
   system: string;
   prompt: string;
   model?: string;
   maxTokens?: number;
+  scope?: AiCallScope;
 }): Promise<string> {
-  const { text } = await generateText({
-    model: model(modelName),
-    system,
-    prompt,
-    maxOutputTokens: maxTokens,
-  });
-  return text;
+  const start = Date.now();
+  try {
+    const result = await generateText({
+      model: model(modelName),
+      system,
+      prompt,
+      maxOutputTokens: maxTokens,
+    });
+    await captureAiCall(scope, {
+      model: modelName,
+      callKind: "text",
+      systemPrompt: system,
+      userPrompt: prompt,
+      responseText: result.text,
+      inputTokens: result.usage?.inputTokens ?? undefined,
+      outputTokens: result.usage?.outputTokens ?? undefined,
+      totalTokens: result.usage?.totalTokens ?? undefined,
+      latencyMs: Date.now() - start,
+    });
+    return result.text;
+  } catch (err) {
+    await captureAiCall(scope, {
+      model: modelName,
+      callKind: "text",
+      systemPrompt: system,
+      userPrompt: prompt,
+      latencyMs: Date.now() - start,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
 }

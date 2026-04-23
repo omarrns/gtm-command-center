@@ -1,19 +1,28 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
-import { MessageSquare, ClipboardList, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { InterviewClient } from "./interview-client";
 import { ReviewClient } from "./review-client";
 import { OnboardClient } from "./onboard-client";
+import { StoryClient } from "./story-client";
 import {
   getOrCreateInterviewAction,
   extractAndReviewAction,
 } from "../interview-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
+import type {
+  ClientInterviewTemplate,
+  InterviewTemplateId,
+} from "@/lib/onboarding/templates/types";
 
 interface OnboardRouterProps {
   interview: OnboardingInterviewRow | null;
+  clientTemplate: ClientInterviewTemplate;
+  // SPEC-3 Phase 4.b: resolved template from URL / user_type / picker.
+  // Passed explicitly so the client doesn't re-resolve from props.
+  templateId: InterviewTemplateId;
   isRefresh: boolean;
   gmailConnected: boolean;
   // Props forwarded to OnboardClient (manual mode)
@@ -35,6 +44,8 @@ type Mode = "choice" | "interview" | "manual";
 
 export function OnboardRouter({
   interview: initialInterview,
+  clientTemplate,
+  templateId,
   isRefresh,
   gmailConnected,
   completedSteps,
@@ -57,6 +68,34 @@ export function OnboardRouter({
   });
   const [isPending, startTransition] = useTransition();
   const autoExtractTriggered = useRef(false);
+  const autoStartTriggered = useRef(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  // Auto-start: skip the redundant one-CTA interstitial and enter the
+  // interview immediately. Manual mode is still reachable from inside
+  // InterviewClient via onSwitchToManual, so we don't lose an affordance.
+  useEffect(() => {
+    if (
+      mode !== "choice" ||
+      interview ||
+      isPending ||
+      autoStartTriggered.current
+    ) {
+      return;
+    }
+    autoStartTriggered.current = true;
+    setStartError(null);
+    startTransition(async () => {
+      const result = await getOrCreateInterviewAction(isRefresh, templateId);
+      if (result.ok) {
+        setInterview(result.interview);
+        setMode("interview");
+      } else {
+        setStartError(result.error ?? "Failed to start interview");
+        autoStartTriggered.current = false;
+      }
+    });
+  }, [mode, interview, isPending, isRefresh, templateId]);
 
   // Auto-trigger extraction on resume when ready_for_extraction is set
   // but status is still in_progress (server set the flag, client disconnected)
@@ -89,11 +128,17 @@ export function OnboardRouter({
     );
   }
 
+  // ── Story phase (agentic-only intermediate between review and confirmed) ──
+  if (interview && interview.status === "story_review") {
+    return <StoryClient interview={interview} isRefresh={isRefresh} />;
+  }
+
   // ── Review mode ──
   if (interview && interview.status === "review") {
     return (
       <ReviewClient
         interview={interview}
+        clientTemplate={clientTemplate}
         isRefresh={isRefresh}
         existingData={{
           config: existingConfig,
@@ -101,6 +146,9 @@ export function OnboardRouter({
           outreach: existingOutreach,
         }}
         onBackToInterview={(updated) => {
+          setInterview(updated);
+        }}
+        onContinueToStory={(updated) => {
           setInterview(updated);
         }}
       />
@@ -112,6 +160,7 @@ export function OnboardRouter({
     return (
       <InterviewClient
         interview={interview}
+        clientTemplate={clientTemplate}
         onExtracted={(updated) => {
           setInterview(updated);
         }}
@@ -137,83 +186,28 @@ export function OnboardRouter({
     );
   }
 
-  // ── Choice screen ──
-  function startInterview() {
-    if (isPending || interview) return;
-    startTransition(async () => {
-      const result = await getOrCreateInterviewAction(isRefresh);
-      if (result.ok) {
-        setInterview(result.interview);
-        setMode("interview");
-      } else {
-        toast.error(result.error ?? "Failed to start interview — try again");
-      }
-    });
+  // ── Auto-start loading / error fallback ──
+  if (startError) {
+    return (
+      <div className="mx-auto flex min-h-[75vh] max-w-md flex-col items-center justify-center gap-3 p-6 text-center">
+        <p className="text-sm text-[var(--color-text-muted)]">{startError}</p>
+        <button
+          type="button"
+          onClick={() => {
+            autoStartTriggered.current = false;
+            setStartError(null);
+          }}
+          className="text-sm font-medium text-[var(--color-blue)] hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <div className="mb-8">
-        <h1 className="text-xl font-bold tracking-tight">
-          {isRefresh ? "Profile Refresh" : "Set up your pipeline"}
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          {isRefresh
-            ? "Update your profile so the pipeline uses your latest context."
-            : "We need to understand who you are to find and score opportunities for you."}
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* Interview option */}
-        <button
-          type="button"
-          onClick={startInterview}
-          disabled={isPending}
-          className="surface p-5 text-left hover:border-[var(--color-blue)] transition-colors"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-8 w-8 rounded-full bg-[var(--color-blue-muted)] flex items-center justify-center">
-              <MessageSquare size={16} className="text-[var(--color-blue)]" />
-            </div>
-            <h2 className="text-sm font-semibold">Chat with AI coach</h2>
-          </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Answer a few questions conversationally. Takes ~5 minutes and
-            produces richer data for scoring and outreach.
-          </p>
-          {isPending && (
-            <div className="mt-3">
-              <Loader2
-                size={14}
-                className="animate-spin text-[var(--color-blue)]"
-              />
-            </div>
-          )}
-        </button>
-
-        {/* Manual option */}
-        <button
-          type="button"
-          onClick={() => setMode("manual")}
-          disabled={isPending}
-          className="surface p-5 text-left hover:border-[var(--color-blue)] transition-colors"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-8 w-8 rounded-full bg-[var(--muted)] flex items-center justify-center">
-              <ClipboardList
-                size={16}
-                className="text-[var(--color-text-muted)]"
-              />
-            </div>
-            <h2 className="text-sm font-semibold">Fill in manually</h2>
-          </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Enter your profile, search preferences, and outreach style in a
-            form. Takes ~3 minutes.
-          </p>
-        </button>
-      </div>
+    <div className="mx-auto flex min-h-[75vh] flex-col items-center justify-center gap-3 p-6">
+      <Loader2 size={20} className="animate-spin text-[var(--color-blue)]" />
     </div>
   );
 }

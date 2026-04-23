@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PipelineConfigRow } from "@/lib/supabase/types";
 import { searchJobs } from "@/lib/pipeline/jsearch";
 import { createOpportunity } from "@/lib/pipeline/opportunities";
+import { createLogger } from "@/lib/logger";
 
 const MAX_DISCOVERIES_PER_RUN = 10;
 
@@ -21,7 +22,9 @@ export async function runDiscover(
   svc: SupabaseClient,
   userId: string,
   config: PipelineConfigRow,
+  runId?: string,
 ): Promise<DiscoverResult> {
+  const log = createLogger({ runId, userId, scope: "discover" });
   const jobs = await searchJobs(
     config.search_queries,
     config.search_locations,
@@ -43,15 +46,21 @@ export async function runDiscover(
         job_url: job.job_apply_link,
         job_description: job.job_description ?? undefined,
         job_posted_at: job.job_posted_at_datetime_utc ?? undefined,
+        job_city: job.job_city,
+        job_state: job.job_state,
+        job_is_remote: job.job_is_remote,
+        job_employment_type: job.job_employment_type,
+        job_min_salary: job.job_min_salary,
+        job_max_salary: job.job_max_salary,
+        job_salary_currency: job.job_salary_currency,
+        job_salary_period: job.job_salary_period,
+        job_required_skills: job.job_required_skills,
       });
 
       if (created) inserted++;
     } catch (err) {
       // Per-job isolation: log and continue so one bad insert doesn't skip the rest
-      console.error(
-        `[discover] Failed to insert job ${job.job_id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      log.error("failed to insert job", err, { jobId: job.job_id });
     }
   }
 

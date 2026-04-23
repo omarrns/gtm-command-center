@@ -40,6 +40,12 @@ export async function runCompanyFitAnalyzerJob(
       memory,
     }),
     maxTokens: 4096,
+    scope: {
+      userId: job.user_id,
+      scopeTable: "analyses",
+      scopeId: analysis_id,
+      callPurpose: "company_fit_analyzer",
+    },
   });
 
   // 4. Update the analysis row with the completed result

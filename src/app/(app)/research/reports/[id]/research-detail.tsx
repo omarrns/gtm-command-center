@@ -32,13 +32,17 @@ export function ResearchDetail({
   const router = useRouter();
   const needsPolling =
     initial.status === "running" || initial.status === "pending";
-  const { isComplete } = useJobPoll(needsPolling ? initial.job_id : null);
+  const { isComplete, fetchError, pollingStopped } = useJobPoll(
+    needsPolling ? initial.job_id : null,
+  );
 
   useEffect(() => {
     if (isComplete && needsPolling) {
       router.refresh();
     }
   }, [isComplete, needsPolling, router]);
+
+  const showRunning = needsPolling && !pollingStopped;
 
   const result = initial.result as Record<string, unknown> | null;
   const ceo = result?.ceo as PersonResult | undefined;
@@ -58,12 +62,23 @@ export function ResearchDetail({
         }
       />
 
-      {needsPolling && (
+      {showRunning && (
         <Alert className="mb-6">
           <RefreshCw className="animate-spin text-[var(--color-blue)]" />
           <AlertTitle>Research running…</AlertTitle>
           <AlertDescription>
             Querying Exa and synthesizing. Usually completes within 120 seconds.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {pollingStopped && needsPolling && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>Lost connection to job</AlertTitle>
+          <AlertDescription>
+            Stopped polling after repeated failures
+            {fetchError ? ` (${fetchError})` : ""}. The job may still be running
+            — refresh the page to retry.
           </AlertDescription>
         </Alert>
       )}

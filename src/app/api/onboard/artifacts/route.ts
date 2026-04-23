@@ -1,0 +1,183 @@
+import { requireUser } from "@/lib/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import {
+  ingestFile,
+  ingestText,
+  ingestUrl,
+  ingestUrls,
+  type IngestOptions,
+} from "@/lib/onboarding/artifacts/ingest";
+import { getTemplate } from "@/lib/onboarding/templates";
+import { analyzeArtifacts } from "@/lib/onboarding/orchestrator/run";
+import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
+
+export const maxDuration = 120;
+
+interface BatchUrlItem {
+  url: string;
+  kind: string;
+}
+
+interface ArtifactRequestBody {
+  interviewId?: string | null;
+  kind?: string;
+  url?: string;
+  text?: string;
+  urls?: BatchUrlItem[];
+  sourceLabel?: string;
+}
+
+export async function POST(req: Request) {
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
+  const contentType = req.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const form = await req.formData();
+    const file = form.get("file");
+    const interviewId = (form.get("interviewId") as string | null) ?? null;
+    const kind = (
+      (form.get("kind") as string | null) ?? "uploaded_file"
+    ).trim();
+    const sourceLabel = (form.get("sourceLabel") as string | null) ?? undefined;
+
+    if (!(file instanceof File)) {
+      return Response.json(
+        { error: "No file provided in multipart body." },
+        { status: 400 },
+      );
+    }
+
+    const ownershipErr = await checkInterviewOwnership(
+      svc,
+      interviewId,
+      user.id,
+    );
+    if (ownershipErr) return ownershipErr;
+
+    const opts: IngestOptions = {
+      userId: user.id,
+      interviewId,
+      kind,
+      sourceLabel,
+    };
+    const buffer = await file.arrayBuffer();
+    const row = await ingestFile(buffer, file.name, file.type, opts, svc);
+    const orchestratorState = await maybeAnalyze(svc, interviewId);
+    return Response.json({ artifact: row, orchestratorState });
+  }
+
+  const body = (await req.json()) as ArtifactRequestBody;
+
+  // Batch URL path: scrape N URLs in parallel, persist all, then run
+  // analyzeArtifacts exactly once so a 5-URL paste produces one Opus call
+  // instead of five racing ones.
+  if (Array.isArray(body.urls) && body.urls.length > 0) {
+    if (body.urls.some((u) => !u?.url || !u?.kind)) {
+      return Response.json(
+        { error: "Each url entry requires both `url` and `kind`." },
+        { status: 400 },
+      );
+    }
+
+    const ownershipErr = await checkInterviewOwnership(
+      svc,
+      body.interviewId ?? null,
+      user.id,
+    );
+    if (ownershipErr) return ownershipErr;
+
+    const rows = await ingestUrls(
+      body.urls,
+      {
+        userId: user.id,
+        interviewId: body.interviewId ?? null,
+        sourceLabel: body.sourceLabel,
+      },
+      svc,
+    );
+    const orchestratorState = await maybeAnalyze(svc, body.interviewId ?? null);
+    return Response.json({ artifacts: rows, orchestratorState });
+  }
+
+  if (!body.kind) {
+    return Response.json({ error: "`kind` is required." }, { status: 400 });
+  }
+
+  const ownershipErr = await checkInterviewOwnership(
+    svc,
+    body.interviewId ?? null,
+    user.id,
+  );
+  if (ownershipErr) return ownershipErr;
+
+  const opts: IngestOptions = {
+    userId: user.id,
+    interviewId: body.interviewId ?? null,
+    kind: body.kind,
+    sourceLabel: body.sourceLabel,
+  };
+
+  if (body.url) {
+    const row = await ingestUrl(body.url, opts, svc);
+    const orchestratorState = await maybeAnalyze(svc, opts.interviewId);
+    return Response.json({ artifact: row, orchestratorState });
+  }
+
+  if (body.text) {
+    const row = await ingestText(body.text, opts, svc);
+    const orchestratorState = await maybeAnalyze(svc, opts.interviewId);
+    return Response.json({ artifact: row, orchestratorState });
+  }
+
+  return Response.json(
+    { error: "Provide one of: url, text, urls, or a multipart file." },
+    { status: 400 },
+  );
+}
+
+/**
+ * After any artifact lands (succeeded OR failed), sync orchestrator_state.
+ * Failed artifacts don't produce new dimension inferences — analyzeArtifacts
+ * short-circuits the Opus call when zero-succeeded — but they DO need to
+ * land in orchestrator_state.artifacts so the status panel (which reads
+ * from saved state during the chat phase) stays visible.
+ */
+async function maybeAnalyze(
+  svc: ReturnType<typeof createSupabaseServiceClient>,
+  interviewId: string | null,
+): Promise<OrchestratorState | null> {
+  if (!interviewId) return null;
+
+  const { data: interview } = await svc
+    .from("onboarding_interviews")
+    .select("template_id, is_refresh")
+    .eq("id", interviewId)
+    .single();
+
+  if (!interview) return null;
+
+  const template = getTemplate(interview.template_id);
+  if (!template.agenticMode) return null;
+
+  return analyzeArtifacts(interviewId, svc, template, {
+    isRefresh: interview.is_refresh,
+  });
+}
+
+async function checkInterviewOwnership(
+  svc: ReturnType<typeof createSupabaseServiceClient>,
+  interviewId: string | null,
+  userId: string,
+): Promise<Response | null> {
+  if (!interviewId) return null;
+  const { data, error } = await svc
+    .from("onboarding_interviews")
+    .select("user_id")
+    .eq("id", interviewId)
+    .single();
+  if (error || !data || data.user_id !== userId) {
+    return new Response("Interview not found", { status: 404 });
+  }
+  return null;
+}

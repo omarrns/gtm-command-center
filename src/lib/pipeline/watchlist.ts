@@ -10,6 +10,9 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { WatchlistRow, WatchlistAlertType } from "@/lib/supabase/types";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger({ scope: "watchlist" });
 
 const WEBSETS_BASE = "https://api.exa.ai/websets/v0";
 
@@ -50,7 +53,7 @@ export async function addToWatchlist(
     .maybeSingle();
 
   if (error) {
-    console.error("Watchlist upsert failed:", error.message);
+    log.error("watchlist upsert failed", error, { userId, companyName });
     return { status: "error", message: error.message };
   }
 
@@ -108,7 +111,7 @@ export async function removeFromWatchlist(
     .eq("user_id", userId);
 
   if (deleteError) {
-    console.error("Watchlist delete failed:", deleteError.message);
+    log.error("watchlist delete failed", deleteError, { userId, watchlistId });
     return false;
   }
 
@@ -199,10 +202,10 @@ export async function processWatchlistAlerts(
       result.newAlerts += newForEntry;
     } catch (err) {
       result.errors++;
-      console.error(
-        `Watchlist alert processing failed for entry ${entry.id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      log.error("alert processing failed", err, {
+        userId,
+        watchlistId: entry.id,
+      });
     }
   }
 
@@ -311,10 +314,11 @@ async function attachMonitor(
       .eq("id", watchlistId)
       .eq("user_id", userId);
   } catch (err) {
-    console.error(
-      `Failed to attach monitor for "${companyName}" (watchlist ${watchlistId}):`,
-      err instanceof Error ? err.message : err,
-    );
+    log.error("failed to attach monitor", err, {
+      userId,
+      watchlistId,
+      companyName,
+    });
   }
 }
 
@@ -438,14 +442,16 @@ async function deleteWebsetQuietly(
       headers: { "x-api-key": apiKey },
     });
     if (!res.ok) {
-      console.warn(
-        `Exa webset cleanup failed for ${websetId}: ${res.status} ${await res.text()}`,
-      );
+      log.warn("exa webset cleanup failed", {
+        websetId,
+        status: res.status,
+        body: await res.text(),
+      });
     }
   } catch (err) {
-    console.warn(
-      `Exa webset cleanup error for ${websetId}:`,
-      err instanceof Error ? err.message : err,
-    );
+    log.warn("exa webset cleanup error", {
+      websetId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }

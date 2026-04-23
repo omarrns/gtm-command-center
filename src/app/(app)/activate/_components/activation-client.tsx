@@ -11,7 +11,13 @@ import type {
   ActivationResult,
   ActivationSearchResult,
 } from "@/lib/pipeline/activation";
+import type {
+  AccountActivationResult,
+  AccountActivationSearchResult,
+} from "@/lib/pipeline/activation-accounts";
+import type { UserType } from "@/lib/supabase/types";
 import { OpportunityCard } from "../../_components/opportunity-card";
+import { AccountResultCard } from "./account-result-card";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -36,16 +42,23 @@ type Phase = "searching" | "results" | "empty" | "error";
 interface ActivationClientProps {
   gmailConnected: boolean;
   scoreThreshold: number;
+  userType: UserType;
 }
 
 export function ActivationClient({
   gmailConnected,
   scoreThreshold,
+  userType,
 }: ActivationClientProps) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("searching");
   const [data, setData] = useState<ActivationSearchResult | null>(null);
   const [results, setResults] = useState<ActivationResult[]>([]);
+  const [accountData, setAccountData] =
+    useState<AccountActivationSearchResult | null>(null);
+  const [accountResults, setAccountResults] = useState<
+    AccountActivationResult[]
+  >([]);
   const [messageIndex, setMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -68,8 +81,15 @@ export function ActivationClient({
     setError(null);
     setData(null);
     setResults([]);
+    setAccountData(null);
+    setAccountResults([]);
+
+    const endpoint =
+      userType === "gtm"
+        ? "/api/activation/accounts"
+        : "/api/activation/search";
     try {
-      const res = await fetch("/api/activation/search", { method: "POST" });
+      const res = await fetch(endpoint, { method: "POST" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(
@@ -77,15 +97,23 @@ export function ActivationClient({
             `Search failed (${res.status})`,
         );
       }
-      const result: ActivationSearchResult = await res.json();
-      setData(result);
-      setResults(result.results);
-      setPhase(result.results.length > 0 ? "results" : "empty");
+
+      if (userType === "gtm") {
+        const result: AccountActivationSearchResult = await res.json();
+        setAccountData(result);
+        setAccountResults(result.results);
+        setPhase(result.results.length > 0 ? "results" : "empty");
+      } else {
+        const result: ActivationSearchResult = await res.json();
+        setData(result);
+        setResults(result.results);
+        setPhase(result.results.length > 0 ? "results" : "empty");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Activation search failed");
       setPhase("error");
     }
-  }, []);
+  }, [userType]);
 
   // Fire activation search on mount
   useEffect(() => {
@@ -178,23 +206,43 @@ export function ActivationClient({
 
   // ── Empty state ──
   if (phase === "empty") {
+    const emptyCopy =
+      userType === "gtm"
+        ? {
+            title: "No accounts hiring a rubric role in the last 30 days",
+            subtitle:
+              "TheirStack didn't find firmographic matches actively posting jobs. Broaden the rubric or wait for the weekly dormant sweep to surface ICP-fit accounts that aren't hiring yet.",
+            bullets: [
+              "Broadening firmographics in Settings (industry, employee range, stage)",
+              "Adding more hiring roles to the rubric signals",
+              "Waiting for the weekly dormant sweep (runs Mondays at 12:00 UTC)",
+            ],
+          }
+        : {
+            title: "No matches in the last 10 days",
+            subtitle:
+              "We searched for your configured queries but didn't find matching roles posted recently.",
+            bullets: [
+              "Broadening your search queries in Settings",
+              "Adding more locations",
+              "Running a deeper search (checks the full month)",
+            ],
+          };
+
     return (
       <div className="mx-auto max-w-lg py-16 space-y-5">
         <div className="text-center space-y-2">
-          <h2 className="text-lg font-semibold">
-            No matches in the last 10 days
-          </h2>
+          <h2 className="text-lg font-semibold">{emptyCopy.title}</h2>
           <p className="text-sm text-[var(--color-text-muted)]">
-            We searched for your configured queries but didn&apos;t find
-            matching roles posted recently.
+            {emptyCopy.subtitle}
           </p>
         </div>
         <div className="surface p-4 space-y-1.5">
           <p className="text-sm font-medium">Try:</p>
           <ul className="text-sm text-[var(--color-text-muted)] list-disc pl-5 space-y-1">
-            <li>Broadening your search queries in Settings</li>
-            <li>Adding more locations</li>
-            <li>Running a deeper search (checks the full month)</li>
+            {emptyCopy.bullets.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
           </ul>
         </div>
         <div className="flex items-center justify-between">
@@ -233,33 +281,49 @@ export function ActivationClient({
   }
 
   // ── Results state ──
+  const isGtm = userType === "gtm";
+  const headerCounts = isGtm
+    ? {
+        discovered: accountData?.stats.discovered ?? 0,
+        scored: accountData?.stats.scored ?? 0,
+      }
+    : {
+        discovered: data?.stats.discovered ?? 0,
+        scored: (data?.stats.scored ?? 0) + (data?.stats.filtered ?? 0),
+      };
+  const headerNoun = isGtm ? "accounts" : "roles";
+  const headerFit = isGtm ? "best-fit accounts" : "best fits";
+
   return (
     <div className="mx-auto max-w-2xl py-6 space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold tracking-tight">Your top matches</h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Found {data?.stats.discovered ?? 0} roles, scored{" "}
-          {(data?.stats.scored ?? 0) + (data?.stats.filtered ?? 0)} — here are
-          your best fits.
+          Found {headerCounts.discovered} {headerNoun}, scored{" "}
+          {headerCounts.scored} — here are your {headerFit}.
         </p>
       </div>
 
       {/* Result cards */}
       <div className="space-y-2">
-        {results.map((r) => (
-          <OpportunityCard
-            key={r.id}
-            opportunity={r.opportunity}
-            drafts={[]}
-            scoreThreshold={scoreThreshold}
-            analysisSummary={r.fitRationale}
-            isCloseMatch={r.isCloseMatch}
-            onAction={() =>
-              setResults((prev) => prev.filter((item) => item.id !== r.id))
-            }
-          />
-        ))}
+        {isGtm
+          ? accountResults.map((r) => (
+              <AccountResultCard key={r.id} result={r} />
+            ))
+          : results.map((r) => (
+              <OpportunityCard
+                key={r.id}
+                opportunity={r.opportunity}
+                drafts={[]}
+                scoreThreshold={scoreThreshold}
+                analysisSummary={r.fitRationale}
+                isCloseMatch={r.isCloseMatch}
+                onAction={() =>
+                  setResults((prev) => prev.filter((item) => item.id !== r.id))
+                }
+              />
+            ))}
       </div>
 
       {/* Gmail prompt */}

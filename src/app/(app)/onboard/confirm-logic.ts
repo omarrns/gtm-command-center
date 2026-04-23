@@ -1,0 +1,202 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeScoringProfile } from "@/lib/pipeline/scoring-profile";
+import { getTemplate } from "@/lib/onboarding/templates";
+import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
+import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
+
+// Template-tagged union of confirm-edit shapes. Caller passes the right
+// payload for the interview's template; performConfirm validates against
+// the template's editsSchema before any output runs.
+export type ConfirmEdits = JobSearchEdits | IcpEdits;
+
+export interface ConfirmResult {
+  ok: boolean;
+  error?: string;
+}
+
+// Test seam: the persistence body of confirmInterviewAction without the
+// server-action wrappers (requireUser, revalidatePath). Scripts can exercise
+// this directly with a service-role client and a known userId.
+export async function performConfirm(
+  svc: SupabaseClient,
+  userId: string,
+  interviewId: string,
+  edits: ConfirmEdits,
+): Promise<ConfirmResult> {
+  const { data: interview, error: fetchErr } = await svc
+    .from("onboarding_interviews")
+    .select(
+      "id, user_id, status, template_id, extracted, extracted_profile, extracted_search, extracted_outreach, extracted_insights",
+    )
+    .eq("id", interviewId)
+    .single();
+
+  if (fetchErr || !interview || interview.user_id !== userId) {
+    return { ok: false, error: "Interview not found" };
+  }
+
+  // Both `review` and `story_review` are valid pre-confirm states. Legacy
+  // flow goes review → confirmed; agentic with the career-story screen
+  // goes review → story_review → confirmed.
+  if (interview.status !== "review" && interview.status !== "story_review") {
+    return {
+      ok: false,
+      error: `Interview is not ready to confirm (status: ${interview.status})`,
+    };
+  }
+
+  const template = getTemplate(interview.template_id);
+
+  const parsedEdits = template.editsSchema.parse(edits);
+
+  // ── Persona preflight (Phase 3.c.6) ─────────────────────────────────────
+  // SPEC-3 audit finding: the user_type overwrite guard in Phase 3.c.4
+  // prevented silent user_type changes but still allowed a confirmed
+  // job_seeker to deep-confirm an ICP interview and write company_icp /
+  // icp_rubric / pipeline_config without a persona reset. That would
+  // produce mixed-persona data (user_type='job_seeker' with GTM-shaped
+  // memory docs and rubric). Block it here, before any output runs.
+  //
+  // Path to switch personas is the explicit reset flow (Phase 8).
+  const { data: profileBefore, error: profileReadErr } = await svc
+    .from("profiles")
+    .select("user_type")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (profileReadErr) {
+    return {
+      ok: false,
+      error: `Profile read failed: ${profileReadErr.message}`,
+    };
+  }
+
+  const currentUserType = profileBefore?.user_type as string | null | undefined;
+  if (currentUserType && currentUserType !== template.userTypeOnConfirm) {
+    return {
+      ok: false,
+      error: `This account is ${currentUserType}. Confirming ${template.id} would mix personas — use the reset flow to switch first.`,
+    };
+  }
+
+  // Prefer the unified `extracted` column (written by Phase 1.b's dual-write
+  // path). Fall back to reassembling from the 4 legacy columns for any row
+  // that predates the dual-write. Fallback dropped in the DEFERRED cleanup
+  // commit once Phase 3 stabilises in prod.
+  const extraction =
+    interview.extracted ??
+    ({
+      profile: interview.extracted_profile,
+      search: interview.extracted_search,
+      outreach: interview.extracted_outreach,
+      insights: interview.extracted_insights,
+    } as Record<string, unknown>);
+
+  try {
+    // Canonicalize the confirmed snapshot: write the user's edits to
+    // interview.extracted before any output runs. Downstream consumers
+    // (the ICP normalizer, post-confirm dashboards, any future reader of
+    // the confirmed row) read extracted as the source of truth — without
+    // this write, edits land in memory_documents but not in icp_rubric,
+    // so scoring drifts from the narrative summary.
+    const { error: extractedErr } = await svc
+      .from("onboarding_interviews")
+      .update({
+        extracted: parsedEdits,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", interviewId);
+    if (extractedErr) {
+      throw new Error(
+        `extracted snapshot write failed: ${extractedErr.message}`,
+      );
+    }
+
+    for (const output of template.outputs) {
+      if (output.type === "scoring_profile_normalize") {
+        // Pass template.id so the dispatcher routes to the right template's
+        // normalizer (audit finding 1). Pass interviewId so the ICP
+        // normalizer can read the current row regardless of status — at
+        // this point the interview is still in 'review', not 'confirmed'
+        // (audit finding 2).
+        await normalizeScoringProfile(svc, userId, template.id, {
+          interviewId,
+        });
+        continue;
+      }
+
+      if (output.type === "memory_doc") {
+        const content = output.transform({ edits: parsedEdits, extraction });
+        if (content === null) continue;
+        const { error } = await svc.from("memory_documents").upsert(
+          {
+            user_id: userId,
+            document_key: output.key,
+            title: output.title,
+            origin: "onboarding",
+            content,
+            metadata: {},
+          },
+          { onConflict: "user_id,document_key" },
+        );
+        if (error) {
+          throw new Error(
+            `memory_doc[${output.key}] write failed: ${error.message}`,
+          );
+        }
+        continue;
+      }
+
+      if (output.type === "pipeline_config") {
+        const payload = output.transform({ edits: parsedEdits, extraction });
+        if (payload === null) continue;
+        // Spread first, user_id last — a misconfigured template transform
+        // that emits user_id must never override the authenticated user.
+        const { error } = await svc
+          .from("pipeline_config")
+          .upsert({ ...payload, user_id: userId }, { onConflict: "user_id" });
+        if (error) {
+          throw new Error(`pipeline_config write failed: ${error.message}`);
+        }
+        continue;
+      }
+    }
+
+    const { error: confirmErr } = await svc
+      .from("onboarding_interviews")
+      .update({ status: "confirmed", updated_at: new Date().toISOString() })
+      .eq("id", interviewId);
+
+    if (confirmErr) {
+      throw new Error(`Confirm status failed: ${confirmErr.message}`);
+    }
+
+    // SPEC-3: write profiles.user_type from the template's declared persona.
+    // The preflight at the top of performConfirm already returned an error
+    // for any mismatch, so at this point currentUserType is either NULL
+    // (first confirm — write target) or equal to target (idempotent
+    // re-confirm — no-op).
+    const target = template.userTypeOnConfirm;
+    if (currentUserType !== target) {
+      const { error: personaErr } = await svc
+        .from("profiles")
+        .update({ user_type: target })
+        .eq("user_id", userId);
+
+      if (personaErr) {
+        // Non-fatal: outputs are written and status is 'confirmed'. The
+        // Phase 2.c /onboard safety net retries on next visit.
+        console.error(
+          `[performConfirm] profiles.user_type write failed for user ${userId}:`,
+          personaErr.message,
+        );
+      }
+    }
+    // currentUserType === target: no-op, idempotent re-confirm.
+
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Confirmation failed";
+    return { ok: false, error: msg };
+  }
+}

@@ -48,15 +48,24 @@ export async function scoreOneOpportunity(
   userId: string,
   opp: OpportunityRow,
   config: PipelineConfigRow,
-  options?: { source?: string; model?: string },
+  options?: { source?: string; model?: string; runId?: string },
 ): Promise<ScoreOneResult> {
   const scoring = await scoreOpportunity(
     opp.company_name,
-    opp.role_title,
+    opp.role_title ?? "",
     opp.job_description ?? "",
     userId,
     svc,
-    options?.model ? { model: options.model } : undefined,
+    {
+      ...(options?.model ? { model: options.model } : {}),
+      scope: {
+        userId,
+        runId: options?.runId,
+        scopeTable: "opportunities",
+        scopeId: opp.id,
+        callPurpose: "score",
+      },
+    },
   );
 
   const { data: analysis, error: analysisError } = await svc
@@ -119,6 +128,7 @@ export async function runScore(
   svc: SupabaseClient,
   userId: string,
   config: PipelineConfigRow,
+  runId?: string,
 ): Promise<ScoreResult> {
   const opportunities = await getOpportunitiesByStage(
     svc,
@@ -143,6 +153,7 @@ export async function runScore(
       const { newStage } = await scoreOneOpportunity(svc, userId, opp, config, {
         source: "pipeline",
         model: PIPELINE_MODEL,
+        runId,
       });
 
       if (newStage === "scored") result.scored++;

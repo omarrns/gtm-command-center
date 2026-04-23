@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { UserType } from "@/lib/supabase/types";
 
 type PaletteItem = {
   id: string;
@@ -21,22 +22,37 @@ type PaletteItem = {
   icon: LucideIcon;
 };
 
-const ITEMS: PaletteItem[] = [
-  { id: "today", label: "Go to Today", href: "/", icon: CalendarCheck },
-  { id: "history", label: "Go to History", href: "/history", icon: Clock },
-  { id: "watchlist", label: "Go to Watchlist", href: "/watchlist", icon: Eye },
-  {
-    id: "settings",
-    label: "Go to Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-];
+// SPEC-3 polish: persona drives the / label. GTM gets "Go to ICP"
+// because that's what the homepage renders for them. Other commands
+// are persona-agnostic in v1.
+function buildItems(userType: UserType | null): PaletteItem[] {
+  const homeLabel = userType === "gtm" ? "Go to ICP" : "Go to Today";
+  return [
+    { id: "today", label: homeLabel, href: "/", icon: CalendarCheck },
+    { id: "history", label: "Go to History", href: "/history", icon: Clock },
+    {
+      id: "watchlist",
+      label: "Go to Watchlist",
+      href: "/watchlist",
+      icon: Eye,
+    },
+    {
+      id: "settings",
+      label: "Go to Settings",
+      href: "/settings",
+      icon: Settings,
+    },
+  ];
+}
 
 const PANEL_SPRING = { type: "spring", stiffness: 480, damping: 36 } as const;
 const RESULT_CAP = 8;
 
-export function CommandPalette() {
+interface CommandPaletteProps {
+  userType: UserType | null;
+}
+
+export function CommandPalette({ userType }: CommandPaletteProps) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -76,14 +92,15 @@ export function CommandPalette() {
     return () => cancelAnimationFrame(frame);
   }, [open]);
 
+  const items = useMemo(() => buildItems(userType), [userType]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (q === "") return ITEMS.slice(0, RESULT_CAP);
-    return ITEMS.filter((item) => item.label.toLowerCase().includes(q)).slice(
-      0,
-      RESULT_CAP,
-    );
-  }, [query]);
+    if (q === "") return items.slice(0, RESULT_CAP);
+    return items
+      .filter((item) => item.label.toLowerCase().includes(q))
+      .slice(0, RESULT_CAP);
+  }, [items, query]);
 
   useEffect(() => {
     // Clamp highlight into the current result window. Can't be useMemo
@@ -239,7 +256,7 @@ export function CommandPalette() {
                 </span>
               </span>
               <span>
-                {filtered.length} of {ITEMS.length}
+                {filtered.length} of {items.length}
               </span>
             </div>
           </motion.div>

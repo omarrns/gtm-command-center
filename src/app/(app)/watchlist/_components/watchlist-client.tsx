@@ -7,6 +7,7 @@ import { Badge, type badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/empty-state";
+import { FadeIn } from "@/components/ui/fade-in";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { VariantProps } from "class-variance-authority";
 import type {
@@ -78,7 +79,7 @@ export function WatchlistClient({ entries }: { entries: WatchlistEntry[] }) {
   }
 
   return (
-    <div className="space-y-5">
+    <FadeIn className="space-y-5">
       {/* Add company form */}
       <form
         onSubmit={handleAdd}
@@ -123,7 +124,7 @@ export function WatchlistClient({ entries }: { entries: WatchlistEntry[] }) {
           ))}
         </ul>
       )}
-    </div>
+    </FadeIn>
   );
 }
 

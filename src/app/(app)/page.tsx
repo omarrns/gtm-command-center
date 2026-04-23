@@ -3,7 +3,11 @@ import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { isOnboardingComplete } from "@/lib/pipeline/onboarding";
 import { getOpportunitiesByStages } from "@/lib/pipeline/opportunities";
-import type { OpportunityRow, OpportunityStage } from "@/lib/supabase/types";
+import type {
+  OpportunityRow,
+  OpportunityStage,
+  UserType,
+} from "@/lib/supabase/types";
 import { TodayClient } from "./_components/today-client";
 import {
   loadDraftsMap,
@@ -24,10 +28,36 @@ export default async function TodayPage() {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
 
+  // GTM users always redirect to /icp (their onboarding + dashboard hub).
+  // Load user_type first so the onboarding redirect and persona branch
+  // both use the same value.
+  const { data: profile } = await svc
+    .from("profiles")
+    .select("user_type")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const userType = (profile?.user_type as UserType | null) ?? null;
+
   // Onboarding gate
   const skipOnboarding =
     process.env.DEV_SKIP_ONBOARDING === "true" &&
     process.env.NODE_ENV === "development";
+
+  if (!skipOnboarding) {
+    const onboarding = await isOnboardingComplete(
+      svc,
+      user.id,
+      userType ?? "job_seeker",
+    );
+    if (!onboarding.complete) {
+      redirect(userType === "gtm" ? "/icp" : "/onboard");
+    }
+  }
+
+  // GTM users live at /icp — both onboarding and post-onboarding dashboard.
+  if (userType === "gtm") {
+    redirect("/icp");
+  }
 
   const { data: pipelineConfig } = await svc
     .from("pipeline_config")
@@ -36,11 +66,6 @@ export default async function TodayPage() {
     .maybeSingle();
 
   if (!skipOnboarding) {
-    const onboarding = await isOnboardingComplete(svc, user.id);
-    if (!onboarding.complete) {
-      redirect("/onboard");
-    }
-
     if (pipelineConfig && !pipelineConfig.activation_completed_at) {
       redirect("/activate");
     }

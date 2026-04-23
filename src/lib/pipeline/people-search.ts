@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { runClaudeJson } from "@/lib/ai/anthropic";
+import type { AiCallScope } from "@/lib/ai/calls";
 import {
   buildPeopleResearchSystem,
   buildPeopleResearchPrompt,
@@ -109,6 +110,8 @@ export type ContactArchetype =
 export interface PeopleSearchOptions {
   /** Preferred contact archetype from the pursuit planner. Adjusts search query and selection. */
   targetContact?: ContactArchetype;
+  /** Optional capture scope for the embedded Claude call. */
+  scope?: AiCallScope;
 }
 
 export async function researchPeople(
@@ -155,6 +158,7 @@ export async function researchPeople(
       research: researchText,
     }),
     maxTokens: 4096,
+    scope: options?.scope,
   });
 
   // Select contact based on planner targeting (if specified)
