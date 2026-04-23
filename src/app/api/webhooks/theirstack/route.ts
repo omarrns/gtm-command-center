@@ -54,6 +54,37 @@ const payloadSchema = z
   })
   .passthrough();
 
+// PostgrestError from @supabase/postgrest-js is a plain object (not an
+// Error instance), so a naive `String(err)` coerces to "[object Object]"
+// and hides the actual failure. Extract the useful fields explicitly and
+// fall back to JSON for anything else.
+function formatError(err: unknown): {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+} {
+  if (err instanceof Error) return { message: err.message };
+  if (typeof err === "object" && err !== null) {
+    const e = err as Record<string, unknown>;
+    const message =
+      typeof e.message === "string" && e.message.length > 0
+        ? e.message
+        : JSON.stringify(err);
+    const out: {
+      message: string;
+      code?: string;
+      details?: string;
+      hint?: string;
+    } = { message };
+    if (typeof e.code === "string") out.code = e.code;
+    if (typeof e.details === "string") out.details = e.details;
+    if (typeof e.hint === "string") out.hint = e.hint;
+    return out;
+  }
+  return { message: String(err) };
+}
+
 function verifySignature(
   secret: string,
   rawBody: string,
@@ -212,9 +243,10 @@ export async function POST(request: Request) {
       ],
     });
   } catch (err) {
-    userLog.error("opportunity insert failed", err);
+    const formatted = formatError(err);
+    userLog.error("opportunity insert failed", err, formatted);
     return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : String(err) },
+      { ok: false, error: formatted.message, ...formatted },
       { status: 500 },
     );
   }
@@ -260,12 +292,14 @@ export async function POST(request: Request) {
       normalizedScore,
     });
   } catch (err) {
-    userLog.error("scoring failed after insert", err, { oppId: created.id });
+    const formatted = formatError(err);
+    userLog.error("scoring failed after insert", err, {
+      oppId: created.id,
+      ...formatted,
+    });
     await svc
       .from("opportunities")
-      .update({
-        last_error: err instanceof Error ? err.message : String(err),
-      })
+      .update({ last_error: formatted.message })
       .eq("id", created.id)
       .eq("user_id", userId);
     await releaseOpportunity(svc, created.id, userId);
@@ -274,7 +308,8 @@ export async function POST(request: Request) {
       ok: true,
       opportunityId: created.id,
       scored: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: formatted.message,
+      ...(formatted.code ? { code: formatted.code } : {}),
     });
   }
 }
