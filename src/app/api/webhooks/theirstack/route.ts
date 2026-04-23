@@ -41,10 +41,11 @@ import { createLogger, newRunId } from "@/lib/logger";
 
 export const maxDuration = 60;
 
-// TheirStack's webhook docs describe HMAC-SHA256 signing with the raw
-// request body. Header name is not exhaustively documented; adjust
-// SIGNATURE_HEADER if the dashboard setup uses a different name.
-const SIGNATURE_HEADER = "x-theirstack-signature";
+// TheirStack sends HMAC-SHA256 of the raw request body in the
+// `X-TheirStack-Signature-256` header, formatted as `sha256=<hex>`
+// (docs: theirstack.com/en/docs/webhooks/verify-webhook-signatures).
+// Header lookup is case-insensitive via Headers.get.
+const SIGNATURE_HEADER = "x-theirstack-signature-256";
 
 const payloadSchema = z
   .object({
