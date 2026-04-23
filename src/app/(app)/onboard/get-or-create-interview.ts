@@ -36,6 +36,7 @@ export async function getOrCreateInterview(
 
   if (existingErr) {
     console.error("[getOrCreateInterview] query error:", existingErr.message);
+    return { ok: false, error: existingErr.message };
   }
 
   if (existing) {

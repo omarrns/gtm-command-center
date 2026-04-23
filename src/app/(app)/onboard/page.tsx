@@ -10,11 +10,9 @@ import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import { claimOrphanedArtifacts } from "@/lib/onboarding/artifacts/reassign";
 
 // Map the app-wide persona discriminator to the template that confirms
-// into it. Used in refresh flows where the user is known and we pick
-// their template automatically.
+// into it. GTM users are routed to /icp — only job_seeker lands here.
 const USER_TYPE_TO_TEMPLATE: Record<string, InterviewTemplateId> = {
   job_seeker: "job_search",
-  gtm: "icp_definition",
 };
 
 function parseTemplateParam(
@@ -48,6 +46,11 @@ export default async function OnboardPage(props: {
     .eq("user_id", user.id)
     .maybeSingle();
   const userType = profileRow?.user_type as "job_seeker" | "gtm" | null;
+
+  // GTM users have their own route — send them there immediately.
+  if (userType === "gtm") {
+    redirect("/icp");
+  }
 
   // Resolve which template to route the page to. URL param wins (explicit
   // user choice). Otherwise fall back to the confirmed persona's template

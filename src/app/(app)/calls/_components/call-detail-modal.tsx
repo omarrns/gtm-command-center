@@ -13,13 +13,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { OutcomeBadge } from "./outcome-badge";
+import { cn } from "@/lib/utils";
 import type { SalesCall } from "@/lib/calls/types";
-
-const OUTCOME_LABEL: Record<SalesCall["outcome"], string> = {
-  ongoing: "Ongoing",
-  won: "Won",
-  lost: "Lost",
-};
 
 type Tab = "analysis" | "chat" | "transcript";
 
@@ -38,15 +34,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       {children}
     </p>
   );
-}
-
-function OutcomeBadge({ outcome }: { outcome: SalesCall["outcome"] }) {
-  const variants = {
-    ongoing: "secondary" as const,
-    won: "success" as const,
-    lost: "destructive" as const,
-  };
-  return <Badge variant={variants[outcome]}>{OUTCOME_LABEL[outcome]}</Badge>;
 }
 
 function AnalysisTab({ call }: { call: SalesCall }) {
@@ -182,7 +169,7 @@ export function CallDetailModal({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-3xl h-[85vh] overflow-hidden p-0 gap-0 flex flex-col"
+        className="sm:max-w-3xl h-[88vh] overflow-hidden p-0 gap-0 flex flex-col"
       >
         {/* Header */}
         <div className="px-6 pt-5 pb-0 shrink-0">
@@ -225,13 +212,12 @@ export function CallDetailModal({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className="relative px-4 pb-2.5 text-xs font-semibold uppercase tracking-wide transition-colors duration-100"
-                style={{
-                  color:
-                    activeTab === tab.id
-                      ? "var(--color-blue)"
-                      : "var(--color-text-muted)",
-                }}
+                className={cn(
+                  "relative px-4 pb-2.5 text-xs font-semibold uppercase tracking-wide transition-colors duration-100",
+                  activeTab === tab.id
+                    ? "text-[var(--color-blue)]"
+                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
+                )}
               >
                 {tab.id === "chat" && (
                   <Sparkles size={10} className="inline mr-1 mb-px" />
