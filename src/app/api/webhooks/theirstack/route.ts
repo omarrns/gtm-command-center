@@ -141,7 +141,24 @@ export async function POST(request: Request) {
 
   const payload = payloadSchema.safeParse(parsedBody);
   if (!payload.success) {
-    log.warn("payload shape rejected", { issue: payload.error.message });
+    // Non-PII shape probe so we can learn TheirStack's real envelope
+    // from production deliveries. Keys only — no values, no job content.
+    const topLevelKeys =
+      parsedBody && typeof parsedBody === "object"
+        ? Object.keys(parsedBody as Record<string, unknown>)
+        : [];
+    const dataKeys =
+      parsedBody &&
+      typeof parsedBody === "object" &&
+      (parsedBody as Record<string, unknown>).data &&
+      typeof (parsedBody as Record<string, unknown>).data === "object"
+        ? Object.keys((parsedBody as { data: Record<string, unknown> }).data)
+        : null;
+    log.warn("payload shape rejected", {
+      issue: payload.error.message,
+      topLevelKeys,
+      dataKeys,
+    });
     return NextResponse.json(
       {
         ok: false,
