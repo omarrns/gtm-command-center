@@ -1,17 +1,23 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { getGmailClient, checkReplies } from "@/lib/integrations/gmail";
 import { advanceStage } from "@/lib/pipeline/opportunities";
+import { createLogger, newRunId } from "@/lib/logger";
 
 export const maxDuration = 120;
 
 export async function GET(request: Request) {
+  const runId = newRunId();
+  const log = createLogger({ runId, scope: "cron.replies" });
+
   // Fail-closed auth
   const secret = process.env.CRON_SECRET;
   if (!secret) {
+    log.error("CRON_SECRET not configured");
     return new Response("Server misconfigured", { status: 500 });
   }
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${secret}`) {
+    log.warn("unauthorized request");
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -25,7 +31,7 @@ export async function GET(request: Request) {
     .not("gmail_thread_id", "is", null);
 
   if (fetchError) {
-    console.error("Failed to fetch sent opportunities:", fetchError.message);
+    log.error("failed to fetch sent opportunities", fetchError);
     return Response.json(
       { ok: false, error: fetchError.message },
       { status: 500 },
@@ -33,7 +39,8 @@ export async function GET(request: Request) {
   }
 
   if (!sentOpps || sentOpps.length === 0) {
-    return Response.json({ ok: true, checked: 0, replied: 0 });
+    log.info("no sent opportunities");
+    return Response.json({ ok: true, runId, checked: 0, replied: 0 });
   }
 
   // Group by user_id so we create one Gmail client per user
@@ -44,10 +51,16 @@ export async function GET(request: Request) {
     byUser.set(opp.user_id, list);
   }
 
+  log.info("checking replies", {
+    users: byUser.size,
+    threads: sentOpps.length,
+  });
+
   let totalChecked = 0;
   let totalReplied = 0;
 
   for (const [userId, opps] of byUser) {
+    const userLog = log.child({ userId });
     try {
       const gmail = await getGmailClient(userId);
       const threadIds = opps
@@ -56,6 +69,7 @@ export async function GET(request: Request) {
 
       const statuses = await checkReplies(gmail, threadIds);
 
+      let userReplied = 0;
       for (const status of statuses) {
         if (status.hasReply) {
           const opp = opps.find((o) => o.gmail_thread_id === status.threadId);
@@ -67,20 +81,34 @@ export async function GET(request: Request) {
               "sent",
               "replied",
             );
-            if (advanced) totalReplied++;
+            if (advanced) {
+              userReplied++;
+              totalReplied++;
+              userLog.info("opportunity advanced to replied", {
+                opportunityId: opp.id,
+                threadId: status.threadId,
+              });
+            }
           }
         }
       }
 
       totalChecked += threadIds.length;
+      userLog.info("user check complete", {
+        threads: threadIds.length,
+        replied: userReplied,
+      });
     } catch (err) {
       // Don't let one user's failure block others
-      console.error(`Reply check failed for user ${userId}:`, err);
+      userLog.error("reply check failed", err);
     }
   }
 
+  log.info("cron complete", { checked: totalChecked, replied: totalReplied });
+
   return Response.json({
     ok: true,
+    runId,
     checked: totalChecked,
     replied: totalReplied,
   });

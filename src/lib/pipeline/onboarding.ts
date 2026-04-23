@@ -1,47 +1,34 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getTemplate } from "@/lib/onboarding/templates";
+import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
 
 export interface OnboardingStatus {
   complete: boolean;
   completedSteps: number[];
 }
 
+// Maps a user_type to the template whose completionCheck decides whether
+// that persona is "done onboarding."
+const USER_TYPE_TO_TEMPLATE: Record<string, InterviewTemplateId> = {
+  job_seeker: "job_search",
+  gtm: "icp_definition",
+};
+
 /**
- * Checks whether onboarding is complete by verifying the existence of
- * the three records the pipeline depends on:
- *   Step 1: memory_documents with document_key = 'user_profile'
- *   Step 2: pipeline_config row
- *   Step 3: memory_documents with document_key = 'feedback_outreach_style'
+ * Check whether the user has completed the onboarding outputs required for
+ * their persona. Delegates to the active template's completionCheck — the
+ * template owns what "complete" means for its shape.
  *
- * Step 4 (Gmail) is optional and not required for the gate.
+ * For v1 (job_search-only), the check is the three legacy memory/config
+ * rows. Phase 3's ICP template provides its own check (company_icp memory
+ * doc + icp_rubric + pipeline_config).
  */
 export async function isOnboardingComplete(
   svc: SupabaseClient,
   userId: string,
+  userType: "job_seeker" | "gtm" = "job_seeker",
 ): Promise<OnboardingStatus> {
-  const [profileRes, configRes, outreachRes] = await Promise.all([
-    svc
-      .from("memory_documents")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("document_key", "user_profile"),
-    svc
-      .from("pipeline_config")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId),
-    svc
-      .from("memory_documents")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("document_key", "feedback_outreach_style"),
-  ]);
-
-  const completedSteps: number[] = [];
-  if ((profileRes.count ?? 0) > 0) completedSteps.push(1);
-  if ((configRes.count ?? 0) > 0) completedSteps.push(2);
-  if ((outreachRes.count ?? 0) > 0) completedSteps.push(3);
-
-  return {
-    complete: completedSteps.length === 3,
-    completedSteps,
-  };
+  const templateId = USER_TYPE_TO_TEMPLATE[userType] ?? "job_search";
+  const template = getTemplate(templateId);
+  return template.completionCheck(svc, userId);
 }

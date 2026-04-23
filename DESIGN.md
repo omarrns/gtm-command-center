@@ -51,7 +51,8 @@ Single user: Omar Nasser, a GTM Engineer running his job search pipeline. He use
 - Motion exists to explain state change, confirm interaction, or guide attention. If it does none of those, remove it.
 - Default to subtle transitions in the `120ms-200ms` range. Prefer calm ease-out timing over bounce or theatrical reveals.
 - Interaction-driven motion is good: hover, focus, expand/collapse, loading-state transitions, optimistic updates.
-- Passive entrance animation should be rare. Static dashboards should not feel like a landing page.
+- **Every page loads with a fade-up entrance**: `opacity 0→1, y 8→0, 400ms easeOut`. Use the `<FadeIn>` primitive (`src/components/ui/fade-in.tsx`) as the root wrapper of every page's content. This is the one sanctioned passive entrance — applied universally so it reads as system behavior, not decoration.
+- Beyond the page entrance, passive animation should be rare. Individual components should not add their own entrance effects on top of the page fade.
 - Respect reduced motion every time. No animation should be required to understand the interface.
 - Avoid animating layout for spectacle. Motion should support comprehension, not make dense UI feel slippery.
 

@@ -35,11 +35,24 @@ async function resolveUserId(email: string): Promise<string | null> {
 }
 
 async function main() {
-  const userId =
-    process.env.SEED_USER_ID ?? (await resolveUserId("omarns059@gmail.com"));
+  const email = process.env.SEED_USER_EMAIL ?? "omarns059@gmail.com";
+  const userId = process.env.SEED_USER_ID ?? (await resolveUserId(email));
 
   if (!userId) {
     console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
+    process.exit(1);
+  }
+
+  // Delete onboarding_artifacts first (SPEC-2). interview_id cascades when
+  // the interview row is deleted, but artifacts with no interview_id
+  // (unlikely but possible) won't — hit both for completeness.
+  const { count: artifactCount, error: artifactError } = await supabase
+    .from("onboarding_artifacts")
+    .delete({ count: "exact" })
+    .eq("user_id", userId);
+
+  if (artifactError) {
+    console.error("Failed to delete artifacts:", artifactError.message);
     process.exit(1);
   }
 
@@ -88,8 +101,20 @@ async function main() {
     process.exit(1);
   }
 
+  // Null profiles.user_type (SPEC-3 — stamped on first confirm). Without
+  // this the persona picker never reappears on /onboard.
+  const { error: userTypeError } = await supabase
+    .from("profiles")
+    .update({ user_type: null })
+    .eq("user_id", userId);
+
+  if (userTypeError) {
+    console.error("Failed to null user_type:", userTypeError.message);
+    process.exit(1);
+  }
+
   console.log(
-    `Reset complete: ${interviewCount ?? 0} interviews, ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted`,
+    `Reset complete: ${artifactCount ?? 0} artifacts, ${interviewCount ?? 0} interviews, ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted, user_type cleared`,
   );
 }
 

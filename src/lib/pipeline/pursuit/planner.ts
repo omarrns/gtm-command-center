@@ -18,6 +18,7 @@ import type {
   UserScoringProfileRow,
 } from "@/lib/supabase/types";
 import type { SenderIdentity } from "@/lib/skills/sender-identity";
+import type { AiCallScope } from "@/lib/ai/calls";
 
 /* ── PursuitPlan — the planner's output contract ─────────────────── */
 
@@ -51,6 +52,8 @@ export interface PlannerContext {
   sender: SenderIdentity;
   scoreThreshold: number;
   scoringProfile: UserScoringProfileRow | null;
+  /** Optional capture scope. When omitted, the call won't be captured. */
+  scope?: AiCallScope;
 }
 
 /* ── Main planner function ───────────────────────────────────────── */
@@ -66,6 +69,11 @@ export async function planPursuit(ctx: PlannerContext): Promise<PursuitPlan> {
     prompt,
     model: PLANNER_MODEL,
     maxTokens: 1024,
+    scope: ctx.scope ?? {
+      scopeTable: "opportunities",
+      scopeId: ctx.opportunity.id,
+      callPurpose: "plan_pursuit",
+    },
   });
 
   // Validate and clamp the output

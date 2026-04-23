@@ -5,6 +5,7 @@ import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
+import { FadeIn } from "@/components/ui/fade-in";
 import { EmptyState } from "@/components/empty-state";
 import type {
   OpportunityRow,
@@ -109,7 +110,7 @@ export function HistoryClient({
   const total = totalOpportunities(grouped);
 
   return (
-    <>
+    <FadeIn>
       <PageHeader
         title="History"
         description="All pipeline opportunities across time."
@@ -276,6 +277,6 @@ export function HistoryClient({
           })}
         </div>
       )}
-    </>
+    </FadeIn>
   );
 }

@@ -7,6 +7,9 @@
  * Usage: npx tsx scripts/test-extraction.ts
  */
 
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import type { UIMessage } from "ai";
 
 // Inline transcript fixture (same as onboard-fixture.ts)
@@ -117,9 +120,14 @@ async function main() {
   console.log("Loading extraction module...");
   const { runExtractionFromTranscript } =
     await import("../src/lib/onboarding/extraction");
+  const { JOB_SEARCH_TEMPLATE } =
+    await import("../src/lib/onboarding/templates/job-search");
 
   console.log("Running extraction on transcript fixture...\n");
-  const result = await runExtractionFromTranscript(transcriptFixture);
+  const result = await runExtractionFromTranscript(
+    transcriptFixture,
+    JOB_SEARCH_TEMPLATE,
+  );
 
   console.log(JSON.stringify(result, null, 2));
   console.log("\n--- Assertions ---\n");

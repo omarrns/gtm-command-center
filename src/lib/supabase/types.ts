@@ -3,11 +3,18 @@
 
 export type JobStatus = "pending" | "running" | "complete" | "failed";
 
+export type UserType = "job_seeker" | "gtm";
+
 export interface ProfileRow {
   user_id: string;
   email: string | null;
   display_name: string | null;
   is_enabled: boolean;
+  // Set only at the first successful onboarding confirm. Pre-confirm, the
+  // in-progress template lives on onboarding_interviews.template_id
+  // exclusively so downstream surfaces don't fork off an unconfirmed
+  // choice.
+  user_type: UserType | null;
   created_at: string;
   updated_at: string;
 }
@@ -127,7 +134,12 @@ export type OpportunityStage =
   | "replied"
   | "skipped";
 
-export type OpportunitySource = "jsearch" | "exa" | "manual";
+export type OpportunitySource =
+  | "jsearch"
+  | "exa"
+  | "manual"
+  | "theirstack"
+  | "exa-dormant";
 
 export interface PipelineConfigRow {
   id: string;
@@ -157,7 +169,15 @@ export interface OpportunityRow {
   source: OpportunitySource;
   external_id: string;
   company_name: string;
-  role_title: string;
+  // Nullable under GTM — target accounts don't have roles. Non-null for
+  // job_seeker rows in practice (the job_search pipeline writes it).
+  role_title: string | null;
+  // GTM shape (populated for user_type='gtm' rows; null for job_seeker).
+  // No code reads these in SPEC-3 v1 — schema reserved for the future
+  // GTM pipeline surface. See docs/DEFERRED.md.
+  company_domain: string | null;
+  trigger_signals: Record<string, unknown>[] | null;
+  buyer_personas: Record<string, unknown>[] | null;
   job_url: string | null;
   job_description: string | null;
   stage: OpportunityStage;
@@ -181,6 +201,15 @@ export interface OpportunityRow {
   attempt_count: number;
   last_error: string | null;
   job_posted_at: string | null;
+  job_city: string | null;
+  job_state: string | null;
+  job_is_remote: boolean | null;
+  job_employment_type: string | null;
+  job_min_salary: number | null;
+  job_max_salary: number | null;
+  job_salary_currency: string | null;
+  job_salary_period: string | null;
+  job_required_skills: string[] | null;
   discovered_at: string;
   updated_at: string;
 }
@@ -222,6 +251,7 @@ export type OnboardingInterviewStatus =
   | "in_progress"
   | "extracting"
   | "review"
+  | "story_review"
   | "confirmed"
   | "abandoned";
 
@@ -231,12 +261,51 @@ export interface OnboardingInterviewRow {
   messages: unknown[];
   status: OnboardingInterviewStatus;
   ready_for_extraction: boolean;
+  // Legacy job_search-shaped extraction columns. Preserved via dual-write in
+  // Phase 1.b for rollback safety; dropped in a cleanup commit after Phase 3
+  // stabilises (tracked in docs/DEFERRED.md).
   extracted_profile: Record<string, unknown> | null;
   extracted_search: Record<string, unknown> | null;
   extracted_outreach: Record<string, unknown> | null;
   extracted_insights: Record<string, unknown> | null;
+  // Unified extraction payload. Shape is template-specific — readers must
+  // validate via the active template's extractionSchema, not a global type.
+  extracted: Record<string, unknown> | null;
   topics_covered: string[];
   is_refresh: boolean;
+  template_id: string;
+  template_version: string;
+  orchestrator_state: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Agentic onboarding artifacts (SPEC-2)
+// ---------------------------------------------------------------------------
+
+export type OnboardingArtifactSourceType = "url" | "file" | "text";
+export type OnboardingArtifactStatus =
+  | "pending"
+  | "processing"
+  | "succeeded"
+  | "failed";
+
+export interface OnboardingArtifactRow {
+  id: string;
+  user_id: string;
+  interview_id: string | null;
+  kind: string;
+  source_type: OnboardingArtifactSourceType;
+  source_label: string | null;
+  source_url: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  status: OnboardingArtifactStatus;
+  normalized_markdown: string | null;
+  error_message: string | null;
+  created_from_template_id: string;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -272,6 +341,12 @@ export interface UserScoringProfileRow {
   target_locations: string[];
   green_flags: string[];
   red_flags: string[];
+
+  // GTM persona (user_type='gtm') — populated by icp_definition's
+  // normalizer in Phase 3. Structured ICP rubric: firmographics,
+  // technographics, signals, disqualifiers, proof_points, buyer_personas.
+  // NULL for job_seeker rows.
+  icp_rubric: Record<string, unknown> | null;
 
   created_at: string;
   updated_at: string;

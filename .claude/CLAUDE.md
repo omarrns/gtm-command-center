@@ -30,7 +30,8 @@ src/
 │       ├── onboard/
 │       │   ├── page.tsx
 │       │   ├── actions.ts
-│       │   ├── interview-actions.ts
+│       │   ├── interview-actions.ts  # Thin server-action wrappers (requireUser → delegate)
+│       │   ├── confirm-logic.ts      # performConfirm(svc, userId, …) — testable seam
 │       │   └── _components/    # onboard-router, onboard-client, interview-client, review-client
 │       ├── activate/
 │       │   ├── page.tsx
@@ -61,6 +62,7 @@ src/
     ├── pipeline/               # JSearch, scoring, people search, opportunities
     │   └── steps/              # discover → score → research → enrich → draft
     ├── onboarding/             # Interview prompt, extraction prompt/logic
+    │   └── templates/          # InterviewTemplate registry — job-search.ts, types.ts, index.ts
     ├── integrations/           # Gmail client + token crypto
     └── jobs/                   # Legacy async job handlers reused by pipeline
 ```
@@ -86,16 +88,16 @@ discovered → scored → researched → enriched → drafted → queued → sen
 
 ### Database Tables
 
-| Table                   | Purpose                                                                                | Access                                             |
-| ----------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `pipeline_config`       | Search queries, locations, score threshold, daily send cap, `activation_completed_at`  | Client: SELECT only. Mutations via server actions. |
-| `opportunities`         | Pipeline stage, score, drafts, Gmail IDs. Dedupes by `(user_id, source, external_id)`. | RLS by user. Cross-table ownership trigger.        |
-| `gmail_credentials`     | Encrypted refresh tokens                                                               | Service-role only. No client RLS.                  |
-| `watchlist`             | Monitored companies + Exa Webset IDs                                                   | RLS by user.                                       |
-| `watchlist_alerts`      | Exa Webset items, deduped by `source_item_id`                                          | RLS by user.                                       |
-| `user_scoring_profiles` | Derived scoring fields + user-editable weights (0.5-2.0)                               | RLS by user.                                       |
-| `onboarding_interviews` | Interview state, messages, extracted data. Partial unique index (one active per user). | Client: SELECT only. Mutations via service-role.   |
-| `memory_documents`      | User profile, positioning, outreach style, dealbreakers, interview insights            | RLS by user.                                       |
+| Table                   | Purpose                                                                                                                                          | Access                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| `pipeline_config`       | Search queries, locations, score threshold, daily send cap, `activation_completed_at`                                                            | Client: SELECT only. Mutations via server actions. |
+| `opportunities`         | Pipeline stage, score, drafts, Gmail IDs. Dedupes by `(user_id, source, external_id)`.                                                           | RLS by user. Cross-table ownership trigger.        |
+| `gmail_credentials`     | Encrypted refresh tokens                                                                                                                         | Service-role only. No client RLS.                  |
+| `watchlist`             | Monitored companies + Exa Webset IDs                                                                                                             | RLS by user.                                       |
+| `watchlist_alerts`      | Exa Webset items, deduped by `source_item_id`                                                                                                    | RLS by user.                                       |
+| `user_scoring_profiles` | Derived scoring fields + user-editable weights (0.5-2.0)                                                                                         | RLS by user.                                       |
+| `onboarding_interviews` | Interview state, messages, extracted data, `template_id`, `template_version`. Partial unique index: one active row per `(user_id, template_id)`. | Client: SELECT only. Mutations via service-role.   |
+| `memory_documents`      | User profile, positioning, outreach style, dealbreakers, interview insights                                                                      | RLS by user.                                       |
 
 Migrations live in `supabase/migrations/`. TypeScript row types in `src/lib/supabase/types.ts`.
 
@@ -127,14 +129,31 @@ All use `maxDuration = 300`.
 
 ### Onboarding Flow
 
-- `isOnboardingComplete()` checks three records: `user_profile` doc, `pipeline_config` row, `feedback_outreach_style` doc.
+- `isOnboardingComplete()` checks three records: `user_profile` doc, `pipeline_config` row, `feedback_outreach_style` doc. (Currently job_search-specific — revisit when Phase 2 lands.)
 - Today page redirects to `/onboard` if incomplete (`DEV_SKIP_ONBOARDING=true` bypasses).
 - Primary path: AI interview (`InterviewClient` → `ReviewClient` → confirm). Manual wizard is escape hatch.
-- Interview streams via `/api/onboard/chat` using `streamText` + `claude-sonnet-4-6`.
-- Extraction uses `claude-opus-4-6` to produce wizard-compatible fields + richer insights.
-- Confirm upserts memory docs, pipeline_config, scoring profile, then marks interview `confirmed`.
+- Interview streams via `/api/onboard/chat`; model, prompt, tools, caps, thresholds, and completion marker all come from the active `InterviewTemplate` (see subsection below).
+- Extraction uses the template's `extractionModel` / `extractionSchema` / `extractionSystemPrompt` via `generateObject`.
+- Confirm iterates `template.outputs` and dispatches per output type (`memory_doc` / `pipeline_config` / `scoring_profile_normalize`), then marks interview `confirmed`. Every output is an idempotent upsert.
 - `topics_covered` controls which extracted values overwrite existing settings on refresh.
 - Post-confirm routes to `/activate` (first-time) or `/settings` (refresh).
+
+### Interview Template Abstraction
+
+- `src/lib/onboarding/templates/` holds the `InterviewTemplate` registry. `types.ts` defines the interface; `job-search.ts` is the current template; `index.ts` exposes `getTemplate(id)`, `getDefaultTemplate()`, and `toClientTemplate(template)`.
+- An `InterviewTemplate` co-locates everything template-specific: topics, `systemPrompt(ctx)`, `tools`, opening messages, `maxAssistantMessages` / `wrapUpThreshold` / `completionMarker` / `completionTopicThreshold`, chat + extraction models, `extractionSchema` (zod), `editsSchema` (zod), and an ordered `outputs[]` array with per-output `transform({ edits, extraction })`.
+- `onboarding_interviews.template_id` + `template_version` stamp every row. `getOrCreateInterviewAction` scopes its active-interview SELECT by `(user_id, template_id)` so future templates can have concurrent active interviews.
+- **Client boundary:** raw `InterviewTemplate` is not serializable (zod schemas, tool definitions, function fields). RSC pages pass `ClientInterviewTemplate` — a plain-data projection of `{ id, topics, topicLabels, openingMessage, refreshOpeningMessage }` — to `InterviewClient` / `ReviewClient`. Use `toClientTemplate()` to produce it.
+- **Confirm seam:** `src/app/(app)/onboard/confirm-logic.ts` exports `performConfirm(svc, userId, interviewId, edits)` for testability. `confirmInterviewAction` is a thin server-action wrapper around it. Test via `scripts/test-onboarding-confirm.ts`.
+- **Adding a template:** one file in `templates/` + one entry in `REGISTRY` + widen the `InterviewTemplateId` union + route (e.g. `/onboard/icp` or `/onboard?template=icp`). No other files should need to change in the streaming / extract / confirm code paths.
+- **Outstanding for Phase 2 (`icp_definition`) / Phase 3 (`positioning_rubric`):**
+  - `isOnboardingComplete()` in `src/lib/pipeline/onboarding.ts` hardcodes job_search memory doc keys — needs per-template completion check.
+  - `normalizeScoringProfile()` reads job_search-shaped memory sections — needs template-aware handling or per-template normalizers.
+  - `ReviewClient` renders 4 fixed job_search sections; `clientTemplate` prop is wired but unused — switch on `clientTemplate.id` to render ICP/positioning-shaped sections.
+  - Refresh-mode fallback in `review-client.tsx` reads literal `topics_covered` keys (`search_prefs`, `outreach_style`, `dealbreakers`) — move into template.
+  - `runExtractionFromTranscript` returns `Promise<ExtractionResult>` (job_search shape) — genericize on `X` before a second template lands.
+  - 4 `extracted_*` JSONB columns match job_search's top-level keys; Phase 2 likely needs a unified `extracted` JSONB column + backfill.
+  - Reference: `docs/build-spec-gtm-command-center-pivot.md` §8–§9 for extraction schemas, §6 for the ICP search adapter design.
 
 ### Activation Flow
 
@@ -168,7 +187,7 @@ All use `maxDuration = 300`.
 
 ## Design System
 
-Implementation companion to `.impeccable.md` (design language, personality, principles).
+Implementation companion to `DESIGN.md` (design language, personality, principles).
 
 ### Tokens (in `globals.css`)
 
@@ -190,10 +209,15 @@ npm run build            # Production build
 npm run seed             # Run all imports
 npm run onboard:reset    # Delete all onboarding data
 npm run onboard:fixture  # Seed: --state=partial|complete|empty --interview-state=transcript|review|ready
-npm run test:sender-identity  # Verify prompt de-Omarification
-npm run test:extraction       # Run extraction on transcript fixture
-npm run test:correctness      # Verify recent pipeline correctness guardrails
+npm run test:sender-identity   # Verify prompt de-Omarification
+npm run test:extraction        # Run Opus extraction on transcript fixture (template-parameterized)
+npm run test:onboarding-confirm # DB-integration regression test for the confirm path (42 assertions)
+npm run test:correctness       # Verify recent pipeline correctness guardrails
 ```
+
+## Plans
+
+When creating a plan, also write a human-readable copy to `.claude/plans/<feature-slug>.md` where the slug describes the build (e.g., `phase-2-icp-template.md`, `fix-scoring-weights.md`). Use the same content as the plan. The CLI may generate its own random-named file alongside it — that's fine, ignore it.
 
 ## Behavioral Principles
 

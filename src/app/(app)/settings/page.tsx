@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import type { UserType } from "@/lib/supabase/types";
 import { SettingsClient } from "./_components/settings-client";
 
 export default async function SettingsPage(props: {
@@ -24,6 +25,14 @@ export default async function SettingsPage(props: {
     .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
+
+  // SPEC-3 Phase 6.d: persona drives the switch-persona placeholder.
+  const { data: profile } = await svc
+    .from("profiles")
+    .select("user_type")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const userType = (profile?.user_type as UserType | null) ?? null;
 
   // Check Gmail connection status
   const { data: gmailCreds } = await svc
@@ -67,6 +76,7 @@ export default async function SettingsPage(props: {
           ]
         }
         scoringProfile={scoringProfile}
+        userType={userType}
       />
     </div>
   );

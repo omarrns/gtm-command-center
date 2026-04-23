@@ -18,6 +18,10 @@ next-env.d.ts
 
 # supabase
 supabase/.temp/
+supabase/db.sqlite3
+
+# claude-code worktrees
+.claude/worktrees/
 
 # misc
 .DS_Store

@@ -6,6 +6,7 @@ import { Play, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
+import { FadeIn } from "@/components/ui/fade-in";
 import { EmptyState } from "@/components/empty-state";
 import type {
   OpportunityRow,
@@ -113,7 +114,7 @@ export function TodayClient({
   const isEmptyAfterFilter = !isEmpty && filteredTotal === 0;
 
   return (
-    <>
+    <FadeIn>
       <PageHeader title="Today, at a glance">
         <Button variant="outline" onClick={() => setInjectOpen(true)}>
           <Plus size={14} />
@@ -222,6 +223,6 @@ export function TodayClient({
           ))}
         </div>
       )}
-    </>
+    </FadeIn>
   );
 }

@@ -18,10 +18,25 @@ interface CreateOpportunityInput {
   source: OpportunitySource;
   external_id: string;
   company_name: string;
-  role_title: string;
+  // Nullable for GTM dormant-ICP rows (Phase 4) where there's no hiring
+  // role. TheirStack rows always carry the job_title.
+  role_title: string | null;
   job_url?: string;
   job_description?: string;
   job_posted_at?: string;
+  job_city?: string | null;
+  job_state?: string | null;
+  job_is_remote?: boolean | null;
+  job_employment_type?: string | null;
+  job_min_salary?: number | null;
+  job_max_salary?: number | null;
+  job_salary_currency?: string | null;
+  job_salary_period?: string | null;
+  job_required_skills?: string[] | null;
+  // GTM columns (SPEC-3 dual-persona schema). All nullable.
+  company_domain?: string | null;
+  trigger_signals?: Record<string, unknown>[] | null;
+  buyer_personas?: Record<string, unknown>[] | null;
 }
 
 /**
@@ -238,23 +253,38 @@ export async function getOpportunitiesHistory(
 /**
  * Get opportunities at a specific stage (for pipeline runner batch processing).
  * Includes both unclaimed rows and stale claims (>10 min) for recovery.
+ *
+ * Optional `sources` scopes the batch to specific discovery sources.
+ * Without it the GTM account scorer would starve behind stale
+ * jsearch/manual rows: a 10-row window filled by non-GTM discoveries
+ * filtered in memory produces zero TheirStack/exa-dormant scorings per
+ * tick. Pushing the filter into the query guarantees forward progress.
  */
 export async function getOpportunitiesByStage(
   svc: SupabaseClient,
   userId: string,
   stage: OpportunityStage,
   limit: number,
+  options?: { sources?: OpportunitySource[] },
 ): Promise<OpportunityRow[]> {
   const staleCutoff = new Date(
     Date.now() - STALE_CLAIM_MINUTES * 60 * 1000,
   ).toISOString();
 
-  const { data, error } = await svc
+  let query = svc
     .from("opportunities")
     .select("*")
     .eq("user_id", userId)
     .eq("stage", stage)
-    .or(`processing_started_at.is.null,processing_started_at.lt.${staleCutoff}`)
+    .or(
+      `processing_started_at.is.null,processing_started_at.lt.${staleCutoff}`,
+    );
+
+  if (options?.sources && options.sources.length > 0) {
+    query = query.in("source", options.sources);
+  }
+
+  const { data, error } = await query
     .order("discovered_at", { ascending: true })
     .limit(limit);
 

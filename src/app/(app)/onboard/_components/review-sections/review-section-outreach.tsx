@@ -1,12 +1,10 @@
 "use client";
 
-import { Textarea } from "@/components/ui/textarea";
+import { EditableProseSection } from "@/components/ui/editable-prose-section";
+import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { OutreachTone } from "@/lib/onboarding/markdown";
-import { SectionHeader } from "../section-header";
 
 interface ReviewSectionOutreachProps {
-  isExpanded: boolean;
-  onToggle: () => void;
   greenFlags: string;
   onGreenFlagsChange: (value: string) => void;
   redFlags: string;
@@ -20,8 +18,6 @@ interface ReviewSectionOutreachProps {
 }
 
 export function ReviewSectionOutreach({
-  isExpanded,
-  onToggle,
   greenFlags,
   onGreenFlagsChange,
   redFlags,
@@ -34,67 +30,53 @@ export function ReviewSectionOutreach({
   onWhatToAvoidChange,
 }: ReviewSectionOutreachProps) {
   return (
-    <div className="surface p-5 mb-4">
-      <SectionHeader
-        title="Outreach"
-        isExpanded={isExpanded}
-        onToggle={onToggle}
+    <>
+      <EditableProseSection
+        title="Green Flags"
+        kind="text"
+        value={greenFlags}
+        onCommit={onGreenFlagsChange}
+        editable
       />
-      {isExpanded && (
-        <div className="space-y-4 mt-2">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Green Flags</label>
-            <Textarea
-              rows={3}
-              value={greenFlags}
-              onChange={(e) => onGreenFlagsChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Red Flags</label>
-            <Textarea
-              rows={3}
-              value={redFlags}
-              onChange={(e) => onRedFlagsChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Outreach Tone</label>
-            <div className="flex gap-2">
-              {(["casual", "direct", "formal"] as const).map((tone) => (
-                <button
-                  key={tone}
-                  type="button"
-                  onClick={() => onOutreachToneChange(tone)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    outreachTone === tone
-                      ? "bg-[var(--color-blue)] text-white"
-                      : "bg-[var(--muted)] text-[var(--color-text-muted)] hover:bg-[var(--accent)]"
-                  }`}
-                >
-                  {tone.charAt(0).toUpperCase() + tone.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">What&apos;s Worked</label>
-            <Textarea
-              rows={2}
-              value={whatsWorked}
-              onChange={(e) => onWhatsWorkedChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">What to Avoid</label>
-            <Textarea
-              rows={2}
-              value={whatToAvoid}
-              onChange={(e) => onWhatToAvoidChange(e.target.value)}
-            />
-          </div>
+      <EditableProseSection
+        title="Red Flags"
+        kind="text"
+        value={redFlags}
+        onCommit={onRedFlagsChange}
+        editable
+      />
+      <ReviewFormSection title="Outreach Tone">
+        <div className="flex gap-2">
+          {(["casual", "direct", "formal"] as const).map((tone) => (
+            <button
+              key={tone}
+              type="button"
+              onClick={() => onOutreachToneChange(tone)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                outreachTone === tone
+                  ? "bg-[var(--color-blue)] text-white"
+                  : "bg-[var(--muted)] text-[var(--color-text-muted)] hover:bg-[var(--accent)]"
+              }`}
+            >
+              {tone.charAt(0).toUpperCase() + tone.slice(1)}
+            </button>
+          ))}
         </div>
-      )}
-    </div>
+      </ReviewFormSection>
+      <EditableProseSection
+        title="What's Worked"
+        kind="text"
+        value={whatsWorked}
+        onCommit={onWhatsWorkedChange}
+        editable
+      />
+      <EditableProseSection
+        title="What to Avoid"
+        kind="text"
+        value={whatToAvoid}
+        onCommit={onWhatToAvoidChange}
+        editable
+      />
+    </>
   );
 }

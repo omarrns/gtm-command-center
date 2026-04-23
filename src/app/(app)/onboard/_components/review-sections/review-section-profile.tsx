@@ -1,12 +1,8 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { SectionHeader } from "../section-header";
+import { EditableProseSection } from "@/components/ui/editable-prose-section";
 
 interface ReviewSectionProfileProps {
-  isExpanded: boolean;
-  onToggle: () => void;
   positioning: string;
   onPositioningChange: (value: string) => void;
   careerHighlights: string;
@@ -18,8 +14,6 @@ interface ReviewSectionProfileProps {
 }
 
 export function ReviewSectionProfile({
-  isExpanded,
-  onToggle,
   positioning,
   onPositioningChange,
   careerHighlights,
@@ -30,48 +24,35 @@ export function ReviewSectionProfile({
   onTechnicalToolsChange,
 }: ReviewSectionProfileProps) {
   return (
-    <div className="surface p-5 mb-4">
-      <SectionHeader
-        title="Profile"
-        isExpanded={isExpanded}
-        onToggle={onToggle}
+    <>
+      <EditableProseSection
+        title="Positioning"
+        kind="text"
+        value={positioning}
+        onCommit={onPositioningChange}
+        editable
       />
-      {isExpanded && (
-        <div className="space-y-4 mt-2">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Positioning</label>
-            <Input
-              type="text"
-              value={positioning}
-              onChange={(e) => onPositioningChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Career Highlights</label>
-            <Textarea
-              rows={4}
-              value={careerHighlights}
-              onChange={(e) => onCareerHighlightsChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Proof Points</label>
-            <Textarea
-              rows={3}
-              value={proofPoints}
-              onChange={(e) => onProofPointsChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Technical Tools</label>
-            <Input
-              type="text"
-              value={technicalTools}
-              onChange={(e) => onTechnicalToolsChange(e.target.value)}
-            />
-          </div>
-        </div>
-      )}
-    </div>
+      <EditableProseSection
+        title="Career Highlights"
+        kind="text"
+        value={careerHighlights}
+        onCommit={onCareerHighlightsChange}
+        editable
+      />
+      <EditableProseSection
+        title="Proof Points"
+        kind="text"
+        value={proofPoints}
+        onCommit={onProofPointsChange}
+        editable
+      />
+      <EditableProseSection
+        title="Technical Tools"
+        kind="text"
+        value={technicalTools}
+        onCommit={onTechnicalToolsChange}
+        editable
+      />
+    </>
   );
 }

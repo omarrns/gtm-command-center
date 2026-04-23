@@ -84,7 +84,7 @@ async function processOneResearch(
 ): Promise<void> {
   const research = await researchPeople(
     opp.company_name,
-    opp.role_title,
+    opp.role_title ?? "",
     userId,
     svc,
   );
