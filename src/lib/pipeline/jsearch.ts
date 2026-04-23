@@ -15,7 +15,7 @@ const JSearchResultSchema = z.object({
   employer_name: z.string(),
   job_city: z.string().nullable().default(null),
   job_state: z.string().nullable().default(null),
-  job_country: z.string().default("us"),
+  job_country: z.string().nullable().default("us"),
   job_is_remote: z.boolean().nullable().default(null),
   job_apply_link: z.string(),
   job_description: z.string().nullable().default(null),
