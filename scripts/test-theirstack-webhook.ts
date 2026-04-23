@@ -162,6 +162,45 @@ async function main() {
     );
   }
 
+  // ── Codex audit #2 (webhook lane): null company_domain → skip ──────
+  // Mirrors the discover-accounts + activation-accounts guards. The
+  // payload-level skip runs before the rubric DB lookup so a real
+  // user_id isn't required to exercise it.
+  {
+    const body = JSON.stringify({
+      type: "job.new",
+      job: {
+        id: "domainless-fixture",
+        job_title: "Founding Engineer",
+        description: "Stealth mode; no public domain.",
+        company: "StealthCo",
+        company_domain: null,
+        company_object: {
+          name: "StealthCo",
+          domain: null,
+          funding_stage: "seed",
+        },
+      },
+    });
+    const res = await POST(
+      new Request(`${endpoint}?user=00000000-0000-4000-8000-000000000001`, {
+        method: "POST",
+        body,
+        headers: { "x-theirstack-signature": sign(secret, body) },
+      }),
+    );
+    assert(
+      res.status === 200,
+      `null-domain job returns 200 (got ${res.status})`,
+    );
+    const json = (await res.json()) as { ok?: boolean; skipped?: string };
+    assert(json.ok === true, `null-domain response is ok=true`);
+    assert(
+      json.skipped === "no company_domain",
+      `null-domain response skipped reason (got '${json.skipped}')`,
+    );
+  }
+
   console.log(
     `\n${failures === 0 ? "All assertions passed!" : `${failures} assertion(s) FAILED`}`,
   );
