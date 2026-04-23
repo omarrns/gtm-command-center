@@ -51,7 +51,13 @@ export interface TheirStackFilters {
   posted_at_max_age_days: number;
   /** Job-level filters. */
   job_title_or?: string[];
+  /** Substring match on job title ("contains any of"). */
+  job_title_pattern_or?: string[];
   job_seniority_or?: string[];
+  /** Country where the job is located (not company HQ). */
+  job_country_code_or?: string[];
+  /** Substring match on job description ("contains any of"). */
+  job_description_contains_or?: string[];
   /** Company-level filters. */
   min_employee_count?: number;
   max_employee_count?: number;
