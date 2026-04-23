@@ -47,12 +47,20 @@ export const maxDuration = 60;
 // Header lookup is case-insensitive via Headers.get.
 const SIGNATURE_HEADER = "x-theirstack-signature-256";
 
+// TheirStack's real `job.new` envelope is { id, type: "job.new", payload: {...job} }
+// (docs: theirstack.com/en/docs/webhooks/event-type/webhook_job_new).
+// We also accept `job` as a back-compat alias so existing synthetic test
+// scripts continue to work.
 const payloadSchema = z
   .object({
     type: z.string().optional(),
-    job: jobSchema,
+    payload: jobSchema.optional(),
+    job: jobSchema.optional(),
   })
-  .passthrough();
+  .passthrough()
+  .refine((v) => v.payload != null || v.job != null, {
+    message: "body must contain `payload` (TheirStack) or `job` (legacy)",
+  });
 
 // PostgrestError from @supabase/postgrest-js is a plain object (not an
 // Error instance), so a naive `String(err)` coerces to "[object Object]"
@@ -168,7 +176,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const job = payload.data.job;
+  // refine above guarantees at least one is present
+  const job = (payload.data.payload ?? payload.data.job)!;
   const userLog = log.child({ userId, jobId: job.id });
 
   // Payload-level guards run BEFORE the rubric / config DB lookups so
