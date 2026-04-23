@@ -122,6 +122,24 @@ export async function POST(request: Request) {
   const job = payload.data.job;
   const userLog = log.child({ userId, jobId: job.id });
 
+  // Payload-level guards run BEFORE the rubric / config DB lookups so
+  // we don't pay a round-trip for rows we're going to drop anyway. The
+  // non-null company_domain contract mirrors runDiscoverAccounts +
+  // runAccountActivationSearch — dormant dedup and the scoring prompt
+  // both rely on it, so the webhook lane can't be the one that leaks
+  // nulls in.
+  const companyName = job.company_object?.name ?? job.company ?? null;
+  if (!companyName) {
+    userLog.warn("job missing company name — skipping");
+    return NextResponse.json({ ok: true, skipped: "no company name" });
+  }
+  const companyDomain =
+    job.company_object?.domain ?? job.company_domain ?? null;
+  if (!companyDomain) {
+    userLog.warn("job missing company_domain — skipping", { companyName });
+    return NextResponse.json({ ok: true, skipped: "no company_domain" });
+  }
+
   const svc = createSupabaseServiceClient();
 
   const [scoringRes, configRes] = await Promise.all([
@@ -158,14 +176,6 @@ export async function POST(request: Request) {
       { status: 422 },
     );
   }
-
-  const companyName = job.company_object?.name ?? job.company ?? null;
-  if (!companyName) {
-    userLog.warn("job missing company name — skipping");
-    return NextResponse.json({ ok: true, skipped: "no company name" });
-  }
-  const companyDomain =
-    job.company_object?.domain ?? job.company_domain ?? null;
 
   let created: OpportunityRow | null;
   try {
