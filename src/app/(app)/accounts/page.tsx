@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/empty-state";
 import type { OpportunityRow, OpportunitySource } from "@/lib/supabase/types";
 import { icpAccountAnalysisSchema } from "@/lib/pipeline/scoring-account";
 import { AccountCard } from "../_components/account-card";
+import { FadeIn } from "@/components/ui/fade-in";
 
 // GTM-only queue of scored accounts. Pure read from persisted pipeline
 // output — no live API calls, no scoring, no watchlist side effects
@@ -76,7 +77,7 @@ export default async function AccountsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10 space-y-6">
+    <FadeIn className="mx-auto max-w-2xl px-6 py-10 space-y-6">
       <PageHeader
         title="Accounts"
         description={`${opps.length} scored ${opps.length === 1 ? "account" : "accounts"} above your threshold, freshest first.`}
@@ -143,6 +144,6 @@ export default async function AccountsPage() {
           );
         })}
       </div>
-    </div>
+    </FadeIn>
   );
 }

@@ -1,41 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Search } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { Search, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
+import { FadeIn } from "@/components/ui/fade-in";
 import { MOCK_CALLS } from "@/lib/calls/data";
 import { CallDetailModal } from "./call-detail-modal";
-import type { SalesCall, CallStage, CallOutcome } from "@/lib/calls/types";
+import { MultiChatModal } from "./multi-chat-modal";
+import { OutcomeBadge, OUTCOME_LABEL } from "./outcome-badge";
+import type { SalesCall, CallOutcome } from "@/lib/calls/types";
 import { cn } from "@/lib/utils";
 
-const OUTCOME_LABEL: Record<CallOutcome, string> = {
-  ongoing: "Ongoing",
-  won: "Won",
-  lost: "Lost",
-};
-
-const STAGES: CallStage[] = [
-  "Renewal",
-  "Closed Won",
-  "Technical Evaluation",
-  "Demo",
-];
-
 const OUTCOMES: CallOutcome[] = ["ongoing", "won", "lost"];
-
-function stageBadgeVariant(stage: CallStage) {
-  if (stage === "Closed Won") return "success" as const;
-  if (stage === "Technical Evaluation") return "accent" as const;
-  return "muted" as const;
-}
-
-function outcomeBadgeVariant(outcome: CallOutcome) {
-  if (outcome === "won") return "success" as const;
-  if (outcome === "lost") return "destructive" as const;
-  return "secondary" as const;
-}
 
 function CountCell({ count }: { count: number }) {
   return (
@@ -52,11 +31,40 @@ function CountCell({ count }: { count: number }) {
   );
 }
 
+function Checkbox({
+  checked,
+  indeterminate,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (checked: boolean) => void;
+  ariaLabel: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = !!indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      aria-label={ariaLabel}
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      onClick={(e) => e.stopPropagation()}
+      className="h-4 w-4 cursor-pointer rounded accent-[var(--color-blue)]"
+    />
+  );
+}
+
 export function CallsClient() {
   const [search, setSearch] = useState("");
-  const [stageFilter, setStageFilter] = useState<CallStage | "">("");
   const [outcomeFilter, setOutcomeFilter] = useState<CallOutcome | "">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [chatOpen, setChatOpen] = useState(false);
 
   const filtered = useMemo(() => {
     return MOCK_CALLS.filter((c) => {
@@ -65,14 +73,43 @@ export function CallsClient() {
         c.title.toLowerCase().includes(search.toLowerCase()) ||
         c.account.toLowerCase().includes(search.toLowerCase()) ||
         c.rep.toLowerCase().includes(search.toLowerCase());
-      const matchStage = !stageFilter || c.stage === stageFilter;
       const matchOutcome = !outcomeFilter || c.outcome === outcomeFilter;
-      return matchSearch && matchStage && matchOutcome;
+      return matchSearch && matchOutcome;
     });
-  }, [search, stageFilter, outcomeFilter]);
+  }, [search, outcomeFilter]);
 
   const selectedIndex = filtered.findIndex((c) => c.id === selectedId);
   const selectedCall = selectedIndex !== -1 ? filtered[selectedIndex] : null;
+
+  const filteredSelectedCount = filtered.filter((c) =>
+    selectedIds.has(c.id),
+  ).length;
+  const allFilteredSelected =
+    filtered.length > 0 && filteredSelectedCount === filtered.length;
+  const someFilteredSelected =
+    filteredSelectedCount > 0 && !allFilteredSelected;
+
+  const checkedCalls = MOCK_CALLS.filter((c) => selectedIds.has(c.id));
+
+  function toggleOne(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAllFiltered(checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const c of filtered) {
+        if (checked) next.add(c.id);
+        else next.delete(c.id);
+      }
+      return next;
+    });
+  }
 
   function navigate(delta: number) {
     const next = filtered[selectedIndex + delta];
@@ -80,11 +117,8 @@ export function CallsClient() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Calls"
-        description="AI analysis of your team's sales calls — objections, pain points, and coaching notes."
-      />
+    <FadeIn>
+      <PageHeader title="Calls" description="Sources: Gong, Salesforce" />
 
       {/* Filters */}
       <div className="flex items-center gap-2 mb-5">
@@ -101,52 +135,87 @@ export function CallsClient() {
           />
         </div>
         <select
-          value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value as CallStage | "")}
-          className="h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-blue)]"
-        >
-          <option value="">All Stages</option>
-          {STAGES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select
           value={outcomeFilter}
           onChange={(e) => setOutcomeFilter(e.target.value as CallOutcome | "")}
           className="h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-blue)]"
         >
-          <option value="">All Outcomes</option>
+          <option value="">All Stages</option>
           {OUTCOMES.map((o) => (
             <option key={o} value={o}>
-              {o}
+              {OUTCOME_LABEL[o]}
             </option>
           ))}
         </select>
       </div>
 
-      <p className="text-xs text-[var(--color-text-muted)] mb-3">
-        Showing {filtered.length} of {MOCK_CALLS.length} calls
-      </p>
+      <div className="relative h-8 mb-3">
+        <AnimatePresence mode="wait" initial={false}>
+          {selectedIds.size === 0 ? (
+            <motion.p
+              key="count"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.12, ease: "easeOut" }}
+              className="absolute inset-0 flex items-center text-xs text-[var(--color-text-muted)]"
+            >
+              Showing {filtered.length} of {MOCK_CALLS.length} calls
+            </motion.p>
+          ) : (
+            <motion.div
+              key="bar"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.12, ease: "easeOut" }}
+              className="absolute inset-0 flex items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-medium text-[var(--color-text)]">
+                  {selectedIds.size} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors duration-100"
+                >
+                  Clear
+                </button>
+              </div>
+              <Button size="sm" onClick={() => setChatOpen(true)}>
+                <Sparkles size={12} />
+                Chat with {selectedIds.size} transcript
+                {selectedIds.size === 1 ? "" : "s"}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
-        <table className="w-full text-sm">
+        <table className="w-full table-fixed text-sm">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-muted)]">
+              <th className="w-[4%] px-4 py-2.5 text-left">
+                <Checkbox
+                  checked={allFilteredSelected}
+                  indeterminate={someFilteredSelected}
+                  onChange={toggleAllFiltered}
+                  ariaLabel="Select all calls"
+                />
+              </th>
               {(
                 [
-                  ["Call", "text-left w-[35%]"],
-                  ["Rep", "text-left"],
-                  ["Account", "text-left"],
-                  ["Stage", "text-left"],
-                  ["Amount", "text-right"],
-                  ["Date", "text-left"],
-                  ["Obj.", "text-center w-12"],
-                  ["Pain", "text-center w-12"],
-                  ["Flags", "text-center w-12"],
-                  ["Outcome", "text-left"],
+                  ["Call", "text-left w-[36%]"],
+                  ["Rep", "text-left w-[11%]"],
+                  ["Account", "text-left w-[11%]"],
+                  ["Amount", "text-right w-[9%]"],
+                  ["Date", "text-left w-[9%]"],
+                  ["Obj.", "text-center w-[4%]"],
+                  ["Pain", "text-center w-[4%]"],
+                  ["Flags", "text-center w-[4%]"],
+                  ["Stage", "text-left w-[8%]"],
                 ] as [string, string][]
               ).map(([label, cls]) => (
                 <th
@@ -167,6 +236,8 @@ export function CallsClient() {
                 key={call.id}
                 call={call}
                 isLast={i === filtered.length - 1}
+                isSelected={selectedIds.has(call.id)}
+                onToggle={(checked) => toggleOne(call.id, checked)}
                 onClick={() => setSelectedId(call.id)}
               />
             ))}
@@ -194,67 +265,81 @@ export function CallsClient() {
           onNext={() => navigate(1)}
         />
       )}
-    </>
+
+      {chatOpen && checkedCalls.length > 0 && (
+        <MultiChatModal
+          calls={checkedCalls}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
+    </FadeIn>
   );
 }
 
 function CallRow({
   call,
   isLast,
+  isSelected,
+  onToggle,
   onClick,
 }: {
   call: SalesCall;
   isLast: boolean;
+  isSelected: boolean;
+  onToggle: (checked: boolean) => void;
   onClick: () => void;
 }) {
   return (
     <tr
       onClick={onClick}
       className={cn(
-        "cursor-pointer transition-colors duration-100 hover:bg-[var(--color-surface-muted)]",
+        "h-20 cursor-pointer transition-colors duration-100 [&>td]:align-middle [&>td]:px-4",
+        isSelected
+          ? "bg-[var(--color-blue-muted)] hover:bg-[var(--color-blue-muted)]"
+          : "hover:bg-[var(--color-surface-muted)]",
         !isLast && "border-b border-[var(--color-border)]",
       )}
     >
-      <td className="px-4 py-3">
-        <p className="font-medium text-[var(--color-text)] leading-snug">
+      <td>
+        <Checkbox
+          checked={isSelected}
+          onChange={onToggle}
+          ariaLabel={`Select ${call.title}`}
+        />
+      </td>
+      <td>
+        <p className="font-medium text-[var(--color-text)] leading-snug line-clamp-2">
           {call.title}
         </p>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+        <p className="text-xs text-[var(--color-text-muted)] mt-1 truncate">
           {call.duration}
         </p>
       </td>
-      <td className="px-4 py-3 text-[var(--color-text-muted)] whitespace-nowrap">
-        {call.rep}
-      </td>
-      <td className="px-4 py-3 text-[var(--color-text-muted)] whitespace-nowrap">
+      <td className="text-[var(--color-text-muted)] truncate">{call.rep}</td>
+      <td className="text-[var(--color-text-muted)] truncate">
         {call.account}
       </td>
-      <td className="px-4 py-3">
-        <Badge variant={stageBadgeVariant(call.stage)}>{call.stage}</Badge>
-      </td>
-      <td className="px-4 py-3 text-right text-[var(--color-text-muted)] whitespace-nowrap tabular-nums">
+      <td className="text-right text-[var(--color-text-muted)] whitespace-nowrap tabular-nums">
         ${call.amount.toLocaleString()}
       </td>
-      <td className="px-4 py-3 text-[var(--color-text-muted)] whitespace-nowrap">
+      <td className="text-[var(--color-text-muted)] whitespace-nowrap">
         {new Date(call.date).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
           year: "numeric",
         })}
       </td>
-      <td className="px-4 py-3 text-center">
+      <td className="text-center">
         <CountCell count={call.objectionCount} />
       </td>
-      <td className="px-4 py-3 text-center">
+      <td className="text-center">
         <CountCell count={call.painPointCount} />
       </td>
-      <td className="px-4 py-3 text-center">
+      <td className="text-center">
         <CountCell count={call.redFlagCount} />
       </td>
-      <td className="px-4 py-3">
-        <Badge variant={outcomeBadgeVariant(call.outcome)}>
-          {OUTCOME_LABEL[call.outcome]}
-        </Badge>
+      <td>
+        <OutcomeBadge outcome={call.outcome} />
       </td>
     </tr>
   );

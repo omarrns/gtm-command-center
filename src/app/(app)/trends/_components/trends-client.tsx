@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
+import { FadeIn } from "@/components/ui/fade-in";
 import { cn } from "@/lib/utils";
 import {
   ALL_CALLS,
@@ -382,7 +383,7 @@ export function TrendsClient() {
   const lostCount = ALL_CALLS.filter((c) => c.outcome === "lost").length;
 
   return (
-    <>
+    <FadeIn>
       <PageHeader
         title="Trends"
         description={`Q2 2026 · ${ALL_CALLS.length} calls · ${REP_STATS.length} reps · ${wonCount} won · ${lostCount} lost`}
@@ -455,6 +456,6 @@ export function TrendsClient() {
           />
         )}
       </AnimatePresence>
-    </>
+    </FadeIn>
   );
 }
