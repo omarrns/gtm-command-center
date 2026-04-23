@@ -11,7 +11,7 @@ import { searchJobs } from "@/lib/pipeline/jsearch";
 import { createOpportunity } from "@/lib/pipeline/opportunities";
 import { createLogger } from "@/lib/logger";
 
-const MAX_DISCOVERIES_PER_RUN = 10;
+const MAX_DISCOVERIES_PER_RUN = 7;
 
 export interface DiscoverResult {
   found: number;
