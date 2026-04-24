@@ -29,7 +29,7 @@ export default async function LoginPage({
             Sign in to continue
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Magic link or Google. Invite-only during early access.
+            Email + password or Google. Invite-only during early access.
           </p>
         </div>
         <LoginForm next={next} error={error} />
