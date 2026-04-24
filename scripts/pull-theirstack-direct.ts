@@ -46,6 +46,7 @@ const FILTERS: TheirStackFilters = {
   job_description_contains_or: ["Finetuning", "open-models", "fine-tune"],
   job_country_code_or: ["US", "CA"],
   limit: CAP,
+  page: 2,
 };
 
 async function main(): Promise<void> {

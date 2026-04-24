@@ -1,28 +1,30 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { sendMagicLinkAction, signInWithGoogleAction } from "./actions";
+import { signInWithPasswordAction, signInWithGoogleAction } from "./actions";
 
 export function LoginForm({ next, error }: { next?: string; error?: string }) {
+  const router = useRouter();
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(
     error ?? null,
   );
   const [isPending, startTransition] = useTransition();
 
-  function onMagicLink(formData: FormData) {
-    setMessage(null);
+  function onPasswordSignIn(formData: FormData) {
     setErrorMessage(null);
     startTransition(async () => {
-      const result = await sendMagicLinkAction(formData);
+      const result = await signInWithPasswordAction(formData);
       if (result.error) {
         setErrorMessage(result.error);
-      } else {
-        setMessage("Check your inbox for a sign-in link.");
+        return;
       }
+      router.replace(result.next ?? "/analysis");
+      router.refresh();
     });
   }
 
@@ -34,7 +36,7 @@ export function LoginForm({ next, error }: { next?: string; error?: string }) {
 
   return (
     <div className="space-y-4">
-      <form action={onMagicLink} className="space-y-3">
+      <form action={onPasswordSignIn} className="space-y-3">
         <input type="hidden" name="next" value={next ?? ""} />
         <label className="block">
           <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
@@ -50,8 +52,22 @@ export function LoginForm({ next, error }: { next?: string; error?: string }) {
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
+        <label className="block">
+          <span className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+            Password
+          </span>
+          <Input
+            type="password"
+            name="password"
+            required
+            autoComplete="current-password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
         <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? "Sending…" : "Email me a magic link"}
+          {isPending ? "Signing in…" : "Sign in"}
         </Button>
       </form>
 
@@ -71,9 +87,6 @@ export function LoginForm({ next, error }: { next?: string; error?: string }) {
         Continue with Google
       </Button>
 
-      {message && (
-        <p className="text-sm text-[var(--color-success)]">{message}</p>
-      )}
       {errorMessage && (
         <p className="text-sm text-[var(--color-danger)]">{errorMessage}</p>
       )}
