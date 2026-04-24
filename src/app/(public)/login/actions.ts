@@ -7,22 +7,19 @@ function getAppUrl() {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
-export async function sendMagicLinkAction(
+export async function signInWithPasswordAction(
   formData: FormData,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; next?: string }> {
   const email = String(formData.get("email") ?? "").trim();
-  const next = String(formData.get("next") ?? "/analysis");
+  const password = String(formData.get("password") ?? "");
+  const next = String(formData.get("next") ?? "/analysis") || "/analysis";
   if (!email) return { error: "Email is required." };
+  if (!password) return { error: "Password is required." };
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${getAppUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
-    },
-  });
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
-  return {};
+  return { next };
 }
 
 export async function signInWithGoogleAction(next?: string) {
