@@ -1,19 +1,16 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { isOnboardingComplete } from "@/lib/pipeline/onboarding";
+import {
+  isOnboardingComplete,
+  USER_TYPE_TO_TEMPLATE,
+} from "@/lib/pipeline/onboarding";
 import { getTemplate, toClientTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
 import { OnboardRouter } from "./_components/onboard-router";
 import { PersonaPicker } from "./_components/persona-picker";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import { claimOrphanedArtifacts } from "@/lib/onboarding/artifacts/reassign";
-
-// Map the app-wide persona discriminator to the template that confirms
-// into it. GTM users are routed to /icp — only job_seeker lands here.
-const USER_TYPE_TO_TEMPLATE: Record<string, InterviewTemplateId> = {
-  job_seeker: "job_search",
-};
 
 function parseTemplateParam(
   raw: string | string[] | undefined,

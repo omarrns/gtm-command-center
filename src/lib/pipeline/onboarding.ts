@@ -9,7 +9,7 @@ export interface OnboardingStatus {
 
 // Maps a user_type to the template whose completionCheck decides whether
 // that persona is "done onboarding."
-const USER_TYPE_TO_TEMPLATE: Record<string, InterviewTemplateId> = {
+export const USER_TYPE_TO_TEMPLATE: Record<string, InterviewTemplateId> = {
   job_seeker: "job_search",
   gtm: "icp_definition",
 };
