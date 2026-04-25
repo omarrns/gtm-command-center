@@ -86,6 +86,56 @@ discovered → scored → researched → enriched → drafted → queued → sen
 - Enrichment retries increment `enrichment_attempts` up to `max_enrichment_attempts`; terminal failure routes to `needs_contact`.
 - Scoring auto-adds companies to watchlist when normalized score >= 80.
 
+### Onboarding Interview State Machine
+
+```
+                        ┌──────────────────────────────────────────┐
+                        │                                          │
+                        ▼                                          │
+[create] ──────► in_progress ─────► extracting ─────► review ─────►│ confirmed
+                    ▲   │              │                │ ▲        ▲
+                    │   │              │                │ │        │
+                    │   │ (rollback    │                │ │        │
+                    │   │  on failure) │                │ │        │
+                    │   └──────────────┘                ▼ │        │
+                    │                              story_review ───┘
+                    │                                   │
+                    │ (backToInterview from review)     │
+                    └───────────────────────────────────┘
+
+Any status ─────► abandoned   (terminal; switch persona or explicit abandon)
+```
+
+Transitions and the file:function responsible for each:
+
+```
+[create]      → in_progress     get-or-create-interview.ts: getOrCreateInterviewAction (insert)
+[create]      → in_progress     switch-persona.ts: switchPersonaAction (insert; abandons prior)
+in_progress   → in_progress     api/onboard/chat/route.ts: POST handler
+                                  (sets ready_for_extraction=true on completionMarker
+                                   or maxAssistantMessages cap; status unchanged)
+in_progress   → extracting      interview-actions.ts: extractAndReviewAction
+                                  (atomic compare-and-set gated on status='in_progress')
+                                Auto-triggered by onboard-router.tsx when
+                                  status='in_progress' && ready_for_extraction=true
+extracting    → review          interview-actions.ts: extractAndReviewAction (on success)
+extracting    → in_progress     interview-actions.ts: extractAndReviewAction (rollback on failure)
+review        → in_progress     interview-actions.ts: backToInterviewAction
+                                  (clears ready_for_extraction)
+review        → story_review    interview-actions.ts: startStoryPhaseAction
+                                  (agentic templates only; gated on template.agenticMode)
+story_review  → review          interview-actions.ts: backToReviewFromStoryAction
+review        → confirmed       confirm-logic.ts: performConfirm
+                                  (called by interview-actions.ts: confirmInterviewAction)
+story_review  → confirmed       confirm-logic.ts: performConfirm
+*             → abandoned       interview-actions.ts: abandonInterviewAction
+*             → abandoned       switch-persona.ts: switchPersonaAction (abandons prior row)
+```
+
+- `ready_for_extraction` is a boolean flag, not a status — it lets the streaming chat route signal "interview is done" without holding the DB transaction needed to flip status. The router observes the flag and triggers the actual `in_progress → extracting` transition from the client.
+- The `extracting` state is held briefly inside one server action; if the process dies, the rollback path returns the row to `in_progress` so the user can retry.
+- `/onboard` routes purely on `interview.status` — there is no `/onboard/review` or `/onboard/story` route.
+
 ### Database Tables
 
 | Table                   | Purpose                                                                                                                                          | Access                                             |
@@ -346,7 +396,7 @@ These are not guidelines. They are constraints. Violating any rule is a bug.
 ### Prompts
 
 - Prompts are business logic. Version and review them like code.
-- All prompts live in `src/lib/ai/prompts/`, exported as typed constants with model + temperature.
+- All prompts live in `src/lib/skills/prompts/`, exported as typed constants with model + temperature.
 - Never inline a multi-line prompt string in a route handler or pipeline function.
 - When a prompt changes, the commit message explains what behavior the change targets.
 
