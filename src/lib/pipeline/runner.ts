@@ -1,7 +1,19 @@
+// =============================================================================
+// LEGACY — NOT ON ANY LIVE CODE PATH.
+//
+// This file is the legacy synchronous pipeline orchestrator. It is NOT called
+// by the cron endpoint, the manual trigger, or any other runtime caller.
+// The live orchestrator is `src/lib/pipeline/workflow.ts` (Vercel Workflow
+// durable execution), which is what cron and manual triggers import.
+//
+// This file is retained only because `src/lib/pipeline/gtm-runner.ts` imports
+// the `PipelineRunResult` type from it. Do not add new logic here. If you need
+// to change pipeline behavior, edit `workflow.ts`.
+// =============================================================================
+
 /**
  * Pipeline Runner — orchestrates discover -> score -> research -> enrich -> draft.
  *
- * Called by the cron endpoint (all users) and manual trigger (single user).
  * Each stage processes a batch with per-opportunity error isolation.
  * Pipeline runs within a single Vercel Function invocation (up to 300s).
  */
@@ -38,6 +50,7 @@ export interface PipelineRunResult {
   error: string | null;
 }
 
+/** @deprecated Legacy synchronous path. Use `pipelineWorkflow` from `workflow.ts`. */
 export async function runPipeline(
   svc: SupabaseClient,
   userId: string,
