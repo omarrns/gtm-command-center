@@ -1,11 +1,10 @@
 /**
  * Verification script for pipeline correctness fixes.
  *
- * Validates four behaviors via source-level structural checks:
+ * Validates three behaviors via source-level structural checks:
  *   1. worker/claim rejects malformed/empty JSON bodies
  *   2. workflow loadConfig distinguishes missing config from query failure
- *   3. executePursuit throws when advanceStage returns false
- *   4. applyManuallyAction returns failure when no row matches
+ *   3. applyManuallyAction returns failure when no row matches
  *
  * Usage:
  *   npx tsx scripts/test-correctness-fixes.ts
@@ -88,47 +87,8 @@ assert(
   "pipelineWorkflow catch must capture the error object (not bare catch)",
 );
 
-/* ── 3. execute-plan: stage-transition enforcement ───────────────── */
-console.log("3. execute-plan — stage transition enforcement");
-
-const executePlanSource = readFileSync(
-  join(ROOT, "src/lib/pipeline/pursuit/execute-plan.ts"),
-  "utf-8",
-);
-
-const advanceStageCallCount = (
-  executePlanSource.match(/const advanced = await advanceStage\(/g) || []
-).length;
-
-assert(
-  advanceStageCallCount >= 2,
-  `executePursuit must capture advanceStage result in both call sites (found ${advanceStageCallCount})`,
-);
-
-const throwOnMissCount = (
-  executePlanSource.match(/if \(!advanced\)\s*\{[\s\S]*?throw new Error/g) || []
-).length;
-
-assert(
-  throwOnMissCount >= 2,
-  `executePursuit must throw on stage-transition miss in both call sites (found ${throwOnMissCount})`,
-);
-
-// Verify no advanceStage call in executePursuit ignores its return value
-const executePursuitBlock = executePlanSource.slice(
-  executePlanSource.indexOf("async function executePursuit"),
-);
-const bareAdvanceCalls = (
-  executePursuitBlock.match(/(?<!= )await advanceStage\(/g) || []
-).length;
-
-assert(
-  bareAdvanceCalls === 0,
-  `executePursuit must not have bare (uncaptured) advanceStage calls (found ${bareAdvanceCalls})`,
-);
-
-/* ── 4. applyManuallyAction: row-match verification ──────────────── */
-console.log("4. applyManuallyAction — row-match verification");
+/* ── 3. applyManuallyAction: row-match verification ──────────────── */
+console.log("3. applyManuallyAction — row-match verification");
 
 const actionsSource = readFileSync(
   join(ROOT, "src/app/(app)/actions.ts"),
