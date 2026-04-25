@@ -4,14 +4,9 @@ import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { runExtractionFromTranscript } from "@/lib/onboarding/extraction";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
-import type {
-  ExtractionInsights,
-  JobSearchEdits,
-  JobSearchExtraction,
-} from "@/lib/onboarding/templates/job-search";
+import type { ExtractionInsights } from "@/lib/onboarding/templates/job-search";
 import {
   loadPositiveExemplarCount,
   nextDimensionToAsk,
@@ -98,167 +93,15 @@ export async function getOrCreateInterviewAction(
   return getOrCreateInterview(svc, user.id, isRefresh, templateId);
 }
 
-// ── Extract and Review ──
-
-export async function extractAndReviewAction(
-  interviewId: string,
-): Promise<
-  { ok: true; interview: OnboardingInterviewRow } | { ok: false; error: string }
-> {
-  const user = await requireUser();
-  const svc = createSupabaseServiceClient();
-
-  // Load interview and verify ownership
-  const { data: interview, error: fetchErr } = await svc
-    .from("onboarding_interviews")
-    .select("*")
-    .eq("id", interviewId)
-    .single();
-
-  if (fetchErr || !interview || interview.user_id !== user.id) {
-    return { ok: false, error: "Interview not found" };
-  }
-
-  // If already in review/extracting, just return current state (idempotent).
-  // Agentic safety net: if the chat route's onFinish didn't land before the
-  // client transitioned (rare — user disconnected mid-wrap-up), hydrate
-  // extracted_* from orchestrator_state here so the review UI has real
-  // initial values to render.
-  if (interview.status === "review" || interview.status === "extracting") {
-    const template = getTemplate(interview.template_id);
-    // Hydrate when the agentic flow landed at review without any extracted
-    // payload yet (rare — typically a disconnect mid-wrap-up). Check both
-    // unified and legacy slots so existing job_search rows hydrated via
-    // the legacy 4-column path don't get re-written.
-    const needsHydration =
-      template.agenticMode &&
-      interview.status === "review" &&
-      interview.extracted === null &&
-      interview.extracted_profile === null &&
-      interview.orchestrator_state !== null;
-
-    if (needsHydration) {
-      const state = interview.orchestrator_state as OrchestratorState;
-      const { edits } = toConfirmEditsForTemplate(state, template);
-      const updatePayload: Record<string, unknown> = {
-        extracted: edits,
-        updated_at: new Date().toISOString(),
-      };
-      // Legacy dual-write for job_search until the cleanup commit drops
-      // the four extracted_* columns (see docs/DEFERRED.md).
-      if (template.id === "job_search") {
-        const js = edits as JobSearchEdits;
-        updatePayload.extracted_profile = js.profile;
-        updatePayload.extracted_search = js.search;
-        updatePayload.extracted_outreach = js.outreach;
-      }
-      const { data: hydrated } = await svc
-        .from("onboarding_interviews")
-        .update(updatePayload)
-        .eq("id", interviewId)
-        .select("*")
-        .single();
-      return {
-        ok: true,
-        interview: (hydrated ?? interview) as OnboardingInterviewRow,
-      };
-    }
-
-    return { ok: true, interview: interview as OnboardingInterviewRow };
-  }
-
-  if (interview.status !== "in_progress") {
-    return {
-      ok: false,
-      error: `Cannot extract from status: ${interview.status}`,
-    };
-  }
-
-  // Atomic compare-and-set: only claim extraction if still in_progress.
-  // Two concurrent callers: only one update matches, the loser gets 0 rows.
-  const { data: claimed } = await svc
-    .from("onboarding_interviews")
-    .update({ status: "extracting", updated_at: new Date().toISOString() })
-    .eq("id", interviewId)
-    .eq("status", "in_progress")
-    .select("id")
-    .maybeSingle();
-
-  if (!claimed) {
-    // Another caller already claimed extraction — refetch and return
-    const { data: refetched } = await svc
-      .from("onboarding_interviews")
-      .select("*")
-      .eq("id", interviewId)
-      .single();
-    if (refetched) {
-      return { ok: true, interview: refetched as OnboardingInterviewRow };
-    }
-    return { ok: false, error: "Extraction already in progress" };
-  }
-
-  try {
-    const template = getTemplate(interview.template_id);
-    const messages = interview.messages as UIMessage[];
-    const extraction = await runExtractionFromTranscript(messages, template, {
-      userId: user.id,
-      scopeTable: "onboarding_interviews",
-      scopeId: interviewId,
-      callPurpose: "extract",
-    });
-
-    // Dual-write: `extracted` (unified, template-agnostic) is the durable
-    // path for Phase 3+. The 4 legacy columns stay written for job_search
-    // until the DEFERRED cleanup drops them; non-job_search templates leave
-    // the legacy columns NULL because their extraction shape doesn't map.
-    const updatePayload: Record<string, unknown> = {
-      status: "review",
-      extracted: extraction,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (template.id === "job_search") {
-      const js = extraction as JobSearchExtraction;
-      updatePayload.extracted_profile = js.profile;
-      updatePayload.extracted_search = js.search;
-      updatePayload.extracted_outreach = js.outreach;
-      updatePayload.extracted_insights = js.insights;
-    }
-
-    const { data: updated, error: updateErr } = await svc
-      .from("onboarding_interviews")
-      .update(updatePayload)
-      .eq("id", interviewId)
-      .select("*")
-      .single();
-
-    if (updateErr) {
-      throw new Error(updateErr.message);
-    }
-
-    revalidatePath("/onboard");
-    return { ok: true, interview: updated as OnboardingInterviewRow };
-  } catch (err) {
-    // Revert to in_progress on failure so user can retry
-    await svc
-      .from("onboarding_interviews")
-      .update({ status: "in_progress", updated_at: new Date().toISOString() })
-      .eq("id", interviewId);
-
-    const msg = err instanceof Error ? err.message : "Extraction failed";
-    return { ok: false, error: msg };
-  }
-}
-
 // ── Confirm Interview ──
 
 export async function confirmInterviewAction(
   interviewId: string,
   edits: ConfirmEdits,
   // Optional. Only set when the user edited at least one section on the
-  // story screen. Merged into both extracted.insights AND extracted_insights
-  // before performConfirm runs, so the interview_insights memory_doc
-  // transform reads the user's edited copy.
+  // story screen. Merged into extracted.insights before performConfirm
+  // runs, so the interview_insights memory_doc transform reads the user's
+  // edited copy.
   editedInsights?: ExtractionInsights,
 ): Promise<ActionResult> {
   const user = await requireUser();
@@ -287,10 +130,10 @@ export async function confirmInterviewAction(
       );
 
       // If the user edited the streamed insights on the story screen,
-      // persist them to both the unified column (what performConfirm reads
-      // first) and the legacy column. One DB write covers both. The story
-      // route already populated these columns when the stream finished —
-      // this only fires when the user changed something afterward.
+      // persist them to extracted.insights so performConfirm picks up the
+      // edited copy. The story route already populated this when the
+      // stream finished — this only fires when the user changed something
+      // afterward.
       if (editedInsights) {
         const updatedExtracted = {
           ...((row.extracted as Record<string, unknown>) ?? {}),
@@ -300,7 +143,6 @@ export async function confirmInterviewAction(
           .from("onboarding_interviews")
           .update({
             extracted: updatedExtracted,
-            extracted_insights: editedInsights,
             updated_at: new Date().toISOString(),
           })
           .eq("id", interviewId);
@@ -457,25 +299,18 @@ export async function startAgenticInterviewAction(
 
   // No dimension below threshold → advance straight to review. Mirrors
   // extractAndReviewAction's agentic hydration path: populate the unified
-  // `extracted` slot (and the legacy 4 columns for job_search) from
-  // orchestrator state, set status='review', revalidatePath. /onboard
-  // routes on interview.status — there is no /onboard/review route.
+  // `extracted` slot from orchestrator state, set status='review',
+  // revalidatePath. /onboard routes on interview.status — there is no
+  // /onboard/review route.
   if (!next) {
     const { edits } = toConfirmEditsForTemplate(state, template);
-    const updatePayload: Record<string, unknown> = {
-      status: "review",
-      extracted: edits,
-      updated_at: new Date().toISOString(),
-    };
-    if (template.id === "job_search") {
-      const js = edits as JobSearchEdits;
-      updatePayload.extracted_profile = js.profile;
-      updatePayload.extracted_search = js.search;
-      updatePayload.extracted_outreach = js.outreach;
-    }
     const { data: hydrated } = await svc
       .from("onboarding_interviews")
-      .update(updatePayload)
+      .update({
+        status: "review",
+        extracted: edits,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", interviewId)
       .select("*")
       .single();
@@ -541,127 +376,4 @@ export async function startAgenticInterviewAction(
   if (updateError) return { ok: false, error: updateError.message };
 
   return { ok: true, message: assistantMessage };
-}
-
-// ── Story Phase (agentic only — stream insights then confirm) ──
-
-// Transition review → story_review. Persists the user's review-screen edits
-// to BOTH the unified `extracted` column (what performConfirm reads first)
-// AND the legacy job_search columns. Mirrors the dual-write pattern in
-// extractAndReviewAction and the chat route's wrap-up.
-export type StartStoryPhaseResult =
-  | { ok: true; interview: OnboardingInterviewRow }
-  | { ok: false; error: string };
-
-export async function startStoryPhaseAction(
-  interviewId: string,
-  edits: JobSearchEdits,
-): Promise<StartStoryPhaseResult> {
-  const user = await requireUser();
-  const svc = createSupabaseServiceClient();
-
-  const { data: interview, error: fetchErr } = await svc
-    .from("onboarding_interviews")
-    .select("id, user_id, status, template_id, extracted")
-    .eq("id", interviewId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (fetchErr || !interview) {
-    return { ok: false, error: "Interview not found" };
-  }
-
-  // Idempotency: a second click after a successful first one finds status
-  // already at story_review. Refetch the full row and return it instead of
-  // erroring — the client can sync local state and route to the story view.
-  if (interview.status === "story_review") {
-    const { data: existing } = await svc
-      .from("onboarding_interviews")
-      .select("*")
-      .eq("id", interviewId)
-      .single();
-    if (existing) {
-      return {
-        ok: true,
-        interview: existing as OnboardingInterviewRow,
-      };
-    }
-  }
-
-  if (interview.status !== "review") {
-    return {
-      ok: false,
-      error: `Cannot start story phase from status: ${interview.status}`,
-    };
-  }
-
-  const template = getTemplate(interview.template_id as InterviewTemplateId);
-  if (!template.agenticMode) {
-    return { ok: false, error: "Story phase requires agentic template" };
-  }
-  if (!template.insightsSchema) {
-    return {
-      ok: false,
-      error: "Template does not define insights synthesis",
-    };
-  }
-
-  const updatedExtracted = {
-    ...((interview.extracted as Record<string, unknown>) ?? {}),
-    profile: edits.profile,
-    search: edits.search,
-    outreach: edits.outreach,
-  };
-
-  // Compare-and-set on status guards against a concurrent second writer.
-  // Returning the full row in one round-trip lets the client setInterview
-  // directly without a follow-up refetch — that's what fixes the
-  // router.refresh() vs useState-cache mismatch.
-  const { data: updated, error: updateErr } = await svc
-    .from("onboarding_interviews")
-    .update({
-      status: "story_review",
-      extracted: updatedExtracted,
-      extracted_profile: edits.profile,
-      extracted_search: edits.search,
-      extracted_outreach: edits.outreach,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", interviewId)
-    .eq("status", "review")
-    .select("*")
-    .single();
-
-  if (updateErr) return { ok: false, error: updateErr.message };
-  if (!updated) {
-    return { ok: false, error: "Interview status changed under us — reload" };
-  }
-
-  revalidatePath("/onboard");
-  return { ok: true, interview: updated as OnboardingInterviewRow };
-}
-
-// Transition story_review → review without dropping streamed insights so
-// re-entry from review skips the handoff and lands directly in reading
-// mode.
-export async function backToReviewFromStoryAction(
-  interviewId: string,
-): Promise<ActionResult> {
-  const user = await requireUser();
-  const svc = createSupabaseServiceClient();
-
-  const { error } = await svc
-    .from("onboarding_interviews")
-    .update({
-      status: "review",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", interviewId)
-    .eq("user_id", user.id)
-    .eq("status", "story_review");
-
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath("/onboard");
-  return { ok: true };
 }

@@ -1,9 +1,9 @@
 /**
  * Re-run the confirm adapter over an existing interview's orchestrator_state
- * and write the result to extracted_profile/search/outreach + status='review'.
+ * and write the result to the unified `extracted` column + status='review'.
  *
  * Use when the adapter logic changed (e.g., added array-to-bullets coercion)
- * and an existing interview's extracted_* columns hold stale/empty values
+ * and an existing interview's extracted column holds stale/empty values
  * that need to be re-derived without a full onboard:reset.
  *
  * Usage: npx tsx scripts/rehydrate-review.ts <email>
@@ -58,18 +58,16 @@ async function main() {
   console.log(
     `rehydrating interview ${interview.id} (status: ${interview.status})`,
   );
-  console.log("\n--- new extracted_profile ---");
+  console.log("\n--- new extracted.profile ---");
   console.log(JSON.stringify(edits.profile, null, 2));
-  console.log("\n--- new extracted_outreach ---");
+  console.log("\n--- new extracted.outreach ---");
   console.log(JSON.stringify(edits.outreach, null, 2));
 
   const { error } = await supabase
     .from("onboarding_interviews")
     .update({
       status: "review",
-      extracted_profile: edits.profile,
-      extracted_search: edits.search,
-      extracted_outreach: edits.outreach,
+      extracted: edits,
       updated_at: new Date().toISOString(),
     })
     .eq("id", interview.id);

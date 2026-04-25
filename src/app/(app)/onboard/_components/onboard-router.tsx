@@ -7,10 +7,8 @@ import { InterviewClient } from "./interview-client";
 import { ReviewClient } from "./review-client";
 import { OnboardClient } from "./onboard-client";
 import { StoryClient } from "./story-client";
-import {
-  getOrCreateInterviewAction,
-  extractAndReviewAction,
-} from "../interview-actions";
+import { getOrCreateInterviewAction } from "../interview-actions";
+import { extractAndReviewAction } from "../extraction-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type {
   ClientInterviewTemplate,

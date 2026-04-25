@@ -124,10 +124,12 @@ async function seedReviewInterview(userId: string): Promise<string> {
         "outreach_style",
       ],
       ready_for_extraction: true,
-      extracted_profile: EDITS_FIXTURE.profile,
-      extracted_search: EDITS_FIXTURE.search,
-      extracted_outreach: EDITS_FIXTURE.outreach,
-      extracted_insights: EXTRACTED_INSIGHTS_FIXTURE,
+      extracted: {
+        profile: EDITS_FIXTURE.profile,
+        search: EDITS_FIXTURE.search,
+        outreach: EDITS_FIXTURE.outreach,
+        insights: EXTRACTED_INSIGHTS_FIXTURE,
+      },
     })
     .select("id")
     .single();

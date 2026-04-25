@@ -97,7 +97,7 @@ sequenceDiagram
     IA->>DB: CAS in_progress → extracting
     IA->>O: generateObject(transcript, extractionResultSchema)
     O-->>IA: {profile, search, outreach, insights}
-    IA->>DB: UPDATE extracted_* + status=review
+    IA->>DB: UPDATE extracted + status=review
     IA-->>R: updated interview
 
     R->>U: Render ReviewClient (editable cards)
@@ -193,14 +193,14 @@ All three update the same flag. The client polls `checkInterviewStateAction` aft
    - **`search`** — searchQueries, searchLocations, scoreThreshold, dailySendCap
    - **`outreach`** — greenFlags, redFlags, outreachTone, whatsWorked, whatToAvoid
    - **`insights`** — career_narrative, decision_drivers, unstated_preferences, strongest_stories, positioning_alternatives, risk_tolerance, communication_style_notes
-5. Writes all four into `extracted_*` columns and flips status to `review`.
+5. Writes the four blocks into the unified `extracted` JSONB column and flips status to `review`.
 6. On failure, reverts to `in_progress` so the user can retry.
 
 **Why two models?** Sonnet is the right size for fast, warm conversational turns under 1 KB of output. Opus is the right size for a single heavy synthesis pass over the full transcript into structured JSON.
 
 ### Phase E — Review and confirm
 
-`ReviewClient` renders editable cards (positioning, career highlights, search queries, dealbreakers, outreach tone…) pre-filled from `extracted_*`. User edits and hits Confirm.
+`ReviewClient` renders editable cards (positioning, career highlights, search queries, dealbreakers, outreach tone…) pre-filled from `interview.extracted`. User edits and hits Confirm.
 
 `confirmInterviewAction` runs **sequential idempotent upserts** (any step can be retried without corruption):
 
@@ -345,7 +345,7 @@ Transforms receive `{ edits, extraction }` and may return `null` to skip (e.g. `
 
 `onboarding_interviews` has `template_id` + `template_version` columns (defaults `'job_search'`, `'v1'`). The active-interview partial unique index is `(user_id, template_id)` WHERE status IN active states — future templates can have concurrent active interviews for the same user.
 
-The four `extracted_*` JSONB columns (`extracted_profile/search/outreach/insights`) are job_search-shaped. Phase 2 will likely add a unified `extracted` JSONB column when a template with a different top-level schema lands.
+Extraction output lands in a single `extracted` JSONB column whose top-level shape is the active template's `extractionSchema`. For `job_search` that's `{ profile, search, outreach, insights }`; future templates declare their own shape. Readers must validate via the active template's schema, not against a global type.
 
 ### Known gaps (Phase 1 did not close these)
 

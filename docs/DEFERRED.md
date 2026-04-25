@@ -123,22 +123,6 @@ Living log of features we've considered, cut, and scheduled for future considera
 
 ---
 
-### Drop legacy `extracted_*` columns
-
-**What.** `onboarding_interviews` has four JSONB columns — `extracted_profile`, `extracted_search`, `extracted_outreach`, `extracted_insights` — that SPEC-3's Phase 1 replaces with a single `extracted` JSONB column. Phase 1 dual-writes both for rollback safety; this item is the cleanup commit that removes the four legacy columns.
-
-**Deferred from.** SPEC-3 Phase 1.a + 1.b (intentionally deferred to a separate cleanup commit).
-
-**Why deferred.** Don't combine a schema change with a consumer rewrite in the same commit. Phase 1 lands the unified column + dual-writes + rewrites consumers; a separate commit drops the legacy columns once Phase 3 has stabilised in prod. Two weeks of observation is a reasonable floor.
-
-**Trigger to revisit.** Phase 3 (`icp_definition` template) in prod for ≥2 weeks with no rollback. No consumer still reads `extracted_profile` etc. directly (grep the codebase before dropping).
-
-**Dependencies.** SPEC-3 Phase 3 shipped and observed.
-
-**Rough scope.** 1 commit: drop the four columns + remove the dual-write + remove the fallback-reassemble path in `confirm-logic.ts`.
-
----
-
 ### Debug infra hardening — tests, streaming visibility, batch error aggregation, OTel
 
 **What.** Three follow-ups to the `debug-infra` branch (10 commits: structured `lib/logger.ts`, `ai_calls` capture table, `runGenerateObject` / `runClaudeJson` / `runClaudeText` wrappers, `useJobPoll` backoff + visibility, `error.tsx` digest surfacing, run-scoped logging across cron + workflow + 5 pipeline files + 6 server actions, `scripts/replay-ai-call.ts`):
@@ -238,6 +222,20 @@ Not deferred — these are live decisions we'll need to make, tracked here so th
 ## Shipped
 
 Items that started on this list and have since shipped. Populate as we go.
+
+### Drop legacy `extracted_*` columns (2026-04-25)
+
+**What shipped.** Removed the four legacy JSONB columns (`extracted_profile`, `extracted_search`, `extracted_outreach`, `extracted_insights`) from `onboarding_interviews`. All consumers now read and write through the unified `extracted` JSONB column.
+
+- Migration `20260425212052_drop_legacy_extracted_columns.sql` reassembles `extracted` from the legacy columns for any row that still had NULL there (belt-and-braces over the original Phase 1.b backfill), then drops the four columns.
+- Removed dual-writes from `extraction-actions.ts`, `interview-actions.ts`, `story-actions.ts`, `api/onboard/chat/route.ts`, and `api/onboard/story/stream/route.ts`.
+- Switched readers (`story-client.tsx`, `review-job-search.tsx`) to read job_search-shaped fields out of `interview.extracted`.
+- Dropped the fallback-reassemble path in `confirm-logic.ts`; the function now reads `interview.extracted` directly.
+- Updated `OnboardingInterviewRow` type, four scripts (`test-onboarding-confirm.ts`, `rehydrate-review.ts`, `onboard-to-review.ts`, `onboard-fixture.ts`).
+
+**Verification.** `npm run build` clean.
+
+---
 
 ### Debug infrastructure baseline (2026-04-22)
 

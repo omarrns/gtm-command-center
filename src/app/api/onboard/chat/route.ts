@@ -21,7 +21,6 @@ import {
   type OrchestratorState,
 } from "@/lib/onboarding/orchestrator/types";
 import { toConfirmEditsForTemplate } from "@/lib/onboarding/orchestrator/to-confirm-edits";
-import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
 
 export const maxDuration = 120;
 
@@ -127,8 +126,7 @@ async function handleAgenticTurn(
     // Hydrate the unified `extracted` slot from orchestrator so the review
     // UI initializes from the orchestrator's inferred values, not empty
     // defaults. Without this the user's review submit would overwrite
-    // orchestrator output. job_search additionally writes the legacy 4
-    // columns until the DEFERRED cleanup drops them.
+    // orchestrator output.
     const { edits: initialReviewEdits } = toConfirmEditsForTemplate(
       finalState,
       template,
@@ -147,22 +145,15 @@ async function handleAgenticTurn(
       sendReasoning: false,
       originalMessages: messages,
       onFinish: async ({ messages: finalMessages }) => {
-        const updatePayload: Record<string, unknown> = {
-          messages: finalMessages,
-          orchestrator_state: finalState,
-          status: "review",
-          extracted: initialReviewEdits,
-          updated_at: new Date().toISOString(),
-        };
-        if (template.id === "job_search") {
-          const js = initialReviewEdits as JobSearchEdits;
-          updatePayload.extracted_profile = js.profile;
-          updatePayload.extracted_search = js.search;
-          updatePayload.extracted_outreach = js.outreach;
-        }
         await svc
           .from("onboarding_interviews")
-          .update(updatePayload)
+          .update({
+            messages: finalMessages,
+            orchestrator_state: finalState,
+            status: "review",
+            extracted: initialReviewEdits,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", interview.id);
       },
     });

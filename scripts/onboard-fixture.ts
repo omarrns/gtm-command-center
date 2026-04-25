@@ -435,14 +435,11 @@ async function seedInterview(userId: string, state: InterviewState) {
     row.messages = transcript;
     row.ready_for_extraction = true;
   } else if (state === "review") {
-    // review with pre-populated extracted columns — for testing review UI
+    // review with pre-populated extracted column — for testing review UI
     row.status = "review";
     row.messages = transcript;
     row.ready_for_extraction = true;
-    row.extracted_profile = extracted.profile;
-    row.extracted_search = extracted.search;
-    row.extracted_outreach = extracted.outreach;
-    row.extracted_insights = extracted.insights;
+    row.extracted = extracted;
   }
 
   const { error } = await supabase.from("onboarding_interviews").insert(row);

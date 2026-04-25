@@ -202,7 +202,6 @@ All use `maxDuration = 300`.
   - `ReviewClient` renders 4 fixed job_search sections; `clientTemplate` prop is wired but unused — switch on `clientTemplate.id` to render ICP/positioning-shaped sections.
   - Refresh-mode fallback in `review-client.tsx` reads literal `topics_covered` keys (`search_prefs`, `outreach_style`, `dealbreakers`) — move into template.
   - `runExtractionFromTranscript` returns `Promise<ExtractionResult>` (job_search shape) — genericize on `X` before a second template lands.
-  - 4 `extracted_*` JSONB columns match job_search's top-level keys; Phase 2 likely needs a unified `extracted` JSONB column + backfill.
   - Reference: `docs/build-spec-gtm-command-center-pivot.md` §8–§9 for extraction schemas, §6 for the ICP search adapter design.
 
 ### Activation Flow

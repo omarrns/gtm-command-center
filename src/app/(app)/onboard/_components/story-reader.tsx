@@ -10,10 +10,8 @@ import {
   insightsSchema,
   type ExtractionInsights,
 } from "@/lib/onboarding/insights-schema";
-import {
-  confirmInterviewAction,
-  backToReviewFromStoryAction,
-} from "../interview-actions";
+import { confirmInterviewAction } from "../interview-actions";
+import { backToReviewFromStoryAction } from "../story-actions";
 import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
 
 const SECTIONS: readonly DocumentSection[] = [

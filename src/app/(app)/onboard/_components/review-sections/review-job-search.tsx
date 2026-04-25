@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import {
   confirmInterviewAction,
   backToInterviewAction,
-  startStoryPhaseAction,
 } from "../../interview-actions";
+import { startStoryPhaseAction } from "../../story-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 import type {
@@ -76,14 +76,11 @@ export function ReviewJobSearch({
       )
     : [];
 
-  const extractedProfile = (interview.extracted_profile ??
-    {}) as unknown as ExtractionProfile;
-  const extractedSearch = (interview.extracted_search ??
-    {}) as unknown as ExtractionSearch;
-  const extractedOutreach = (interview.extracted_outreach ??
-    {}) as unknown as ExtractionOutreach;
-  const extractedInsights = (interview.extracted_insights ??
-    {}) as unknown as ExtractionInsights;
+  const extracted = (interview.extracted ?? {}) as Record<string, unknown>;
+  const extractedProfile = (extracted.profile ?? {}) as ExtractionProfile;
+  const extractedSearch = (extracted.search ?? {}) as ExtractionSearch;
+  const extractedOutreach = (extracted.outreach ?? {}) as ExtractionOutreach;
+  const extractedInsights = (extracted.insights ?? {}) as ExtractionInsights;
 
   const saved = existingData;
   const topics = new Set(interview.topics_covered);

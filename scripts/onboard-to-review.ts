@@ -3,7 +3,7 @@
  *
  * Unlike onboard:reset, this is non-destructive: it leaves orchestrator state,
  * artifacts, messages, and extracted profile/search/outreach intact. It only
- * flips status back to 'review' and clears extracted_insights so the career
+ * flips status back to 'review' and clears extracted.insights so the career
  * story generation step fires fresh.
  *
  * Memory docs, pipeline_config, and user_scoring_profiles are NOT touched —
@@ -51,7 +51,7 @@ async function main() {
   // Find the most recent job_search interview, any status.
   const { data: interview, error: fetchErr } = await supabase
     .from("onboarding_interviews")
-    .select("id, status, template_id, extracted_insights, orchestrator_state")
+    .select("id, status, template_id, extracted, orchestrator_state")
     .eq("user_id", userId)
     .eq("template_id", "job_search")
     .order("created_at", { ascending: false })
@@ -81,13 +81,18 @@ async function main() {
     );
   }
 
-  const hadInsights = interview.extracted_insights !== null;
+  const extracted = (interview.extracted ?? {}) as Record<string, unknown>;
+  const hadInsights = extracted.insights != null;
+
+  // Strip insights from the unified column without disturbing
+  // profile/search/outreach.
+  const { insights: _insights, ...extractedWithoutInsights } = extracted;
 
   const { error: updateErr } = await supabase
     .from("onboarding_interviews")
     .update({
       status: "review",
-      extracted_insights: null,
+      extracted: extractedWithoutInsights,
       updated_at: new Date().toISOString(),
     })
     .eq("id", interview.id);
@@ -99,10 +104,10 @@ async function main() {
 
   console.log(`Rewound to review.`);
   if (hadInsights) {
-    console.log(`  extracted_insights cleared — career story step will fire.`);
+    console.log(`  extracted.insights cleared — career story step will fire.`);
   } else {
     console.log(
-      `  extracted_insights was already null — career story step was already pending.`,
+      `  extracted.insights was already null — career story step was already pending.`,
     );
   }
   console.log(`  orchestrator_state, artifacts, messages unchanged.`);
