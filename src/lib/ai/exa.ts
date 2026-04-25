@@ -6,6 +6,8 @@
 
 const EXA_BASE = "https://api.exa.ai";
 
+export const WEBSETS_BASE = "https://api.exa.ai/websets/v0";
+
 function getKey() {
   const key = process.env.EXA_API_KEY;
   if (!key) throw new Error("EXA_API_KEY is not set.");

@@ -12,6 +12,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpportunityRow } from "@/lib/supabase/types";
+import { WEBSETS_BASE } from "@/lib/ai/exa";
 import {
   claimOpportunity,
   releaseOpportunity,
@@ -19,7 +20,6 @@ import {
 } from "@/lib/pipeline/opportunities";
 import { assertEnv } from "@/lib/utils";
 
-const WEBSETS_BASE = "https://api.exa.ai/websets/v0";
 const MAX_ENRICH_PER_RUN = 5;
 const STALE_CLAIM_MINUTES = 10;
 
