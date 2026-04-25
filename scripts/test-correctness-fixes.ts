@@ -78,7 +78,7 @@ assert(
 );
 
 assert(
-  workflowSource.includes("console.error"),
+  workflowSource.includes("log.error"),
   "pipelineWorkflow catch must log the original error",
 );
 
