@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { runClaudeJson } from "@/lib/ai/anthropic";
 import type { AiCallScope } from "@/lib/ai/calls";
+import { WEBSETS_BASE } from "@/lib/ai/exa";
 import {
   buildPeopleResearchSystem,
   buildPeopleResearchPrompt,
@@ -13,8 +14,6 @@ import {
 import { loadMemoryContext } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import { assertEnv } from "@/lib/utils";
-
-const WEBSETS_BASE = "https://api.exa.ai/websets/v0";
 
 // ---------------------------------------------------------------------------
 // Exa Websets response types

@@ -10,11 +10,10 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { WatchlistRow, WatchlistAlertType } from "@/lib/supabase/types";
+import { WEBSETS_BASE } from "@/lib/ai/exa";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger({ scope: "watchlist" });
-
-const WEBSETS_BASE = "https://api.exa.ai/websets/v0";
 
 // ---------------------------------------------------------------------------
 // Return type for addToWatchlist — distinguishes new, duplicate, and error
