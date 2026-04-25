@@ -19,9 +19,7 @@ export async function POST(req: Request) {
 
   const { data: interview, error: fetchErr } = await svc
     .from("onboarding_interviews")
-    .select(
-      "id, user_id, status, template_id, messages, extracted, extracted_insights",
-    )
+    .select("id, user_id, status, template_id, messages, extracted")
     .eq("id", interviewId)
     .single();
 
@@ -38,7 +36,10 @@ export async function POST(req: Request) {
 
   // Idempotency: if insights are already populated, the user should land
   // straight in the reading view instead of re-paying for an Opus call.
-  if (interview.extracted_insights) {
+  const existingInsights = (
+    interview.extracted as Record<string, unknown> | null
+  )?.insights;
+  if (existingInsights) {
     return new Response("Insights already generated", { status: 409 });
   }
 
@@ -73,9 +74,6 @@ export async function POST(req: Request) {
     onFinish: async ({ object }) => {
       if (!object) return;
 
-      // Dual-write: unified `extracted.insights` (the column performConfirm
-      // reads first) + legacy `extracted_insights`. Mirrors the dual-write
-      // pattern used by extractAndReviewAction and the chat route.
       const updatedExtracted = {
         ...((interview.extracted as Record<string, unknown>) ?? {}),
         insights: object,
@@ -85,7 +83,6 @@ export async function POST(req: Request) {
         .from("onboarding_interviews")
         .update({
           extracted: updatedExtracted,
-          extracted_insights: object as Record<string, unknown>,
           updated_at: new Date().toISOString(),
         })
         .eq("id", interviewId);

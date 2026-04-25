@@ -27,11 +27,11 @@ import {
 import { Loader } from "@/components/ai-elements/loader";
 import { Button } from "@/components/ui/button";
 import {
-  extractAndReviewAction,
   checkInterviewStateAction,
   getOrchestratorStateAction,
   startAgenticInterviewAction,
 } from "../interview-actions";
+import { extractAndReviewAction } from "../extraction-actions";
 import { ArtifactInput } from "./artifact-input";
 import { OrchestratorStatusPanel } from "./orchestrator-status-panel";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";

@@ -25,9 +25,7 @@ export async function performConfirm(
 ): Promise<ConfirmResult> {
   const { data: interview, error: fetchErr } = await svc
     .from("onboarding_interviews")
-    .select(
-      "id, user_id, status, template_id, extracted, extracted_profile, extracted_search, extracted_outreach, extracted_insights",
-    )
+    .select("id, user_id, status, template_id, extracted")
     .eq("id", interviewId)
     .single();
 
@@ -79,18 +77,7 @@ export async function performConfirm(
     };
   }
 
-  // Prefer the unified `extracted` column (written by Phase 1.b's dual-write
-  // path). Fall back to reassembling from the 4 legacy columns for any row
-  // that predates the dual-write. Fallback dropped in the DEFERRED cleanup
-  // commit once Phase 3 stabilises in prod.
-  const extraction =
-    interview.extracted ??
-    ({
-      profile: interview.extracted_profile,
-      search: interview.extracted_search,
-      outreach: interview.extracted_outreach,
-      insights: interview.extracted_insights,
-    } as Record<string, unknown>);
+  const extraction = (interview.extracted ?? {}) as Record<string, unknown>;
 
   try {
     // Canonicalize the confirmed snapshot: write the user's edits to
