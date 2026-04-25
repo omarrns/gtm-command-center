@@ -17,6 +17,7 @@
     "onboard:reset": "tsx scripts/onboard-reset.ts",
     "onboard:fixture": "tsx scripts/onboard-fixture.ts",
     "onboard:to-review": "tsx scripts/onboard-to-review.ts",
+    "test": "npm run test:artifact-kind-per-template && npm run test:artifact-persistence && npm run test:confirm-adapter && npm run test:correctness && npm run test:extraction && npm run test:icp-confirm && npm run test:icp-confirm-low-exemplar && npm run test:icp-interview && npm run test:onboarding-complete-per-template && npm run test:onboarding-confirm && npm run test:persona-switch-artifact-retention && npm run test:pipeline-regression && npm run test:scoring-normalize-per-template && npm run test:sender-identity && npm run test:theirstack-webhook",
     "test:sender-identity": "tsx scripts/test-sender-identity.ts",
     "test:extraction": "tsx scripts/test-extraction.ts",
     "test:onboarding-confirm": "tsx scripts/test-onboarding-confirm.ts",
