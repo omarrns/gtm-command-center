@@ -483,7 +483,7 @@ interface InputCopy {
 function buildCopy(templateId: InterviewTemplateId): InputCopy {
   if (templateId === "icp_definition") {
     return {
-      heroTitle: "Who do you want more of?",
+      heroTitle: "Let's find you customers",
       heroSubtitle:
         "Drop customers you'd clone, bad-fit examples, or your product context. The more exemplars I see, the sharper the ICP rubric gets before the first question.",
       placeholder:
