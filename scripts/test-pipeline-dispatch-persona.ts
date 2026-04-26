@@ -118,6 +118,7 @@ async function main() {
 
   seedUser("dispatch-job-seeker", "job_seeker");
   seedUser("dispatch-gtm", "gtm");
+  seedUser("dispatch-null", null);
 
   const cronRoute = await import("../src/app/api/cron/pipeline/route");
   const pipelineRunRoute = await import("../src/app/api/pipeline/run/route");
@@ -138,12 +139,14 @@ async function main() {
   console.log("\n--- cron dispatch ---");
   assert(cronRes.status === 200, `cron status === 200 (got ${cronRes.status})`);
   assert(
-    startedUsers.length === 1 && startedUsers[0] === "dispatch-job-seeker",
-    `only job_seeker dispatched (got ${JSON.stringify(startedUsers)})`,
+    startedUsers.length === 2 &&
+      startedUsers.includes("dispatch-job-seeker") &&
+      startedUsers.includes("dispatch-null"),
+    `job_seeker and null user_type dispatched (got ${JSON.stringify(startedUsers)})`,
   );
   assert(
-    cronBody.processed === 1,
-    `cron processed === 1 dispatched user (got ${cronBody.processed})`,
+    cronBody.processed === 2,
+    `cron processed === 2 dispatched users (got ${cronBody.processed})`,
   );
   assert(
     cronBody.skippedGtm === 1,
@@ -178,6 +181,34 @@ async function main() {
   );
   assert(!manualStarted, "manual gtm trigger did not call workflow start");
 
+  pipelineRunRoute.__setPipelineRunRouteDepsForTests(null);
+  manualStarted = false;
+  pipelineRunRoute.__setPipelineRunRouteDepsForTests({
+    start: (async () => {
+      manualStarted = true;
+      return { runId: "manual-null-started" };
+    }) as any,
+    requireUser: (async () =>
+      ({
+        id: "dispatch-null",
+        email: "null-user-type@example.com",
+      }) as any) as any,
+  });
+
+  const nullManualRes = await pipelineRunRoute.POST();
+  const nullManualBody = await nullManualRes.json();
+
+  console.log("\n--- manual dispatch (null user_type) ---");
+  assert(
+    nullManualRes.status === 202,
+    `manual status === 202 for null user_type (got ${nullManualRes.status})`,
+  );
+  assert(
+    nullManualBody.ok === true,
+    `manual null user_type response ok === true (got ${nullManualBody.ok})`,
+  );
+  assert(manualStarted, "manual null user_type trigger called workflow start");
+
   cronRoute.__setStartWorkflowForTests(null);
   pipelineRunRoute.__setPipelineRunRouteDepsForTests(null);
   __setSupabaseServiceClientForTests(null);
@@ -189,7 +220,7 @@ async function main() {
   console.log("\nAll assertions passed.");
 }
 
-function seedUser(userId: string, userType: "job_seeker" | "gtm") {
+function seedUser(userId: string, userType: "job_seeker" | "gtm" | null) {
   tables.pipeline_config.push({
     id: nextId(),
     user_id: userId,
