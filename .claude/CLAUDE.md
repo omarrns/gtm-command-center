@@ -20,51 +20,97 @@ src/
 ├── app/
 │   ├── layout.tsx
 │   ├── globals.css
+│   ├── (public)/login/         # Login form (unauth)
 │   └── (app)/
 │       ├── layout.tsx          # Auth gate → AppShell
-│       ├── page.tsx            # Today queue
-│       ├── history/
-│       ├── watchlist/
-│       ├── settings/
+│       ├── page.tsx            # Today queue (job_seeker persona)
 │       ├── actions.ts          # Today: trigger, approve, skip, flag, manual-apply
+│       ├── dev-actions.ts      # Dev-only helpers (persona toggle, etc.)
+│       ├── _actions/           # Cross-route server actions (e.g. update-icp-rubric)
+│       ├── _components/        # OpportunityCard, AccountCard, TodayClient, IcpDashboard
+│       ├── _loaders/           # Shared data loaders (today-queue, today-metrics, analytics-data)
+│       ├── accounts/           # GTM persona: pipeline-promoted accounts. See feedback_accounts_never_auto_remove.md.
+│       ├── activate/           # First-run JSearch activation
+│       ├── analysis/           # JD/company analyses (detail + intake)
+│       ├── analytics/          # Pipeline + content analytics
+│       ├── calls/              # Sales-call browse/inspect
+│       ├── coaching/           # Career-coach skill UI
+│       ├── history/            # Sent/skipped opportunities
+│       ├── icp/                # ICP rubric editor (GTM persona)
+│       ├── memory/             # memory_documents browse/edit
 │       ├── onboard/
 │       │   ├── page.tsx
-│       │   ├── actions.ts
-│       │   ├── interview-actions.ts  # Thin server-action wrappers (requireUser → delegate)
-│       │   ├── confirm-logic.ts      # performConfirm(svc, userId, …) — testable seam
-│       │   └── _components/    # onboard-router, onboard-client, interview-client, review-client
-│       ├── activate/
-│       │   ├── page.tsx
-│       │   ├── actions.ts
-│       │   └── _components/    # activation-client
-│       ├── analysis/           # Detail pages; legacy list routes redirect
-│       ├── research/           # Detail pages; legacy list routes redirect
-│       └── _components/        # OpportunityCard, TodayClient, EmailVariantPicker
+│       │   ├── actions.ts                  # Manual wizard step actions
+│       │   ├── interview-actions.ts        # Streaming-interview state transitions
+│       │   ├── extraction-actions.ts       # in_progress → review (uses orchestrator state for agentic templates)
+│       │   ├── story-actions.ts            # review ↔ story_review (agentic templates only)
+│       │   ├── artifact-actions.ts         # Upload/delete artifacts
+│       │   ├── get-or-create-interview.ts  # Active-row resolver, scoped by (user_id, template_id)
+│       │   ├── switch-persona.ts           # Abandon prior + create new + reassign artifacts
+│       │   ├── confirm-logic.ts            # performConfirm(svc, userId, …) — testable seam
+│       │   └── _components/                # onboard-router, interview-client, review-client, story-client, artifact-input, persona-picker
+│       ├── outreach/           # Standalone outreach drafts
+│       ├── research/           # Research reports (detail + new)
+│       ├── settings/
+│       ├── trail/              # Career-coach TRAIL.md viewer
+│       ├── trends/             # JSearch trend dashboard
+│       ├── watchlist/
+│       └── workspace-tools/    # Misc dev/ops actions
 │   └── api/
-│       ├── auth/gmail/         # OAuth start + callback
-│       ├── activation/search/
-│       ├── cron/pipeline/
+│       ├── auth/gmail/                 # OAuth start + callback
+│       ├── activation/{search,accounts}/
+│       ├── cron/pipeline/              # job_seeker pipeline (workflow.ts)
+│       ├── cron/dormant-discover/      # GTM weekly Exa sweep over ICP rubric
 │       ├── cron/replies/
 │       ├── cron/watchlist/
-│       ├── onboard/chat/       # Streaming interview endpoint
-│       └── pipeline/run/
+│       ├── jobs/[id]/                  # Background-job status polling
+│       ├── onboard/{chat,artifacts,story/stream}/
+│       ├── pipeline/run/               # Manual pipelineWorkflow trigger
+│       ├── webhooks/theirstack/        # Real-time GTM job inflow (HMAC-verified)
+│       └── worker/claim/               # Background-job claim endpoint
 ├── components/
 │   ├── app-shell.tsx
-│   ├── sidebar-nav.tsx         # Desktop aside + mobile Sheet
+│   ├── sidebar-nav.tsx         # Desktop aside + mobile Sheet (intentionally custom)
 │   ├── top-bar.tsx
-│   ├── command-palette.tsx
-│   ├── page-header.tsx, list-item.tsx, empty-state.tsx
-│   ├── detail-header.tsx, status-banner.tsx
+│   ├── command-palette.tsx, lazy-command-palette.tsx  # Intentionally custom (⌘K motion)
+│   ├── page-header.tsx, list-item.tsx, empty-state.tsx, detail-header.tsx
+│   ├── dev-persona-toggle.tsx, tag-input.tsx, theme-provider.tsx
+│   ├── ai-elements/            # VENDORED from Vercel AI Elements (prompt-input.tsx, message.tsx, conversation.tsx, loader.tsx). Don't hand-refactor; re-vendor from upstream.
 │   └── ui/                     # shadcn/ui (owned source)
 └── lib/
     ├── utils.ts                # cn(), formatRelativeTime(), assertEnv()
-    ├── supabase/               # Server client, types, auth helpers
-    ├── pipeline/               # JSearch, scoring, people search, opportunities
-    │   └── steps/              # discover → score → research → enrich → draft
-    ├── onboarding/             # Interview prompt, extraction prompt/logic
-    │   └── templates/          # InterviewTemplate registry — job-search.ts, types.ts, index.ts
-    ├── integrations/           # Gmail client + token crypto
-    └── jobs/                   # Legacy async job handlers reused by pipeline
+    ├── logger.ts               # createLogger({ runId, scope, … }) — use for all background work
+    ├── ai/                     # anthropic.ts (runClaudeJson/Text), calls.ts (runGenerateObject + ai_calls capture), exa.ts, firecrawl.ts
+    ├── calls/                  # Sales-call data + types
+    ├── trends/                 # Trend dashboard data
+    ├── supabase/               # client.ts, server.ts, service.ts, types.ts (row types are source of truth)
+    ├── integrations/           # gmail.ts, crypto.ts (AES-256-GCM token storage), theirstack.ts
+    ├── pipeline/
+    │   ├── workflow.ts                 # LIVE orchestrator (Vercel Workflow durable). Edit this, not runner.ts.
+    │   ├── runner.ts                   # LEGACY — kept only because gtm-runner.ts imports `PipelineRunResult` type. Do not add logic.
+    │   ├── gtm-runner.ts               # GTM persona pipeline entry (discover-accounts → score-accounts; no draft yet)
+    │   ├── opportunities.ts            # Stage transitions + atomic claiming
+    │   ├── scoring.ts                  # job_seeker per-opportunity scoring (analysisSchema, strict)
+    │   ├── scoring-account.ts          # GTM per-account scoring (icpAccountAnalysisSchema)
+    │   ├── scoring-profile.ts          # Dispatcher → template.normalizeScoringProfile
+    │   ├── onboarding.ts               # isOnboardingComplete() — template-aware via USER_TYPE_TO_TEMPLATE
+    │   ├── activation.ts, activation-accounts.ts
+    │   ├── jsearch.ts, watchlist.ts, people-search.ts
+    │   ├── icp-to-theirstack-filters.ts, icp-webset-query.ts
+    │   └── steps/                      # job_seeker: discover/score/research/enrich/draft. GTM: discover-accounts, discover-dormant, score-accounts.
+    ├── onboarding/
+    │   ├── interview-prompt.ts, extraction-prompt.ts, story-prompt.ts
+    │   ├── extraction.ts               # runExtractionFromTranscript<X>(messages, template) — template-generic
+    │   ├── icp-prompts.ts, icp-schemas.ts, insights-schema.ts
+    │   ├── markdown.ts, transcript.ts
+    │   ├── templates/                  # InterviewTemplate registry — types.ts, index.ts, job-search.ts, icp-definition.ts, artifact-kind.ts
+    │   ├── orchestrator/               # Agentic-mode state, Opus dimension inference (run.ts), to-confirm-edits adapter, types
+    │   └── artifacts/                  # ingest.ts (URL/file → normalized markdown), reassign.ts (persona-switch retention)
+    ├── skills/
+    │   ├── sender-identity.ts          # extractSenderIdentity(ctx, displayName) → SenderIdentity
+    │   ├── context.ts                  # loadMemoryContext()
+    │   └── prompts/                    # All prompt builders, accept SenderIdentity
+    └── jobs/                           # Background-job worker + handlers (career-coach, full-analysis, company-fit-analyzer, people-research)
 ```
 
 ## Current State
@@ -85,6 +131,22 @@ discovered → scored → researched → enriched → drafted → queued → sen
 - Per-opportunity failures set `last_error`, release claim, and continue the batch.
 - Enrichment retries increment `enrichment_attempts` up to `max_enrichment_attempts`; terminal failure routes to `needs_contact`.
 - Scoring auto-adds companies to watchlist when normalized score >= 80.
+
+### Dual-Persona Routing
+
+`profiles.user_type` (`job_seeker` | `gtm`) splits the app into two pipelines that share the same `opportunities` table and most infrastructure but diverge on entry, scoring, and surface UI. There is no central dispatcher — routing happens at the API/page boundary.
+
+| Concern             | job_seeker                                 | gtm                                                                                                 |
+| ------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Entry / cron        | `/api/cron/pipeline` → `pipelineWorkflow`  | `/api/cron/dormant-discover` (weekly Exa sweep) + `/api/webhooks/theirstack` (real-time `job.new`)  |
+| Discover            | `steps/discover.ts` (JSearch)              | `steps/discover-accounts.ts` (TheirStack), `steps/discover-dormant.ts` (Exa over rubric)            |
+| Score               | `scoring.ts` → `analysisSchema`            | `scoring-account.ts` → `icpAccountAnalysisSchema` (called per-account from `gtm-runner` or webhook) |
+| Opportunity source  | `jsearch`                                  | `theirstack`, `exa-dormant`                                                                         |
+| Onboarding template | `job_search`                               | `icp_definition` (agentic; uses orchestrator + artifacts)                                           |
+| Pipeline_config     | search_queries, locations, score_threshold | + `company_domain`, `trigger_signals`, `buyer_personas`, `icp_rubric`                               |
+| Surface UI          | Today (`/`), History, Watchlist            | `/accounts` (never-auto-remove rule), `/icp` (rubric editor)                                        |
+
+`gtm-runner.ts` is the GTM lane's entry point but is currently only called by the legacy `runner.ts`. `pipelineWorkflow` does not branch on `user_type` — the GTM persona's recurring/realtime entry points are the dormant-discover cron and the TheirStack webhook, not `/api/cron/pipeline`.
 
 ### Onboarding Interview State Machine
 
@@ -138,16 +200,19 @@ story_review  → confirmed       confirm-logic.ts: performConfirm
 
 ### Database Tables
 
-| Table                   | Purpose                                                                                                                                          | Access                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| `pipeline_config`       | Search queries, locations, score threshold, daily send cap, `activation_completed_at`                                                            | Client: SELECT only. Mutations via server actions. |
-| `opportunities`         | Pipeline stage, score, drafts, Gmail IDs. Dedupes by `(user_id, source, external_id)`.                                                           | RLS by user. Cross-table ownership trigger.        |
-| `gmail_credentials`     | Encrypted refresh tokens                                                                                                                         | Service-role only. No client RLS.                  |
-| `watchlist`             | Monitored companies + Exa Webset IDs                                                                                                             | RLS by user.                                       |
-| `watchlist_alerts`      | Exa Webset items, deduped by `source_item_id`                                                                                                    | RLS by user.                                       |
-| `user_scoring_profiles` | Derived scoring fields + user-editable weights (0.5-2.0)                                                                                         | RLS by user.                                       |
-| `onboarding_interviews` | Interview state, messages, extracted data, `template_id`, `template_version`. Partial unique index: one active row per `(user_id, template_id)`. | Client: SELECT only. Mutations via service-role.   |
-| `memory_documents`      | User profile, positioning, outreach style, dealbreakers, interview insights                                                                      | RLS by user.                                       |
+| Table                   | Purpose                                                                                                                                                                                               | Access                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `profiles`              | `user_type` (`job_seeker` \| `gtm`), display name, enabled flag, first-confirm timestamp. Determines which persona pipeline runs.                                                                     | RLS by user.                                       |
+| `pipeline_config`       | Search queries, locations, score threshold, daily send cap, `activation_completed_at`. GTM-only fields (`company_domain`, `trigger_signals`, `buyer_personas`, `icp_rubric`) coexist on the same row. | Client: SELECT only. Mutations via server actions. |
+| `opportunities`         | Pipeline stage, score, drafts, Gmail IDs. Dedupes by `(user_id, source, external_id)`. `source` includes `jsearch`, `theirstack`, `exa-dormant`.                                                      | RLS by user. Cross-table ownership trigger.        |
+| `gmail_credentials`     | Encrypted refresh tokens                                                                                                                                                                              | Service-role only. No client RLS.                  |
+| `watchlist`             | Monitored companies + Exa Webset IDs                                                                                                                                                                  | RLS by user.                                       |
+| `watchlist_alerts`      | Exa Webset items, deduped by `source_item_id`                                                                                                                                                         | RLS by user.                                       |
+| `user_scoring_profiles` | Derived scoring fields + user-editable weights (0.5-2.0). `icp_rubric` JSONB populated by GTM persona (icp_definition normalizer).                                                                    | RLS by user.                                       |
+| `onboarding_interviews` | Interview state, messages, extracted data, `template_id`, `template_version`, `orchestrator_state` (agentic mode). Partial unique index: one active row per `(user_id, template_id)`.                 | Client: SELECT only. Mutations via service-role.   |
+| `onboarding_artifacts`  | User-uploaded URLs/files/text, normalized to markdown. `interview_id` is `ON DELETE SET NULL` so artifacts survive interview deletion / persona switch.                                               | RLS by user.                                       |
+| `memory_documents`      | User profile, positioning, outreach style, dealbreakers, interview insights                                                                                                                           | RLS by user.                                       |
+| `ai_calls`              | Best-effort capture of every model call (params, prompt, output, latency) for replay/inspection. Capture failure must not break the actual call.                                                      | Service-role only. No client RLS.                  |
 
 Migrations live in `supabase/migrations/`. TypeScript row types in `src/lib/supabase/types.ts`.
 
@@ -161,11 +226,14 @@ Migrations live in `supabase/migrations/`. TypeScript row types in `src/lib/supa
 
 ### Cron Schedules (owned by `vercel.json`)
 
-| Route                 | Schedule             | Purpose                                                       |
-| --------------------- | -------------------- | ------------------------------------------------------------- |
-| `/api/cron/pipeline`  | `0 4,10,16,22 * * *` | Discover (last-day posts) → score → research → enrich → draft |
-| `/api/cron/replies`   | `*/30 * * * *`       | Check Gmail threads for replies, advance `sent → replied`     |
-| `/api/cron/watchlist` | `0 11 * * *`         | Ingest Exa Webset alerts                                      |
+| Route                        | Schedule             | Purpose                                                                                            |
+| ---------------------------- | -------------------- | -------------------------------------------------------------------------------------------------- |
+| `/api/cron/pipeline`         | `0 4,10,16,22 * * *` | job_seeker pipeline (workflow.ts): discover → score → research → enrich → draft                    |
+| `/api/cron/replies`          | `*/30 * * * *`       | Check Gmail threads for replies, advance `sent → replied`                                          |
+| `/api/cron/watchlist`        | `0 11 * * *`         | Ingest Exa Webset alerts                                                                           |
+| `/api/cron/dormant-discover` | `0 12 * * 1`         | GTM weekly Exa sweep over the user's ICP rubric (no hiring signal); scores via `runScoreAccounts`. |
+
+Real-time (not cron): `POST /api/webhooks/theirstack?user=<uuid>` — HMAC-SHA256 signed `job.new` deliveries from a TheirStack saved search. Runs `scoreOneAccount` inline so a hot match shows up in `/accounts` within seconds.
 
 All use `maxDuration = 300`.
 
@@ -179,7 +247,7 @@ All use `maxDuration = 300`.
 
 ### Onboarding Flow
 
-- `isOnboardingComplete()` checks three records: `user_profile` doc, `pipeline_config` row, `feedback_outreach_style` doc. (Currently job_search-specific — revisit when Phase 2 lands.)
+- `isOnboardingComplete()` in `src/lib/pipeline/onboarding.ts` resolves the user's template via `USER_TYPE_TO_TEMPLATE` (`profiles.user_type` → template id) and delegates to `template.isOnboardingComplete(svc, userId)`. job_seeker checks three records (`user_profile` doc, `pipeline_config` row, `feedback_outreach_style` doc); icp_definition has its own completion shape.
 - Today page redirects to `/onboard` if incomplete (`DEV_SKIP_ONBOARDING=true` bypasses).
 - Primary path: AI interview (`InterviewClient` → `ReviewClient` → confirm). Manual wizard is escape hatch.
 - Interview streams via `/api/onboard/chat`; model, prompt, tools, caps, thresholds, and completion marker all come from the active `InterviewTemplate` (see subsection below).
@@ -196,13 +264,23 @@ All use `maxDuration = 300`.
 - **Client boundary:** raw `InterviewTemplate` is not serializable (zod schemas, tool definitions, function fields). RSC pages pass `ClientInterviewTemplate` — a plain-data projection of `{ id, topics, topicLabels, openingMessage, refreshOpeningMessage }` — to `InterviewClient` / `ReviewClient`. Use `toClientTemplate()` to produce it.
 - **Confirm seam:** `src/app/(app)/onboard/confirm-logic.ts` exports `performConfirm(svc, userId, interviewId, edits)` for testability. `confirmInterviewAction` is a thin server-action wrapper around it. Test via `scripts/test-onboarding-confirm.ts`.
 - **Adding a template:** one file in `templates/` + one entry in `REGISTRY` + widen the `InterviewTemplateId` union + route (e.g. `/onboard/icp` or `/onboard?template=icp`). No other files should need to change in the streaming / extract / confirm code paths.
-- **Outstanding for Phase 2 (`icp_definition`) / Phase 3 (`positioning_rubric`):**
-  - `isOnboardingComplete()` in `src/lib/pipeline/onboarding.ts` hardcodes job_search memory doc keys — needs per-template completion check.
-  - `normalizeScoringProfile()` reads job_search-shaped memory sections — needs template-aware handling or per-template normalizers.
-  - `ReviewClient` renders 4 fixed job_search sections; `clientTemplate` prop is wired but unused — switch on `clientTemplate.id` to render ICP/positioning-shaped sections.
-  - Refresh-mode fallback in `review-client.tsx` reads literal `topics_covered` keys (`search_prefs`, `outreach_style`, `dealbreakers`) — move into template.
-  - `runExtractionFromTranscript` returns `Promise<ExtractionResult>` (job_search shape) — genericize on `X` before a second template lands.
-  - Reference: `docs/build-spec-gtm-command-center-pivot.md` §8–§9 for extraction schemas, §6 for the ICP search adapter design.
+- **Generalization status (job_search + icp_definition both shipping):**
+  - `isOnboardingComplete()` — template-aware dispatcher. `src/lib/pipeline/onboarding.ts:31`.
+  - `normalizeScoringProfile()` — template-aware dispatcher → `template.normalizeScoringProfile`. `src/lib/pipeline/scoring-profile.ts`.
+  - `ReviewClient` — switches on `clientTemplate.id`, renders `ReviewIcp` or `ReviewJobSearch`. `src/app/(app)/onboard/_components/review-client.tsx:43`.
+  - `runExtractionFromTranscript<X>(messages, template)` — template-generic. `src/lib/onboarding/extraction.ts`.
+  - Reference: `docs/build-spec-gtm-command-center-pivot.md` for the original spec; `docs/onboarding-architecture.md` for the narrative walkthrough (predates the orchestrator/artifacts subsystem — see Agentic Onboarding section below).
+- **Phase 3 (`positioning_rubric`)** is not yet started — adding it should still follow the "Adding a template" recipe above.
+
+### Agentic Onboarding (Orchestrator + Artifacts)
+
+A template opts into agentic mode by setting `agenticMode: true` and declaring `dimensions`. Currently `icp_definition` uses this; `job_search` does not. Two subsystems back it, neither covered by `docs/onboarding-architecture.md`.
+
+**Artifacts (`src/lib/onboarding/artifacts/`)** — user-uploaded URLs, files, or pasted text. `ingest.ts` normalizes each one to markdown (Firecrawl for URLs, `unpdf` for PDFs) and writes a row to `onboarding_artifacts`. `reassign.ts` provides two primitives: `reassignArtifacts(svc, userId, fromInterviewId, toInterviewId)` for the persona-switch UI flow, and `claimOrphanedArtifacts(svc, userId, toInterviewId)` as the safety-net for artifacts whose interview was already deleted. The FK is `ON DELETE SET NULL` so user-uploaded content survives interview churn.
+
+**Orchestrator (`src/lib/onboarding/orchestrator/`)** — agentic-mode state machine that runs Opus across the user's artifacts to infer per-dimension values _before_ the chat starts. `run.ts` builds a closed-object analysis schema from `template.dimensions` and writes the result to `onboarding_interviews.orchestrator_state`. Each dimension lands as `{ value, summary, confidence, provenance[] }` with one of five statuses (`unknown` / `inferred` / `needs_question` / `answered` / `confirmed`). The chat then asks only about dimensions still under `needs_question`. `to-confirm-edits.ts` adapts orchestrator state into the `ConfirmEdits` shape that `performConfirm` consumes, so the agentic and non-agentic paths share the same confirm seam. `types.ts` defines the public shape (`OrchestratorState`, `OrchestratorStatus`, `DimensionStatus`).
+
+The streaming chat route still serves both modes — agentic templates get a `systemPrompt(ctx)` with the orchestrator state injected so the model knows what's already inferred.
 
 ### Activation Flow
 
@@ -258,10 +336,13 @@ npm run build            # Production build
 npm run seed             # Run all imports
 npm run onboard:reset    # Delete all onboarding data
 npm run onboard:fixture  # Seed: --state=partial|complete|empty --interview-state=transcript|review|ready
+
+npm test                 # Umbrella — runs 16 test:* scripts in sequence (correctness, extraction, confirm, icp-confirm, persona-switch, pipeline-regression, etc.)
+npm run test:correctness       # Recent pipeline correctness guardrails
+npm run test:extraction        # Opus extraction on transcript fixture (template-parameterized)
+npm run test:onboarding-confirm # DB-integration regression for the confirm path
 npm run test:sender-identity   # Verify prompt de-Omarification
-npm run test:extraction        # Run Opus extraction on transcript fixture (template-parameterized)
-npm run test:onboarding-confirm # DB-integration regression test for the confirm path (42 assertions)
-npm run test:correctness       # Verify recent pipeline correctness guardrails
+# Full list of `test:*` scripts is in package.json — `scripts/test-pipeline-path.ts` and `scripts/test-watchlist-live.ts` exist but are not wired into `npm test` (manual-only).
 ```
 
 ## Plans

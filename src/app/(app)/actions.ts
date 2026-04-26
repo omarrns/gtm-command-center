@@ -11,6 +11,7 @@ import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
 import { firecrawlScrape } from "@/lib/ai/firecrawl";
 import { runClaudeJson } from "@/lib/ai/anthropic";
 import { createLogger } from "@/lib/logger";
+import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
 import type { OpportunityStage, PipelineConfigRow } from "@/lib/supabase/types";
 
 // ---------------------------------------------------------------------------
@@ -210,17 +211,6 @@ export async function approveOpportunityAction(
 // Skip opportunity
 // ---------------------------------------------------------------------------
 
-const SKIPPABLE_STAGES: OpportunityStage[] = [
-  "discovered",
-  "scored",
-  "filtered",
-  "researched",
-  "needs_contact",
-  "enriched",
-  "drafted",
-  "queued",
-];
-
 export async function skipOpportunityAction(
   opportunityId: string,
 ): Promise<{ ok: boolean; error?: string }> {
@@ -266,6 +256,7 @@ export async function skipOpportunityAction(
 
   log.info("skipped", { fromStage: currentStage });
   revalidatePath("/");
+  revalidatePath("/accounts");
   return { ok: true };
 }
 
@@ -384,6 +375,7 @@ export async function flagCompanyAction(
     fromStage: currentStage,
   });
   revalidatePath("/");
+  revalidatePath("/accounts");
   return { ok: true };
 }
 

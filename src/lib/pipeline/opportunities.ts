@@ -70,10 +70,26 @@ export async function createOpportunity(
 
   if (existing) return null;
 
+  // Normalize company_domain (trim → lowercase → strip leading "www.")
+  // so the dormant-discover dedup (which lowercases at lookup) and any
+  // future domain-keyed query match consistently across the persisted
+  // GTM lanes: discover-accounts, discover-dormant, and the theirstack
+  // webhook. Trim guards against stray whitespace from external APIs.
+  const normalized = {
+    ...input,
+    company_domain:
+      input.company_domain != null
+        ? input.company_domain
+            .trim()
+            .toLowerCase()
+            .replace(/^www\./, "")
+        : input.company_domain,
+  };
+
   const { data, error } = await svc
     .from("opportunities")
     .upsert(
-      { user_id: userId, ...input },
+      { user_id: userId, ...normalized },
       { onConflict: "user_id,source,external_id", ignoreDuplicates: true },
     )
     .select()
