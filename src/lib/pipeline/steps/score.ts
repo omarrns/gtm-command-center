@@ -28,6 +28,7 @@ export interface ScoreResult {
   scored: number;
   filtered: number;
   errors: number;
+  scoredOpportunityIds: string[];
 }
 
 export interface ScoreOneResult {
@@ -142,6 +143,7 @@ export async function runScore(
     scored: 0,
     filtered: 0,
     errors: 0,
+    scoredOpportunityIds: [],
   };
 
   for (const opp of opportunities) {
@@ -156,8 +158,12 @@ export async function runScore(
         runId,
       });
 
-      if (newStage === "scored") result.scored++;
-      else result.filtered++;
+      if (newStage === "scored") {
+        result.scored++;
+        result.scoredOpportunityIds.push(opp.id);
+      } else {
+        result.filtered++;
+      }
 
       await releaseOpportunity(svc, opp.id, userId);
     } catch (err) {

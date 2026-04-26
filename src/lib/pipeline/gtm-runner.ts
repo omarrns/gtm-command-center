@@ -71,7 +71,13 @@ export async function runGtmPipeline(
     log.error("discover-accounts failed", err);
   }
 
-  let score: ScoreResult = { processed: 0, scored: 0, filtered: 0, errors: 0 };
+  let score: ScoreResult = {
+    processed: 0,
+    scored: 0,
+    filtered: 0,
+    errors: 0,
+    scoredOpportunityIds: [],
+  };
   try {
     score = await runScoreAccounts(svc, userId, parsed.data, config, runId);
   } catch (err) {
@@ -109,7 +115,13 @@ function emptyGtmResult(
     startedAt,
     completedAt: new Date().toISOString(),
     discover: { found: 0, inserted: 0 },
-    score: { processed: 0, scored: 0, filtered: 0, errors: 0 },
+    score: {
+      processed: 0,
+      scored: 0,
+      filtered: 0,
+      errors: 0,
+      scoredOpportunityIds: [],
+    },
     research: { processed: 0, researched: 0, needsContact: 0, errors: 0 },
     enrich: {
       processed: 0,

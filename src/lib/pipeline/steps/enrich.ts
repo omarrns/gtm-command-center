@@ -228,7 +228,7 @@ interface EnrichmentPollResponse {
   status: "pending" | "completed" | "canceled";
 }
 
-async function enrichViaWebset(
+export async function enrichViaWebset(
   apiKey: string,
   websetId: string,
   targetItemId: string,
@@ -336,7 +336,7 @@ async function waitForEnrichment(
  * Best-effort webset deletion. Swallows errors because cleanup failure
  * should not block the pipeline — orphaned websets are low-impact.
  */
-async function deleteWebsetQuietly(
+export async function deleteWebsetQuietly(
   apiKey: string,
   websetId: string,
 ): Promise<void> {

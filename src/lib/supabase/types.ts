@@ -134,6 +134,15 @@ export type OpportunityStage =
   | "replied"
   | "skipped";
 
+// Webset evaluation row preserved verbatim from the Exa Websets API.
+// Mirrors the `evaluations[]` shape inside a Webset item — see
+// `WebsetItem` in src/lib/pipeline/people-search.ts.
+export interface WebsetMatchReason {
+  criterion: string;
+  reasoning: string;
+  satisfied: "yes" | "no" | "unclear";
+}
+
 export type OpportunitySource =
   | "jsearch"
   | "exa"
@@ -189,8 +198,24 @@ export interface OpportunityRow {
   recipient_name: string | null;
   recipient_title: string | null;
   recipient_email: string | null;
+  recipient_linkedin_url: string | null;
+  recipient_x_url: string | null;
+  recipient_picture_url: string | null;
+  recipient_location: string | null;
+  recipient_match_reasons: WebsetMatchReason[] | null;
   recipient_webset_id: string | null;
   recipient_webset_item_id: string | null;
+  alt_recipient_name: string | null;
+  alt_recipient_title: string | null;
+  alt_recipient_email: string | null;
+  alt_recipient_linkedin_url: string | null;
+  alt_recipient_x_url: string | null;
+  alt_recipient_picture_url: string | null;
+  alt_recipient_location: string | null;
+  alt_recipient_match_reasons: WebsetMatchReason[] | null;
+  alt_recipient_webset_id: string | null;
+  alt_recipient_webset_item_id: string | null;
+  alt_enrichment_attempts: number;
   applied_manually: boolean;
   gmail_thread_id: string | null;
   gmail_message_id: string | null;

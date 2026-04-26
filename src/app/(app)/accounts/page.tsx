@@ -14,6 +14,7 @@ import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
 import { createLogger } from "@/lib/logger";
 import { AccountCard } from "../_components/account-card";
 import { FadeIn } from "@/components/ui/fade-in";
+import type { Contact } from "@/components/contact-panel";
 
 // GTM-only queue of accounts the pipeline promoted for the user. Rows
 // stay here across downstream stage transitions (scored → researched →
@@ -150,6 +151,31 @@ export default async function AccountsPage() {
           const reason = o.analysis_id
             ? (reasonById.get(o.analysis_id) ?? "")
             : "";
+          const candidates: Contact[] = [
+            {
+              role: "primary",
+              name: o.recipient_name,
+              title: o.recipient_title,
+              email: o.recipient_email,
+              linkedinUrl: o.recipient_linkedin_url,
+              xUrl: o.recipient_x_url,
+              pictureUrl: o.recipient_picture_url,
+              location: o.recipient_location,
+              matchReasons: o.recipient_match_reasons,
+            },
+            {
+              role: "alternate",
+              name: o.alt_recipient_name,
+              title: o.alt_recipient_title,
+              email: o.alt_recipient_email,
+              linkedinUrl: o.alt_recipient_linkedin_url,
+              xUrl: o.alt_recipient_x_url,
+              pictureUrl: o.alt_recipient_picture_url,
+              location: o.alt_recipient_location,
+              matchReasons: o.alt_recipient_match_reasons,
+            },
+          ];
+          const contacts = candidates.filter((c) => !!c.name);
 
           return (
             <AccountCard
@@ -160,6 +186,7 @@ export default async function AccountsPage() {
               companyDomain={o.company_domain}
               roleTitle={o.role_title}
               score={o.score ?? 0}
+              stage={o.stage as OpportunityStage}
               tier={tier}
               verdict={verdict}
               reasonToBelieve={reason}
@@ -185,6 +212,7 @@ export default async function AccountsPage() {
                   "theirstack" | "exa-dormant"
                 >
               }
+              contacts={contacts}
             />
           );
         })}

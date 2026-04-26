@@ -6,6 +6,7 @@ const ALL_JOB_TYPES = [
   "full-analysis",
   "people-research",
   "career-coach",
+  "gtm-find-contacts",
 ];
 
 /**

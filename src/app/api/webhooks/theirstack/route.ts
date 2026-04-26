@@ -36,6 +36,7 @@ import {
   releaseOpportunity,
 } from "@/lib/pipeline/opportunities";
 import { scoreOneAccount } from "@/lib/pipeline/steps/score-accounts";
+import { enqueueGtmFindContactsJob } from "@/lib/jobs/gtm-find-contacts";
 import type { OpportunityRow, PipelineConfigRow } from "@/lib/supabase/types";
 import { createLogger, newRunId } from "@/lib/logger";
 
@@ -310,6 +311,23 @@ export async function POST(request: Request) {
       newStage,
       normalizedScore,
     });
+
+    if (newStage === "scored" && normalizedScore >= config.score_threshold) {
+      try {
+        const job = await enqueueGtmFindContactsJob(svc, {
+          userId,
+          opportunityId: created.id,
+        });
+        userLog.info("contact discovery job enqueued", {
+          jobId: job.jobId,
+          duplicate: job.duplicate,
+        });
+      } catch (enqueueErr) {
+        userLog.error("contact discovery enqueue failed", enqueueErr, {
+          oppId: created.id,
+        });
+      }
+    }
 
     return NextResponse.json({
       ok: true,

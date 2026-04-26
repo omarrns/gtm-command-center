@@ -18,6 +18,7 @@ export function AccountResultCard({ result }: AccountResultCardProps) {
       companyDomain={result.companyDomain}
       roleTitle={result.roleTitle}
       score={result.score}
+      stage="scored"
       tier={result.tier}
       verdict={result.verdict}
       reasonToBelieve={result.reasonToBelieve}

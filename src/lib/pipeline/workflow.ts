@@ -261,7 +261,13 @@ export async function pipelineWorkflow(
   }
 
   // Step 3: Score
-  let score: ScoreResult = { processed: 0, scored: 0, filtered: 0, errors: 0 };
+  let score: ScoreResult = {
+    processed: 0,
+    scored: 0,
+    filtered: 0,
+    errors: 0,
+    scoredOpportunityIds: [],
+  };
   try {
     score = await stepScore(userId, runId, config);
   } catch (err) {
@@ -345,7 +351,13 @@ function emptyResult(
     startedAt,
     completedAt: new Date().toISOString(),
     discover: { found: 0, inserted: 0 },
-    score: { processed: 0, scored: 0, filtered: 0, errors: 0 },
+    score: {
+      processed: 0,
+      scored: 0,
+      filtered: 0,
+      errors: 0,
+      scoredOpportunityIds: [],
+    },
     research: { processed: 0, researched: 0, needsContact: 0, errors: 0 },
     enrich: {
       processed: 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
@@ -11,12 +11,17 @@ import {
   Radio,
   Moon,
   X,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/utils";
+import type { OpportunityStage } from "@/lib/supabase/types";
+import { ContactPanel, type Contact } from "@/components/contact-panel";
+import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { skipOpportunityAction } from "../actions";
+import { findContactsForAccountAction } from "../accounts/actions";
 
 // Shared card for GTM account rows. /activate renders a live preview
 // via AccountActivationResult; /accounts renders persisted pipeline
@@ -29,6 +34,7 @@ export interface AccountCardProps {
   companyDomain: string | null;
   roleTitle: string | null;
   score: number;
+  stage: OpportunityStage;
   tier: "A" | "B" | "C";
   verdict: "Pursue" | "Worth exploring" | "Skip";
   reasonToBelieve: string;
@@ -44,6 +50,7 @@ export interface AccountCardProps {
   // on a terminal-stage row (sent / replied / sending).
   opportunityId?: string;
   canSkip?: boolean;
+  contacts?: Contact[];
 }
 
 function tierVariant(
@@ -71,6 +78,7 @@ export function AccountCard({
   companyDomain,
   roleTitle,
   score,
+  stage,
   tier,
   verdict,
   reasonToBelieve,
@@ -81,10 +89,41 @@ export function AccountCard({
   source,
   opportunityId,
   canSkip,
+  contacts = [],
 }: AccountCardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [contactJobId, setContactJobId] = useState<string | null>(null);
+  const contactJob = useJobPoll(contactJobId);
   const showDismiss = !!opportunityId && !!canSkip;
+  const showFindContacts =
+    !!opportunityId &&
+    !contactJob.isLoading &&
+    ((contacts.length === 0 &&
+      (stage === "scored" ||
+        stage === "researched" ||
+        stage === "needs_contact")) ||
+      (stage === "needs_contact" &&
+        contacts.some((contact) => contact.email == null)));
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (contactJob.isComplete) {
+      timer = setTimeout(() => {
+        setContactJobId(null);
+        router.refresh();
+        toast.success("Contact search complete");
+      }, 0);
+    } else if (contactJob.isFailed && contactJob.error) {
+      timer = setTimeout(() => {
+        toast.error(contactJob.error);
+        setContactJobId(null);
+      }, 0);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [contactJob.error, contactJob.isComplete, contactJob.isFailed, router]);
 
   function handleSkip() {
     if (!opportunityId) return;
@@ -96,6 +135,19 @@ export function AccountCard({
         // router.refresh re-fetches the current RSC tree so the row
         // disappears immediately from the live view.
         router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function handleFindContacts() {
+    if (!opportunityId) return;
+    startTransition(async () => {
+      const result = await findContactsForAccountAction(opportunityId);
+      if (result.ok) {
+        if (result.jobId) setContactJobId(result.jobId);
+        toast.success("Contact search queued");
       } else {
         toast.error(result.error);
       }
@@ -195,6 +247,22 @@ export function AccountCard({
           </span>
         )}
       </div>
+
+      {contacts.length > 0 && <ContactPanel contacts={contacts} />}
+
+      {showFindContacts && (
+        <div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFindContacts}
+            disabled={isPending || contactJob.isLoading}
+          >
+            <Search size={13} />
+            Find contacts
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
