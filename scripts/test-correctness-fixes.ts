@@ -137,7 +137,10 @@ const workerSource = readFileSync(
   "utf-8",
 );
 const migrationSource = readFileSync(
-  join(ROOT, "supabase/migrations/20260426224808_recipient_alternate_and_socials.sql"),
+  join(
+    ROOT,
+    "supabase/migrations/20260426231917_recipient_alternate_and_socials.sql",
+  ),
   "utf-8",
 );
 
