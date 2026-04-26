@@ -17,6 +17,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
 import { runDiscoverDormant } from "@/lib/pipeline/steps/discover-dormant";
 import { runScoreAccounts } from "@/lib/pipeline/steps/score-accounts";
+import { enqueueGtmFindContactsJob } from "@/lib/jobs/gtm-find-contacts";
 import type { PipelineConfigRow } from "@/lib/supabase/types";
 import { createLogger, newRunId } from "@/lib/logger";
 
@@ -28,6 +29,7 @@ interface UserResult {
   discoverInserted: number;
   scored: number;
   filtered: number;
+  contactJobs: number;
   errors: number;
   skipped?: string;
   error?: string;
@@ -87,6 +89,7 @@ export async function GET(request: Request) {
       discoverInserted: 0,
       scored: 0,
       filtered: 0,
+      contactJobs: 0,
       errors: 0,
     };
 
@@ -146,11 +149,27 @@ export async function GET(request: Request) {
       row.filtered = score.filtered;
       row.errors = score.errors;
 
+      for (const opportunityId of score.scoredOpportunityIds) {
+        try {
+          await enqueueGtmFindContactsJob(svc, {
+            userId,
+            opportunityId,
+          });
+          row.contactJobs++;
+        } catch (enqueueErr) {
+          row.errors++;
+          userLog.error("contact discovery enqueue failed", enqueueErr, {
+            opportunityId,
+          });
+        }
+      }
+
       userLog.info("dormant sweep complete", {
         discoverFound: row.discoverFound,
         discoverInserted: row.discoverInserted,
         scored: row.scored,
         filtered: row.filtered,
+        contactJobs: row.contactJobs,
         errors: row.errors,
       });
     } catch (err) {
@@ -167,6 +186,7 @@ export async function GET(request: Request) {
       acc.discoverInserted += r.discoverInserted;
       acc.scored += r.scored;
       acc.filtered += r.filtered;
+      acc.contactJobs += r.contactJobs;
       acc.errors += r.errors;
       return acc;
     },
@@ -175,6 +195,7 @@ export async function GET(request: Request) {
       discoverInserted: 0,
       scored: 0,
       filtered: 0,
+      contactJobs: 0,
       errors: 0,
     },
   );

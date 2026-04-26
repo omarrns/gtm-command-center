@@ -29,6 +29,7 @@ import {
 } from "../actions";
 import { EmailVariantPicker } from "./email-variant-picker";
 import { STAGE_CONFIG } from "./stage-config";
+import { ContactPanel, type Contact } from "@/components/contact-panel";
 
 function scoreColor(score: number | null, threshold: number): string {
   if (score == null) return "text-[var(--color-text-muted)]";
@@ -78,6 +79,19 @@ export function OpportunityCard({
     !!opportunity.research_id ||
     !!researchSummary ||
     !!opportunity.last_error;
+  const contacts: Contact[] = opportunity.recipient_name
+    ? [
+        {
+          role: "primary",
+          name: opportunity.recipient_name,
+          title: opportunity.recipient_title,
+          email: opportunity.recipient_email,
+          linkedinUrl: opportunity.recipient_linkedin_url,
+          xUrl: opportunity.recipient_x_url,
+          pictureUrl: opportunity.recipient_picture_url,
+        },
+      ]
+    : [];
 
   function handleApprove() {
     startTransition(async () => {
@@ -216,12 +230,7 @@ export function OpportunityCard({
         </span>
       </div>
 
-      {opportunity.recipient_name && (
-        <p className="text-xs text-[var(--color-text-subtle)] mt-0.5">
-          {opportunity.recipient_name}
-          {opportunity.recipient_title && ` · ${opportunity.recipient_title}`}
-        </p>
-      )}
+      <ContactPanel contacts={contacts} variant="plain" className="mt-0.5" />
 
       {analysisSummary && (
         <p className="text-xs text-[var(--color-text-muted)] leading-relaxed mt-2 line-clamp-2">

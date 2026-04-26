@@ -19,7 +19,7 @@ import { assertEnv } from "@/lib/utils";
 // Exa Websets response types
 // ---------------------------------------------------------------------------
 
-interface WebsetPersonProperties {
+export interface WebsetPersonProperties {
   type: "person";
   url: string;
   description: string;
@@ -32,7 +32,7 @@ interface WebsetPersonProperties {
   };
 }
 
-interface WebsetItem {
+export interface WebsetItem {
   id: string;
   object: "webset_item";
   source: string;
@@ -98,6 +98,18 @@ export interface PeopleSearchResult {
   recipientWebsetId: string | null;
   recipientWebsetItemId: string | null;
   researchResult: Record<string, unknown>;
+}
+
+export interface WebsetPersonSearchInput {
+  query: string;
+  criteria: Array<{ description: string }>;
+  count?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface WebsetPersonSearchResult {
+  websetId: string;
+  items: WebsetItem[];
 }
 
 export type ContactArchetype =
@@ -194,6 +206,25 @@ export async function researchPeople(
     recipientWebsetItemId: matchedItem?.id ?? null,
     researchResult: result as Record<string, unknown>,
   };
+}
+
+export async function runWebsetPersonSearch(
+  input: WebsetPersonSearchInput,
+): Promise<WebsetPersonSearchResult> {
+  const apiKey = assertEnv("EXA_API_KEY");
+  const webset = await createWebset(apiKey, {
+    search: {
+      query: input.query,
+      count: input.count ?? 5,
+      entity: { type: "person" },
+      criteria: input.criteria,
+    },
+    metadata: input.metadata ?? {},
+  });
+
+  const idleWebset = await waitUntilIdle(apiKey, webset.id);
+  const items = await listItems(apiKey, idleWebset.id);
+  return { websetId: idleWebset.id, items };
 }
 
 // ---------------------------------------------------------------------------

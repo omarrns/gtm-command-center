@@ -1,10 +1,14 @@
 /**
  * Verification script for pipeline correctness fixes.
  *
- * Validates three behaviors via source-level structural checks:
+ * Validates GTM/account pipeline correctness behaviors via source-level
+ * structural checks:
  *   1. worker/claim rejects malformed/empty JSON bodies
  *   2. workflow loadConfig distinguishes missing config from query failure
  *   3. applyManuallyAction returns failure when no row matches
+ *   4. gtm-find-contacts jobs are claimable and deduped only while pending
+ *   5. account contact enrichment uses any-email semantics
+ *   6. score results expose scored opportunity IDs for dormant enqueue
  *
  * Usage:
  *   npx tsx scripts/test-correctness-fixes.ts
@@ -51,6 +55,11 @@ assert(
 assert(
   claimSource.includes("ALL_JOB_TYPES"),
   "worker/claim must still reference ALL_JOB_TYPES for valid-body default",
+);
+
+assert(
+  claimSource.includes('"gtm-find-contacts"'),
+  "worker/claim default job types must include gtm-find-contacts",
 );
 
 /* ── 2. workflow loadConfig: error classification ────────────────── */
@@ -118,6 +127,92 @@ assert(
 assert(
   applyBlock.includes("ok: false"),
   "applyManuallyAction must return failure when no row matched",
+);
+
+/* ── 4. GTM contact job idempotency/claimability ─────────────────── */
+console.log("4. gtm-find-contacts — job registration and pending-only dedup");
+
+const workerSource = readFileSync(
+  join(ROOT, "src/lib/jobs/worker.ts"),
+  "utf-8",
+);
+const migrationSource = readFileSync(
+  join(ROOT, "supabase/migrations/20260426224808_recipient_alternate_and_socials.sql"),
+  "utf-8",
+);
+
+assert(
+  workerSource.includes('"gtm-find-contacts"'),
+  "worker HANDLERS map must register gtm-find-contacts",
+);
+
+assert(
+  migrationSource.includes("payload->>'opportunityId'"),
+  "jobs dedup index must key off payload->>'opportunityId'",
+);
+
+assert(
+  migrationSource.includes("status = 'pending'") &&
+    !migrationSource.includes("status IN ('pending', 'running')"),
+  "jobs dedup index must be pending-only so stale running jobs do not block retries",
+);
+
+/* ── 5. GTM contact enrichment stage decision ────────────────────── */
+console.log("5. enrichContactsForAccount — stage decision semantics");
+
+const enrichContactsSource = readFileSync(
+  join(ROOT, "src/lib/pipeline/steps/enrich-contacts-account.ts"),
+  "utf-8",
+);
+
+assert(
+  enrichContactsSource.includes("anyEmail") &&
+    enrichContactsSource.includes('"enriched"'),
+  "enrichContactsForAccount must advance to enriched when any contact has email",
+);
+
+assert(
+  enrichContactsSource.includes("allTerminal") &&
+    enrichContactsSource.includes('"needs_contact"'),
+  "enrichContactsForAccount must advance to needs_contact only when contacts are terminal",
+);
+
+assert(
+  enrichContactsSource.includes("retrying: true"),
+  "enrichContactsForAccount must keep researched rows retryable when no terminal decision exists",
+);
+
+/* ── 6. ScoreResult IDs for dormant cron ─────────────────────────── */
+console.log("6. ScoreResult — scoredOpportunityIds");
+
+const scoreSource = readFileSync(
+  join(ROOT, "src/lib/pipeline/steps/score.ts"),
+  "utf-8",
+);
+const scoreAccountsSource = readFileSync(
+  join(ROOT, "src/lib/pipeline/steps/score-accounts.ts"),
+  "utf-8",
+);
+const dormantCronSource = readFileSync(
+  join(ROOT, "src/app/api/cron/dormant-discover/route.ts"),
+  "utf-8",
+);
+
+assert(
+  scoreSource.includes("scoredOpportunityIds: string[]"),
+  "ScoreResult must expose scoredOpportunityIds",
+);
+
+assert(
+  scoreSource.includes("result.scoredOpportunityIds.push(opp.id)") &&
+    scoreAccountsSource.includes("result.scoredOpportunityIds.push(opp.id)"),
+  "both scoring lanes must populate scoredOpportunityIds",
+);
+
+assert(
+  dormantCronSource.includes("score.scoredOpportunityIds") &&
+    dormantCronSource.includes("enqueueGtmFindContactsJob"),
+  "dormant cron must enqueue contact jobs from scoredOpportunityIds",
 );
 
 /* ── Results ─────────────────────────────────────────────────────── */
