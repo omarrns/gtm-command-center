@@ -16,12 +16,34 @@ export interface Contact {
   matchReasons?: WebsetMatchReason[] | null;
 }
 
-interface AccountContactContext {
+// Rep-facing context the panel uses to compose hooks. Most fields come
+// straight from research-account.ts (Claude-distilled timing signals)
+// plus the account-level fit summary. All optional — the panel
+// degrades to identity + match-reason when research hasn't run yet.
+export interface AccountContactContext {
   companyName?: string;
   roleTitle?: string | null;
   reasonToBelieve?: string | null;
   fundingStage?: string | null;
   industry?: string | null;
+  recentNews?: Array<{
+    headline: string;
+    relevance: string;
+    published_at?: string | null;
+  }>;
+  recentFunding?: {
+    stage: string;
+    amount_usd?: number | null;
+    closed_at?: string | null;
+    investors?: string[];
+  } | null;
+  hiringTrajectory?: {
+    trend: "accelerating" | "steady" | "slowing";
+    signal_roles: string[];
+    net_30d?: number | null;
+  } | null;
+  competitorMentions?: Array<{ competitor: string; context: string }>;
+  techStackGaps?: string[];
 }
 
 function positiveMatchReasons(
@@ -44,38 +66,84 @@ function contactWhy(
   const match = positiveMatchReasons(contact.matchReasons)[0];
   if (match) return truncateSentence(match);
   if (contact.title && context?.companyName) {
-    return `${contact.title} at ${context.companyName}; likely relevant to this account motion.`;
+    return `${contact.title} at ${context.companyName}; sits in the buying motion for this account.`;
+  }
+  return null;
+}
+
+// Search intent at discovery time decides this label:
+//   primary  ← Webset criteria "economic buyer, champion, or end user"
+//   alternate ← Webset criteria "manages or leads a team related to the role"
+// We surface the intent rather than re-deriving from title so the rep
+// knows which slot the pipeline filled.
+function roleLabel(contact: Contact): string {
+  return contact.role === "primary" ? "Buyer" : "Lead";
+}
+
+function openerLine(
+  contact: Contact,
+  context?: AccountContactContext,
+): string | null {
+  const remit = contact.title ?? "their remit";
+  const news = context?.recentNews?.[0];
+  if (news?.headline) {
+    return `Lead with "${truncateSentence(news.headline, 70)}" — pivot to ${remit}.`;
+  }
+  const funding = context?.recentFunding;
+  if (funding?.stage) {
+    const investor = funding.investors?.[0];
+    return investor
+      ? `Lead with the ${funding.stage} (${investor}) — pivot to ${remit}.`
+      : `Lead with the ${funding.stage} round — pivot to ${remit}.`;
+  }
+  if (
+    context?.hiringTrajectory?.trend === "accelerating" &&
+    context.hiringTrajectory.signal_roles?.length
+  ) {
+    const role = context.hiringTrajectory.signal_roles[0];
+    return `Lead with accelerating ${role} hiring — pivot to ${remit}.`;
   }
   return null;
 }
 
 function outreachAngles(
   contact: Contact,
-  context?: AccountContactContext,
+  context: AccountContactContext | undefined,
+  hasOpener: boolean,
 ): string[] {
   const angles: string[] = [];
 
-  if (context?.reasonToBelieve) {
-    angles.push(`Open with fit: ${truncateSentence(context.reasonToBelieve, 120)}`);
-  }
-
-  if (context?.roleTitle) {
+  if (context?.competitorMentions?.[0]) {
+    const cm = context.competitorMentions[0];
     angles.push(
-      contact.role === "alternate"
-        ? `Tie to hiring: ask how the ${context.roleTitle} search is changing team priorities.`
-        : `Tie to hiring signal: ${context.roleTitle} suggests active investment in this function.`,
+      `Competitor pull: ${cm.competitor} — frame the gap on what's next.`,
     );
   }
 
-  if (context?.fundingStage) {
-    angles.push(`Use timing: ${context.fundingStage} usually means new growth or operating pressure.`);
+  if (
+    !hasOpener &&
+    context?.hiringTrajectory?.signal_roles?.length &&
+    context.hiringTrajectory.trend !== "slowing"
+  ) {
+    const r = context.hiringTrajectory.signal_roles[0];
+    angles.push(
+      `Hiring ${context.hiringTrajectory.trend}: ${r} — proof of where budget is moving.`,
+    );
+  }
+
+  if (context?.techStackGaps?.[0]) {
+    angles.push(`Stack gap: ${context.techStackGaps[0]}.`);
+  }
+
+  if (angles.length === 0 && context?.reasonToBelieve) {
+    angles.push(truncateSentence(context.reasonToBelieve, 130));
   }
 
   if (angles.length === 0 && contact.title) {
-    angles.push(`Reference their ${contact.title} remit and ask what is top of mind this quarter.`);
+    angles.push(`Ask what's top-of-mind for ${contact.title} this quarter.`);
   }
 
-  return angles.slice(0, 2);
+  return angles.slice(0, hasOpener ? 1 : 2);
 }
 
 export function ContactPanel({
@@ -106,7 +174,9 @@ export function ContactPanel({
     <div className={cn("space-y-2", className)}>
       {visible.map((contact) => {
         const why = contactWhy(contact, context);
-        const angles = outreachAngles(contact, context);
+        const opener = openerLine(contact, context);
+        const angles = outreachAngles(contact, context, !!opener);
+        const label = roleLabel(contact);
         return (
           <div
             key={`${contact.role}-${contact.name}`}
@@ -130,7 +200,7 @@ export function ContactPanel({
                 {contact.title && ` · ${contact.title}`}
               </span>
               <span className="shrink-0 rounded-sm border border-[var(--border)] px-1 py-0 text-[10px] uppercase tracking-normal">
-                {contact.role === "primary" ? "Primary" : "Alt"}
+                {label}
               </span>
               {contact.email && (
                 <a
@@ -165,8 +235,8 @@ export function ContactPanel({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              {contact.location && (
+            {contact.location && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span
                   className="inline-flex min-w-0 items-center gap-0.5"
                   aria-label={`Location: ${contact.location}`}
@@ -174,8 +244,8 @@ export function ContactPanel({
                   <MapPin size={11} aria-hidden="true" />
                   <span className="truncate">{contact.location}</span>
                 </span>
-              )}
-            </div>
+              </div>
+            )}
 
             {why && (
               <p className="leading-relaxed text-[var(--color-text-muted)]">
@@ -186,16 +256,19 @@ export function ContactPanel({
               </p>
             )}
 
+            {opener && (
+              <p className="leading-relaxed text-[var(--color-text-muted)]">
+                <span className="font-medium text-[var(--color-text)]">
+                  Open:
+                </span>{" "}
+                {opener}
+              </p>
+            )}
+
             {angles.length > 0 && (
               <div className="space-y-0.5 leading-relaxed text-[var(--color-text-muted)]">
-                <div className="font-medium text-[var(--color-text)]">
-                  Angles
-                </div>
                 {angles.map((angle) => (
-                  <div
-                    key={angle}
-                    className="flex gap-1.5"
-                  >
+                  <div key={angle} className="flex gap-1.5">
                     <span className="mt-[0.45em] h-1 w-1 shrink-0 rounded-full bg-[var(--color-text-subtle)]" />
                     <span>{angle}</span>
                   </div>

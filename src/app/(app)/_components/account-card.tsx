@@ -29,6 +29,32 @@ import { findContactsForAccountAction } from "../accounts/actions";
 // feed the same flat prop shape so the visual stays consistent and
 // adding a third consumer (e.g. watchlist detail) is a drop-in.
 
+// Slim projection of GtmAccountResearch (research-account.ts) — we keep
+// the shape duplicated here so this client component never imports
+// from a server-only file. /accounts maps the parsed research_reports
+// row into this shape; /activate's preview omits it entirely (research
+// only runs at the researched stage).
+export interface AccountResearchSummary {
+  recentNews: Array<{
+    headline: string;
+    relevance: string;
+    published_at: string | null;
+  }>;
+  recentFunding: {
+    stage: string;
+    amount_usd: number | null;
+    closed_at: string | null;
+    investors: string[];
+  } | null;
+  hiringTrajectory: {
+    trend: "accelerating" | "steady" | "slowing";
+    signal_roles: string[];
+    net_30d: number | null;
+  } | null;
+  competitorMentions: Array<{ competitor: string; context: string }>;
+  techStackGaps: string[];
+}
+
 export interface AccountCardProps {
   companyName: string;
   companyDomain: string | null;
@@ -51,6 +77,47 @@ export interface AccountCardProps {
   opportunityId?: string;
   canSkip?: boolean;
   contacts?: Contact[];
+  research?: AccountResearchSummary;
+}
+
+function whyNowLine(research: AccountResearchSummary | undefined): {
+  text: string;
+  timestamp: string | null;
+} | null {
+  if (!research) return null;
+  const news = research.recentNews?.[0];
+  if (news?.headline) {
+    const text = news.relevance
+      ? `${news.headline} — ${news.relevance}`
+      : news.headline;
+    return { text, timestamp: news.published_at ?? null };
+  }
+  const funding = research.recentFunding;
+  if (funding?.stage) {
+    const amount = funding.amount_usd
+      ? ` $${Math.round(funding.amount_usd / 1_000_000)}M`
+      : "";
+    const investor = funding.investors?.[0]
+      ? ` led by ${funding.investors[0]}`
+      : "";
+    return {
+      text: `${funding.stage}${amount}${investor}`,
+      timestamp: funding.closed_at,
+    };
+  }
+  const hiring = research.hiringTrajectory;
+  if (hiring?.trend === "accelerating" && hiring.signal_roles?.length) {
+    return {
+      text: `Hiring accelerating: ${hiring.signal_roles.slice(0, 2).join(", ")}`,
+      timestamp: null,
+    };
+  }
+  return null;
+}
+
+function truncateLine(value: string, max = 220): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max - 1).trim()}…`;
 }
 
 function tierVariant(
@@ -103,8 +170,10 @@ export function AccountCard({
   opportunityId,
   canSkip,
   contacts = [],
+  research,
 }: AccountCardProps) {
   const router = useRouter();
+  const whyNow = whyNowLine(research);
   const [isPending, startTransition] = useTransition();
   const [contactJobId, setContactJobId] = useState<string | null>(null);
   const contactToastIdRef = useRef<string | number | null>(null);
@@ -176,14 +245,11 @@ export function AccountCard({
       contactJobStartedAtRef.current = startedAt;
       const elapsed = formatElapsed(Date.now() - startedAt);
       const label = contactJobLabel(contactJob.job?.status);
-      contactToastIdRef.current = toast.loading(
-        `${label} • ${elapsed}`,
-        {
-          id: contactToastIdRef.current ?? undefined,
-          description: `${companyName}. This can take a few minutes.`,
-          duration: Infinity,
-        },
-      );
+      contactToastIdRef.current = toast.loading(`${label} • ${elapsed}`, {
+        id: contactToastIdRef.current ?? undefined,
+        description: `${companyName}. This can take a few minutes.`,
+        duration: Infinity,
+      });
     }
 
     updateStatusToast();
@@ -296,6 +362,18 @@ export function AccountCard({
         <p className="text-sm leading-relaxed">{reasonToBelieve}</p>
       )}
 
+      {whyNow && (
+        <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+          <span className="font-medium text-[var(--color-text)]">Why now:</span>{" "}
+          {truncateLine(whyNow.text)}
+          {whyNow.timestamp && (
+            <span className="ml-1 text-[var(--color-text-subtle)]">
+              · {formatRelativeTime(whyNow.timestamp)}
+            </span>
+          )}
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
         {roleTitle && (
           <span className="inline-flex items-center gap-1">
@@ -338,6 +416,11 @@ export function AccountCard({
             reasonToBelieve,
             fundingStage,
             industry,
+            recentNews: research?.recentNews,
+            recentFunding: research?.recentFunding,
+            hiringTrajectory: research?.hiringTrajectory,
+            competitorMentions: research?.competitorMentions,
+            techStackGaps: research?.techStackGaps,
           }}
         />
       )}
