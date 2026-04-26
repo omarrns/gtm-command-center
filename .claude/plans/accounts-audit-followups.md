@@ -191,29 +191,39 @@ Any of:
 - The `feedback_accounts_never_auto_remove.md` rule comes up in
   another review and someone wants the contract enforced strictly.
 
-### Two fixes, one decision
+### Three fixes, one decision
+
+**Option C — separate `account_dismissed_at` field (preferred).**
+Add a nullable `dismissed_at timestamptz` column on `opportunities`
+(or a separate `account_dismissals` table keyed on opportunity_id).
+The `/accounts` page query filters `dismissed_at IS NULL`; the
+dismiss button stamps it. Pros: cleanly separates user-facing
+dismissal from the pipeline lifecycle stage — a `sent` account can
+be dismissed from /accounts without overwriting its terminal stage,
+which keeps reply-tracking and any GTM-side analytics intact.
+Cons: schema change (one migration), and `skipOpportunityAction`
+either branches on user_type or a separate `dismissAccountAction`
+gets added. **Stated user preference.** Don't conflate dismissal
+with stage transitions.
 
 **Option A — widen `SKIPPABLE_STAGES`** to include `sent`, `replied`,
 maybe `sending`. Pros: literal compliance with the
-"always-dismissable" rule. Cons: skipping a row that's actually been
-sent through the system is semantically weird — the stage transition
-machinery in `advanceStage` would let a `sent` row be moved to
-`skipped` and then disappear from /accounts. History would still show
-it (filter on stage), so no data lost.
+"always-dismissable" rule, no schema change. Cons: rewrites the
+terminal lifecycle — moves a `sent` row to `skipped`, blowing away
+the stage signal. Reply-tracking (`/api/cron/replies` advances
+`sent → replied`) wouldn't fire on a row that's been re-staged to
+`skipped`. Acceptable on /accounts today (no GTM send), risky once
+the lane writes terminal stages.
 
 **Option B — narrow the page query** to skippable stages only. Drop
-`sent`, `replied`, `sending` from the visible set. Pros: the page
-becomes "things that need attention", which is closer to its intent.
-Cons: violates the never-auto-remove rule — a stage transition (queued
-→ sending → sent) does cause the row to leave /accounts.
+`sent`, `replied`, `sending` from the visible set. Cons: violates
+the never-auto-remove rule outright — a stage transition (queued
+→ sending → sent) does cause the row to leave /accounts. Rejected.
 
-I'd lean Option A. The contract is clear; widening the skip set is
-safer than narrowing the visibility set; and the audit trail in
-`/history` covers the "what happened to this account" question.
-
-Either way, the change is small (~5 lines) once the trigger fires.
-File: `src/lib/pipeline/stages.ts:5` for Option A; the page query at
-`accounts/page.tsx:48` for Option B.
+The change for Option C is a migration + a few lines of action +
+page-query update. Files: new migration in `supabase/migrations/`,
+`src/lib/pipeline/opportunities.ts` (helper), `src/app/(app)/actions.ts`
+(the action), `src/app/(app)/accounts/page.tsx:48` (filter).
 
 ### Don't do this in advance
 
@@ -231,5 +241,6 @@ When you come back to this:
 1. Read this file front to back.
 2. Tackle item 1 first — Phase 0 test, then fix in the same commit.
 3. Item 2 stays deferred unless its trigger has fired. If it has:
-   pick A or B based on what the new GTM draft/send work looks
-   like.
+   default to Option C (separate dismissal field) per the stated
+   preference. Reach for A or B only if Option C is blocked by
+   constraints the GTM draft/send work surfaces.
