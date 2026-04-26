@@ -10,9 +10,13 @@ import type {
   OpportunityStage,
 } from "@/lib/supabase/types";
 import { icpAccountAnalysisSchema } from "@/lib/pipeline/scoring-account";
+import { gtmAccountResearchSchema } from "@/lib/pipeline/steps/research-account";
 import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
 import { createLogger } from "@/lib/logger";
-import { AccountCard } from "../_components/account-card";
+import {
+  AccountCard,
+  type AccountResearchSummary,
+} from "../_components/account-card";
 import { FadeIn } from "@/components/ui/fade-in";
 import type { Contact } from "@/components/contact-panel";
 
@@ -80,7 +84,13 @@ export default async function AccountsPage() {
     .map((o) => o.analysis_id)
     .filter((id): id is string => !!id);
 
+  const researchIds = opps
+    .map((o) => o.research_id)
+    .filter((id): id is string => !!id);
+
   const reasonById = new Map<string, string>();
+  const researchById = new Map<string, AccountResearchSummary>();
+
   if (analysisIds.length > 0) {
     const { data: analyses, error: analysesError } = await svc
       .from("analyses")
@@ -101,6 +111,42 @@ export default async function AccountsPage() {
       const parsed = icpAccountAnalysisSchema.safeParse(a.result);
       if (parsed.success) {
         reasonById.set(a.id as string, parsed.data.reason_to_believe);
+      }
+    }
+  }
+
+  // Batch-load research reports so each card can render a "Why now" line
+  // and the contact panel can compose timing-aware openers + angles.
+  // Same soft-degradation as analyses: a missing or malformed report
+  // means we render the card without research-derived hooks rather than
+  // 500'ing the whole page.
+  if (researchIds.length > 0) {
+    const { data: reports, error: reportsError } = await svc
+      .from("research_reports")
+      .select("id, result")
+      .in("id", researchIds);
+
+    if (reportsError) {
+      const log = createLogger({ scope: "accounts.page", userId: user.id });
+      log.error(
+        "research lookup failed; rendering without research",
+        reportsError,
+      );
+    }
+
+    for (const r of reports ?? []) {
+      const parsed = gtmAccountResearchSchema.safeParse(r.result);
+      if (parsed.success) {
+        researchById.set(r.id as string, {
+          recentNews: parsed.data.recentNews,
+          recentFunding: parsed.data.recentFunding,
+          hiringTrajectory: parsed.data.hiringTrajectory,
+          competitorMentions: parsed.data.competitorMentions.map((m) => ({
+            competitor: m.competitor,
+            context: m.context,
+          })),
+          techStackGaps: parsed.data.techStack.gaps,
+        });
       }
     }
   }
@@ -151,6 +197,9 @@ export default async function AccountsPage() {
           const reason = o.analysis_id
             ? (reasonById.get(o.analysis_id) ?? "")
             : "";
+          const research = o.research_id
+            ? researchById.get(o.research_id)
+            : undefined;
           const candidates: Contact[] = [
             {
               role: "primary",
@@ -213,6 +262,7 @@ export default async function AccountsPage() {
                 >
               }
               contacts={contacts}
+              research={research}
             />
           );
         })}
