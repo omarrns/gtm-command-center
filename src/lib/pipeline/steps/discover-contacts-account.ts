@@ -45,10 +45,23 @@ export async function discoverContactsForAccount(
   const rubric = await loadIcpRubric(svc, userId);
   const updates: Partial<OpportunityRow> = {};
 
-  const [primary, alternate] = await Promise.all([
-    needsPrimary ? findPrimaryContact(opp, rubric) : Promise.resolve(null),
-    needsAlternate ? findAlternateContact(opp) : Promise.resolve(null),
+  const [primaryOutcome, alternateOutcome] = await Promise.all([
+    needsPrimary
+      ? findPrimaryContact(opp, rubric)
+      : Promise.resolve<ContactSearchOutcome>({
+          contact: null,
+          timedOut: false,
+        }),
+    needsAlternate
+      ? findAlternateContact(opp)
+      : Promise.resolve<ContactSearchOutcome>({
+          contact: null,
+          timedOut: false,
+        }),
   ]);
+
+  const primary = primaryOutcome.contact;
+  const alternate = alternateOutcome.contact;
 
   if (primary) {
     updates.recipient_name = primary.name;
@@ -70,6 +83,19 @@ export async function discoverContactsForAccount(
     updates.alt_recipient_match_reasons = alternate.matchReasons;
     updates.alt_recipient_webset_id = alternate.websetId;
     updates.alt_recipient_webset_item_id = alternate.websetItemId;
+  }
+
+  // Surface partial-result causes so /accounts can show a useful retry message.
+  // Only set last_error when both attempted searches came back empty AND at
+  // least one timed out — a clean "no candidates" outcome (search completed,
+  // no matches) doesn't warrant an error message; the downstream needs_contact
+  // advancement explains it well enough.
+  const triedBothAndEmpty =
+    needsPrimary && needsAlternate && !primary && !alternate;
+  const eitherTimedOut = primaryOutcome.timedOut || alternateOutcome.timedOut;
+  if (triedBothAndEmpty && eitherTimedOut) {
+    updates.last_error =
+      "Webset person search timed out before producing candidates. Retry in a few minutes.";
   }
 
   if (Object.keys(updates).length > 0) {
@@ -99,10 +125,15 @@ async function loadIcpRubric(
   return parsed.success ? parsed.data : {};
 }
 
+interface ContactSearchOutcome {
+  contact: SelectedContact | null;
+  timedOut: boolean;
+}
+
 async function findPrimaryContact(
   opp: OpportunityRow,
   rubric: IcpRubric,
-): Promise<SelectedContact | null> {
+): Promise<ContactSearchOutcome> {
   const titles = buyerTitles(rubric);
   const query = `${titles.join(" OR ")} at ${opp.company_name} ${opp.company_domain ?? ""}`;
   const result = await runWebsetPersonSearch({
@@ -120,12 +151,15 @@ async function findPrimaryContact(
       role: "primary",
     },
   });
-  return selectFirst(result.websetId, result.items);
+  return {
+    contact: selectFirst(result.websetId, result.items),
+    timedOut: result.timedOut,
+  };
 }
 
 async function findAlternateContact(
   opp: OpportunityRow,
-): Promise<SelectedContact | null> {
+): Promise<ContactSearchOutcome> {
   const titles = managerTitles(opp.role_title);
   const query = `${titles.join(" OR ")} at ${opp.company_name} ${opp.company_domain ?? ""}`;
   const result = await runWebsetPersonSearch({
@@ -143,7 +177,10 @@ async function findAlternateContact(
       role: "alternate",
     },
   });
-  return selectFirst(result.websetId, result.items);
+  return {
+    contact: selectFirst(result.websetId, result.items),
+    timedOut: result.timedOut,
+  };
 }
 
 function buyerTitles(rubric: IcpRubric): string[] {

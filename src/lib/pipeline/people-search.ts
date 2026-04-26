@@ -110,6 +110,7 @@ export interface WebsetPersonSearchInput {
 export interface WebsetPersonSearchResult {
   websetId: string;
   items: WebsetItem[];
+  timedOut: boolean;
 }
 
 export type ContactArchetype =
@@ -153,7 +154,7 @@ export async function researchPeople(
     },
   });
 
-  const idleWebset = await waitUntilIdle(apiKey, webset.id);
+  const { webset: idleWebset } = await waitUntilIdle(apiKey, webset.id);
   const items = await listItems(apiKey, idleWebset.id);
 
   const researchText = formatItemsForPrompt(items, companyName);
@@ -222,9 +223,12 @@ export async function runWebsetPersonSearch(
     metadata: input.metadata ?? {},
   });
 
-  const idleWebset = await waitUntilIdle(apiKey, webset.id);
+  const { webset: idleWebset, timedOut } = await waitUntilIdle(
+    apiKey,
+    webset.id,
+  );
   const items = await listItems(apiKey, idleWebset.id);
-  return { websetId: idleWebset.id, items };
+  return { websetId: idleWebset.id, items, timedOut };
 }
 
 // ---------------------------------------------------------------------------
@@ -350,19 +354,30 @@ async function createWebset(
   });
 }
 
+// Soft-timeout: returns whatever state the Webset reached instead of throwing.
+// Callers should still call listItems with `webset.id` even when timedOut=true
+// because Exa partially populates a Webset before flipping to status='idle' —
+// for GTM accounts a partial result (1 of 5 candidates) beats no result at all.
+// `paused` is preserved as a throw because that's an explicit Exa state, not
+// a "took too long" outcome.
 async function waitUntilIdle(
   apiKey: string,
   websetId: string,
-  timeoutMs = 180_000,
-): Promise<Webset> {
+  timeoutMs = 240_000,
+): Promise<{ webset: Webset; timedOut: boolean }> {
   const start = Date.now();
+  let lastWebset: Webset | null = null;
   while (Date.now() - start < timeoutMs) {
     const ws = await websetsFetch<Webset>(apiKey, `/websets/${websetId}`);
-    if (ws.status === "idle") return ws;
+    lastWebset = ws;
+    if (ws.status === "idle") return { webset: ws, timedOut: false };
     if (ws.status === "paused") throw new Error(`Webset ${websetId} paused`);
     await new Promise((r) => setTimeout(r, 4000));
   }
-  throw new Error(`Webset ${websetId} timed out after ${timeoutMs / 1000}s`);
+  return {
+    webset: lastWebset ?? { id: websetId, status: "running", searches: [] },
+    timedOut: true,
+  };
 }
 
 async function listItems(
