@@ -12,7 +12,7 @@
  */
 
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import type { PipelineConfigRow } from "@/lib/supabase/types";
+import type { PipelineConfigRow, UserType } from "@/lib/supabase/types";
 import {
   runDiscover,
   type DiscoverResult,
@@ -58,20 +58,26 @@ async function loadConfig(userId: string, runId: string) {
   });
   log.info("loading pipeline config");
   const svc = createSupabaseServiceClient();
-  const { data: config, error } = await svc
-    .from("pipeline_config")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const [configRes, profileRes] = await Promise.all([
+    svc.from("pipeline_config").select("*").eq("user_id", userId).maybeSingle(),
+    svc.from("profiles").select("user_type").eq("user_id", userId).maybeSingle(),
+  ]);
 
-  if (error) {
-    throw new Error(`pipeline_config query failed: ${error.message}`);
+  if (configRes.error) {
+    throw new Error(`pipeline_config query failed: ${configRes.error.message}`);
   }
-  if (!config) {
+  if (!configRes.data) {
     throw new Error("No pipeline_config row found for user");
   }
+  if (profileRes.error) {
+    throw new Error(`profiles query failed: ${profileRes.error.message}`);
+  }
+
   log.info("config loaded");
-  return config as PipelineConfigRow;
+  return {
+    config: configRes.data as PipelineConfigRow,
+    userType: (profileRes.data?.user_type ?? null) as UserType | null,
+  };
 }
 
 async function stepDiscover(
@@ -228,31 +234,21 @@ export async function pipelineWorkflow(
 
   // Step 1: Load config
   let config: PipelineConfigRow;
+  let userType: UserType | null = null;
   try {
-    config = await loadConfig(userId, runId);
+    const loaded = await loadConfig(userId, runId);
+    config = loaded.config;
+    userType = loaded.userType;
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Unknown config load failure";
     log.error("loadConfig failed", err);
-    return {
-      userId,
-      runId,
-      startedAt,
-      completedAt: new Date().toISOString(),
-      discover: { found: 0, inserted: 0 },
-      score: { processed: 0, scored: 0, filtered: 0, errors: 0 },
-      research: { processed: 0, researched: 0, needsContact: 0, errors: 0 },
-      enrich: {
-        processed: 0,
-        enriched: 0,
-        retrying: 0,
-        needsContact: 0,
-        errors: 0,
-      },
-      draft: { processed: 0, drafted: 0, errors: 0 },
-      queuedRecovery: 0,
-      error: message,
-    };
+    return emptyResult(userId, runId, startedAt, message);
+  }
+
+  if (userType === "gtm") {
+    log.info("skipping job-seeker pipeline because user is gtm persona");
+    return emptyResult(userId, runId, startedAt, null);
   }
 
   // Step 2: Discover
@@ -334,5 +330,32 @@ export async function pipelineWorkflow(
     draft,
     queuedRecovery,
     error: pipelineError,
+  };
+}
+
+function emptyResult(
+  userId: string,
+  runId: string,
+  startedAt: string,
+  error: string | null,
+): WorkflowPipelineResult {
+  return {
+    userId,
+    runId,
+    startedAt,
+    completedAt: new Date().toISOString(),
+    discover: { found: 0, inserted: 0 },
+    score: { processed: 0, scored: 0, filtered: 0, errors: 0 },
+    research: { processed: 0, researched: 0, needsContact: 0, errors: 0 },
+    enrich: {
+      processed: 0,
+      enriched: 0,
+      retrying: 0,
+      needsContact: 0,
+      errors: 0,
+    },
+    draft: { processed: 0, drafted: 0, errors: 0 },
+    queuedRecovery: 0,
+    error,
   };
 }
