@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
@@ -73,6 +73,19 @@ function formatEmployees(n: number | null): string | null {
   return `${n} employees`;
 }
 
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function contactJobLabel(status: string | undefined): string {
+  if (status === "pending") return "Queued";
+  if (status === "running") return "Researching contacts";
+  return "Starting";
+}
+
 export function AccountCard({
   companyName,
   companyDomain,
@@ -94,6 +107,8 @@ export function AccountCard({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [contactJobId, setContactJobId] = useState<string | null>(null);
+  const contactToastIdRef = useRef<string | number | null>(null);
+  const contactJobStartedAtRef = useRef<number | null>(null);
   const contactJob = useJobPoll(contactJobId);
   const showDismiss = !!opportunityId && !!canSkip;
   const showFindContacts =
@@ -110,20 +125,77 @@ export function AccountCard({
     let timer: ReturnType<typeof setTimeout> | undefined;
     if (contactJob.isComplete) {
       timer = setTimeout(() => {
+        const elapsed = contactJobStartedAtRef.current
+          ? formatElapsed(Date.now() - contactJobStartedAtRef.current)
+          : null;
+        toast.success("Contact search complete", {
+          id: contactToastIdRef.current ?? undefined,
+          description: elapsed
+            ? `${companyName} finished in ${elapsed}.`
+            : `${companyName} is ready.`,
+          duration: 6000,
+        });
+        contactToastIdRef.current = null;
+        contactJobStartedAtRef.current = null;
         setContactJobId(null);
         router.refresh();
-        toast.success("Contact search complete");
       }, 0);
     } else if (contactJob.isFailed && contactJob.error) {
       timer = setTimeout(() => {
-        toast.error(contactJob.error);
+        const elapsed = contactJobStartedAtRef.current
+          ? formatElapsed(Date.now() - contactJobStartedAtRef.current)
+          : null;
+        toast.error("Contact search failed", {
+          id: contactToastIdRef.current ?? undefined,
+          description: elapsed
+            ? `${contactJob.error} (${elapsed})`
+            : contactJob.error,
+          duration: 9000,
+        });
+        contactToastIdRef.current = null;
+        contactJobStartedAtRef.current = null;
         setContactJobId(null);
       }, 0);
     }
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [contactJob.error, contactJob.isComplete, contactJob.isFailed, router]);
+  }, [
+    companyName,
+    contactJob.error,
+    contactJob.isComplete,
+    contactJob.isFailed,
+    router,
+  ]);
+
+  useEffect(() => {
+    if (!contactJobId || contactJob.isComplete || contactJob.isFailed) return;
+
+    function updateStatusToast() {
+      const startedAt = contactJobStartedAtRef.current ?? Date.now();
+      contactJobStartedAtRef.current = startedAt;
+      const elapsed = formatElapsed(Date.now() - startedAt);
+      const label = contactJobLabel(contactJob.job?.status);
+      contactToastIdRef.current = toast.loading(
+        `${label} • ${elapsed}`,
+        {
+          id: contactToastIdRef.current ?? undefined,
+          description: `${companyName}. This can take a few minutes.`,
+          duration: Infinity,
+        },
+      );
+    }
+
+    updateStatusToast();
+    const interval = setInterval(updateStatusToast, 1000);
+    return () => clearInterval(interval);
+  }, [
+    companyName,
+    contactJob.job?.status,
+    contactJob.isComplete,
+    contactJob.isFailed,
+    contactJobId,
+  ]);
 
   function handleSkip() {
     if (!opportunityId) return;
@@ -146,8 +218,17 @@ export function AccountCard({
     startTransition(async () => {
       const result = await findContactsForAccountAction(opportunityId);
       if (result.ok) {
-        if (result.jobId) setContactJobId(result.jobId);
-        toast.success("Contact search queued");
+        if (result.jobId) {
+          contactJobStartedAtRef.current = Date.now();
+          contactToastIdRef.current = toast.loading("Queued • 0:00", {
+            id: contactToastIdRef.current ?? undefined,
+            description: `${companyName}. This can take a few minutes.`,
+            duration: Infinity,
+          });
+          setContactJobId(result.jobId);
+        } else {
+          toast.info("Contact search is already queued");
+        }
       } else {
         toast.error(result.error);
       }
@@ -248,7 +329,18 @@ export function AccountCard({
         )}
       </div>
 
-      {contacts.length > 0 && <ContactPanel contacts={contacts} />}
+      {contacts.length > 0 && (
+        <ContactPanel
+          contacts={contacts}
+          context={{
+            companyName,
+            roleTitle,
+            reasonToBelieve,
+            fundingStage,
+            industry,
+          }}
+        />
+      )}
 
       {showFindContacts && (
         <div>
