@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Loader2, ExternalLink, Play, Settings, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { SearchProgress } from "@/components/ui/search-progress";
+import { ResultCardSkeleton } from "@/components/ui/result-card-skeleton";
 import { triggerPipelineAction } from "../../actions";
 import { dismissActivationAction } from "../actions";
 import type {
@@ -172,12 +174,32 @@ export function ActivationClient({
 
   // ── Searching state ──
   if (phase === "searching") {
+    const searchingNoun = userType === "gtm" ? "accounts" : "roles";
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-5">
-        <div className="h-3 w-3 rounded-full bg-[var(--color-blue)] animate-pulse" />
-        <p className="text-sm text-[var(--color-text-muted)] transition-opacity">
-          {REASSURANCE_MESSAGES[messageIndex]}
-        </p>
+      <div className="mx-auto max-w-2xl py-6 space-y-8">
+        {/* Header mirrors the results phase so the transition is structural. */}
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">
+            Finding your top {searchingNoun}…
+          </h1>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">
+            This usually takes about a minute.
+          </p>
+        </div>
+
+        <SearchProgress
+          step={messageIndex}
+          total={REASSURANCE_MESSAGES.length}
+          message={REASSURANCE_MESSAGES[messageIndex]}
+          className="py-2"
+        />
+
+        {/* Structural scaffold for the cards that will land here. */}
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <ResultCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
