@@ -65,11 +65,13 @@ const KIND_LABEL: Record<string, string> = {
 interface IcpDashboardClientProps {
   initialRubric: IcpRubric;
   artifacts: ArtifactSummary[];
+  activationCompleted: boolean;
 }
 
 export function IcpDashboardClient({
   initialRubric,
   artifacts,
+  activationCompleted,
 }: IcpDashboardClientProps) {
   const [rubric, setRubric] = useState<IcpRubric>(initialRubric);
   const [, startTransition] = useTransition();
@@ -380,6 +382,15 @@ export function IcpDashboardClient({
           />
         </div>
       </ReviewFormSection>
+
+      <div className="mt-10 pt-6 border-t border-[var(--color-border-strong)] flex justify-end">
+        <Link
+          href={activationCompleted ? "/accounts" : "/activate"}
+          className={buttonVariants()}
+        >
+          {activationCompleted ? "View Accounts" : "Find my accounts"}
+        </Link>
+      </div>
 
       {artifacts.length > 0 && (
         <ReviewFormSection title={`Exemplars (${artifacts.length})`}>

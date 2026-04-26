@@ -1,5 +1,7 @@
 "use client";
 
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   Users,
@@ -8,9 +10,13 @@ import {
   Clock,
   Radio,
   Moon,
+  X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/utils";
+import { skipOpportunityAction } from "../actions";
 
 // Shared card for GTM account rows. /activate renders a live preview
 // via AccountActivationResult; /accounts renders persisted pipeline
@@ -32,6 +38,12 @@ export interface AccountCardProps {
   // Optional: enrichment chips shown only on the persisted-queue view
   discoveredAt?: string;
   source?: "theirstack" | "exa-dormant";
+  // Dismiss affordance: only rendered when both are set. /accounts passes
+  // them; /activate's static preview does not. canSkip is derived from
+  // SKIPPABLE_STAGES so we never ship a button that would visibly fail
+  // on a terminal-stage row (sent / replied / sending).
+  opportunityId?: string;
+  canSkip?: boolean;
 }
 
 function tierVariant(
@@ -67,7 +79,29 @@ export function AccountCard({
   industry,
   discoveredAt,
   source,
+  opportunityId,
+  canSkip,
 }: AccountCardProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const showDismiss = !!opportunityId && !!canSkip;
+
+  function handleSkip() {
+    if (!opportunityId) return;
+    startTransition(async () => {
+      const result = await skipOpportunityAction(opportunityId);
+      if (result.ok) {
+        toast.success(`${companyName} dismissed`);
+        // revalidatePath in the action keeps the next navigation fresh;
+        // router.refresh re-fetches the current RSC tree so the row
+        // disappears immediately from the live view.
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
   return (
     <div className="surface p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -100,14 +134,28 @@ export function AccountCard({
             </p>
           )}
         </div>
-        <div className="shrink-0 text-right">
-          <div className="text-base font-semibold tabular-nums">{score}</div>
-          <div
-            className="text-xs font-medium"
-            style={{ color: verdictColor(verdict) }}
-          >
-            {verdict}
+        <div className="shrink-0 flex items-start gap-2">
+          <div className="text-right">
+            <div className="text-base font-semibold tabular-nums">{score}</div>
+            <div
+              className="text-xs font-medium"
+              style={{ color: verdictColor(verdict) }}
+            >
+              {verdict}
+            </div>
           </div>
+          {showDismiss && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
+              onClick={handleSkip}
+              disabled={isPending}
+              aria-label={`Dismiss ${companyName}`}
+            >
+              <X size={14} />
+            </Button>
+          )}
         </div>
       </div>
 

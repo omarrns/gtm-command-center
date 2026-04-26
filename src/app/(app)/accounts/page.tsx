@@ -3,8 +3,15 @@ import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
-import type { OpportunityRow, OpportunitySource } from "@/lib/supabase/types";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import type {
+  OpportunityRow,
+  OpportunitySource,
+  OpportunityStage,
+} from "@/lib/supabase/types";
 import { icpAccountAnalysisSchema } from "@/lib/pipeline/scoring-account";
+import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
+import { createLogger } from "@/lib/logger";
 import { AccountCard } from "../_components/account-card";
 import { FadeIn } from "@/components/ui/fade-in";
 
@@ -35,7 +42,7 @@ export default async function AccountsPage() {
   // pursuit outcome. Exclude only: discovered (not yet scored), filtered
   // (below threshold — never belonged here), and skipped (explicit user
   // dismissal). See feedback_accounts_never_auto_remove.md.
-  const { data: oppsRaw } = await svc
+  const { data: oppsRaw, error: oppsError } = await svc
     .from("opportunities")
     .select("*")
     .eq("user_id", user.id)
@@ -43,6 +50,25 @@ export default async function AccountsPage() {
     .not("stage", "in", "(discovered,filtered,skipped)")
     .order("score", { ascending: false, nullsFirst: false })
     .limit(50);
+
+  if (oppsError) {
+    const log = createLogger({ scope: "accounts.page", userId: user.id });
+    log.error("opportunities query failed", oppsError);
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-10 space-y-6">
+        <PageHeader
+          title="Accounts"
+          description="Accounts the pipeline promoted from TheirStack + Exa dormant."
+        />
+        <Alert variant="destructive">
+          <AlertTitle>Couldn&apos;t load accounts</AlertTitle>
+          <AlertDescription>
+            Refresh the page or try again shortly. The error has been logged.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   const opps = (oppsRaw ?? []) as OpportunityRow[];
 
@@ -55,10 +81,20 @@ export default async function AccountsPage() {
 
   const reasonById = new Map<string, string>();
   if (analysisIds.length > 0) {
-    const { data: analyses } = await svc
+    const { data: analyses, error: analysesError } = await svc
       .from("analyses")
       .select("id, result")
       .in("id", analysisIds);
+
+    if (analysesError) {
+      // Soft degradation: cards render without reason_to_believe. Don't
+      // block the page — the main opportunity payload already passed.
+      const log = createLogger({ scope: "accounts.page", userId: user.id });
+      log.error(
+        "analyses lookup failed; rendering without reasons",
+        analysesError,
+      );
+    }
 
     for (const a of analyses ?? []) {
       const parsed = icpAccountAnalysisSchema.safeParse(a.result);
@@ -87,7 +123,7 @@ export default async function AccountsPage() {
     <FadeIn className="mx-auto max-w-2xl px-6 py-10 space-y-6">
       <PageHeader
         title="Accounts"
-        description={`${opps.length} promoted ${opps.length === 1 ? "account" : "accounts"}, highest-scoring first. Dismiss to move to History.`}
+        description={`${opps.length} promoted ${opps.length === 1 ? "account" : "accounts"}, highest-scoring first.`}
       />
       <div className="space-y-2">
         {opps.map((o) => {
@@ -118,6 +154,8 @@ export default async function AccountsPage() {
           return (
             <AccountCard
               key={o.id}
+              opportunityId={o.id}
+              canSkip={SKIPPABLE_STAGES.includes(o.stage as OpportunityStage)}
               companyName={o.company_name}
               companyDomain={o.company_domain}
               roleTitle={o.role_title}

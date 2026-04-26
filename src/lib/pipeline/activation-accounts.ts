@@ -8,10 +8,11 @@
  *
  * Key differences from runDiscoverAccounts + runScoreAccounts:
  * - Caller runs the whole flow inline in a single /api request; no
- *   claim/advance stage machinery, no analyses table writes, no
- *   watchlist side effects. Results are ephemeral preview data.
+ *   claim/advance stage machinery, no watchlist side effects.
  * - Tight result cap (15 candidates scored → top 5 returned) so the
  *   activation round-trip stays under ~30s on Sonnet.
+ * - Scored results are persisted to opportunities (stage='scored') so
+ *   /accounts is populated immediately without waiting for a cron run.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -25,6 +26,7 @@ import {
   type IcpAccountAnalysis,
   type ScoreAccountSubject,
 } from "@/lib/pipeline/scoring-account";
+import { createOpportunity, advanceStage } from "@/lib/pipeline/opportunities";
 import { createLogger } from "@/lib/logger";
 
 const MAX_CANDIDATES = 15;
@@ -104,7 +106,7 @@ export async function runAccountActivationSearch(
         runId,
       });
 
-      scored.push({
+      const activationResult: AccountActivationResult = {
         id: subject.id,
         companyName: subject.company_name,
         companyDomain: subject.company_domain,
@@ -117,7 +119,24 @@ export async function runAccountActivationSearch(
         employeeCount: job.company_object?.employee_count ?? null,
         industry: job.company_object?.industry ?? null,
         analysis: analysisResult,
-      });
+      };
+      scored.push(activationResult);
+
+      // Persist to opportunities so /accounts is populated immediately.
+      // Non-critical: preview still works if this fails.
+      try {
+        await persistActivationResult(
+          svc,
+          userId,
+          job,
+          activationResult,
+          runId,
+        );
+      } catch (persistErr) {
+        log.error("activation persist failed (non-critical)", persistErr, {
+          jobId: job.id,
+        });
+      }
     } catch (err) {
       errors++;
       log.error("activation scoring failed", err, { jobId: job.id });
@@ -149,7 +168,7 @@ function toScoreSubject(job: TheirStackJob): ScoreAccountSubject | null {
   if (!companyDomain) return null;
 
   return {
-    id: `activation-${job.id}`,
+    id: job.id,
     company_name: companyName,
     company_domain: companyDomain,
     trigger_signals: [
@@ -174,4 +193,93 @@ function toScoreSubject(job: TheirStackJob): ScoreAccountSubject | null {
       },
     ],
   };
+}
+
+async function persistActivationResult(
+  svc: SupabaseClient,
+  userId: string,
+  job: TheirStackJob,
+  result: AccountActivationResult,
+  runId?: string,
+): Promise<void> {
+  const log = createLogger({ runId, userId, scope: "activation-accounts" });
+
+  const companyName = job.company_object?.name ?? job.company ?? null;
+  const companyDomain =
+    job.company_object?.domain ?? job.company_domain ?? null;
+  if (!companyName || !companyDomain) return;
+
+  const newOpp = await createOpportunity(svc, userId, {
+    source: "theirstack",
+    external_id: job.id,
+    company_name: companyName,
+    company_domain: companyDomain,
+    role_title: job.job_title,
+    job_url: job.url ?? undefined,
+    job_description: job.description ?? undefined,
+    job_posted_at: job.date_posted ?? undefined,
+    trigger_signals: [
+      {
+        funding_stage: job.company_object?.funding_stage ?? null,
+        employee_count: job.company_object?.employee_count ?? null,
+        industry_id: job.company_object?.industry_id ?? null,
+        industry: job.company_object?.industry ?? null,
+        annual_revenue_usd: job.company_object?.annual_revenue_usd ?? null,
+        country_code: job.company_object?.country_code ?? null,
+        posted_at: job.date_posted ?? null,
+        source: "theirstack",
+      },
+    ],
+    buyer_personas: [
+      {
+        hiring_for: job.job_title,
+        seniority: job.seniority ?? null,
+        location: job.short_location ?? job.location ?? null,
+        remote: job.remote ?? null,
+        source: "theirstack",
+      },
+    ],
+  });
+
+  // Duplicate — the real pipeline already owns this row; don't overwrite.
+  if (!newOpp) return;
+
+  const { data: analysis, error: analysisErr } = await svc
+    .from("analyses")
+    .insert({
+      user_id: userId,
+      skill_slug: "icp-account-fit",
+      company_name: companyName,
+      role_title: null,
+      job_description: job.description ?? null,
+      status: "complete",
+      input: {
+        company_name: companyName,
+        company_domain: companyDomain,
+        source: "activation",
+      },
+      result: result.analysis,
+    })
+    .select("id")
+    .single();
+
+  if (analysisErr) {
+    log.error("analyses write failed", analysisErr, { jobId: job.id });
+    return;
+  }
+
+  await advanceStage(svc, newOpp.id, userId, "discovered", "scored", {
+    score: result.score,
+    score_components: {
+      firmo_fit: result.analysis.firmo_fit.score,
+      techno_fit: result.analysis.techno_fit.score,
+      hiring_signal_fit: result.analysis.hiring_signal_fit.score,
+      buyer_fit: result.analysis.buyer_fit.score,
+      proof_point_relevance: result.analysis.proof_point_relevance.score,
+      disqualifier_risk: result.analysis.disqualifier_risk.score,
+      tier: result.tier,
+      verdict: result.verdict,
+    },
+    analysis_id: analysis.id,
+  });
 }

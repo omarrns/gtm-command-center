@@ -150,7 +150,7 @@ export function ActivationClient({
         toast.error(dismiss.error ?? "Failed to save activation state");
         return;
       }
-      router.push("/");
+      router.push(userType === "gtm" ? "/accounts" : "/");
     });
   }
 
@@ -255,18 +255,20 @@ export function ActivationClient({
             Adjust Settings
           </Button>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={handleDeeperSearch}
-              disabled={isPending}
-            >
-              {isPending ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Play size={14} />
-              )}
-              Run Deeper Search
-            </Button>
+            {userType !== "gtm" && (
+              <Button
+                variant="outline"
+                onClick={handleDeeperSearch}
+                disabled={isPending}
+              >
+                {isPending ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Play size={14} />
+                )}
+                Run Deeper Search
+              </Button>
+            )}
             <Button
               variant="ghost"
               onClick={handleGoToDashboard}
@@ -356,18 +358,20 @@ export function ActivationClient({
 
       {/* Bottom actions */}
       <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={handleDeeperSearch}
-          disabled={isPending}
-        >
-          {isPending ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <Play size={14} />
-          )}
-          Run Deeper Search
-        </Button>
+        {!isGtm && (
+          <Button
+            variant="outline"
+            onClick={handleDeeperSearch}
+            disabled={isPending}
+          >
+            {isPending ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Play size={14} />
+            )}
+            Run Deeper Search
+          </Button>
+        )}
         <Button onClick={handleGoToDashboard} disabled={isPending}>
           Go to Dashboard
         </Button>

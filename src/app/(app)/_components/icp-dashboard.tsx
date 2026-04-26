@@ -73,7 +73,7 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
     .limit(1)
     .maybeSingle();
 
-  const [scoringRes, artifactsRes] = await Promise.all([
+  const [scoringRes, artifactsRes, configRes] = await Promise.all([
     svc
       .from("user_scoring_profiles")
       .select("icp_rubric")
@@ -86,10 +86,16 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
           .eq("interview_id", confirmedInterview.id)
           .order("created_at", { ascending: true })
       : Promise.resolve({ data: [] as ArtifactSummary[] }),
+    svc
+      .from("pipeline_config")
+      .select("activation_completed_at")
+      .eq("user_id", userId)
+      .maybeSingle(),
   ]);
 
   const rubric = (scoringRes.data?.icp_rubric as IcpRubric | null) ?? null;
   const artifacts = (artifactsRes.data ?? []) as ArtifactSummary[];
+  const activationCompleted = !!configRes.data?.activation_completed_at;
 
   if (!rubric) {
     return (
@@ -113,5 +119,11 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
     );
   }
 
-  return <IcpDashboardClient initialRubric={rubric} artifacts={artifacts} />;
+  return (
+    <IcpDashboardClient
+      initialRubric={rubric}
+      artifacts={artifacts}
+      activationCompleted={activationCompleted}
+    />
+  );
 }

@@ -86,7 +86,7 @@ async function main() {
       new Request(endpoint, {
         method: "POST",
         body,
-        headers: { "x-theirstack-signature": sign(secret, body) },
+        headers: { "x-theirstack-signature-256": sign(secret, body) },
       }),
     );
     assert(res.status === 400, `missing ?user returns 400 (got ${res.status})`);
@@ -115,7 +115,7 @@ async function main() {
       new Request(`${endpoint}?user=00000000-0000-4000-8000-000000000001`, {
         method: "POST",
         body,
-        headers: { "x-theirstack-signature": tampered },
+        headers: { "x-theirstack-signature-256": tampered },
       }),
     );
     assert(
@@ -131,7 +131,7 @@ async function main() {
       new Request(`${endpoint}?user=00000000-0000-4000-8000-000000000001`, {
         method: "POST",
         body,
-        headers: { "x-theirstack-signature": sign(secret, body) },
+        headers: { "x-theirstack-signature-256": sign(secret, body) },
       }),
     );
     assert(
@@ -153,7 +153,9 @@ async function main() {
       new Request(`${endpoint}?user=00000000-0000-4000-8000-000000000001`, {
         method: "POST",
         body,
-        headers: { "x-theirstack-signature": `sha256=${sign(secret, body)}` },
+        headers: {
+          "x-theirstack-signature-256": `sha256=${sign(secret, body)}`,
+        },
       }),
     );
     assert(
@@ -186,7 +188,7 @@ async function main() {
       new Request(`${endpoint}?user=00000000-0000-4000-8000-000000000001`, {
         method: "POST",
         body,
-        headers: { "x-theirstack-signature": sign(secret, body) },
+        headers: { "x-theirstack-signature-256": sign(secret, body) },
       }),
     );
     assert(

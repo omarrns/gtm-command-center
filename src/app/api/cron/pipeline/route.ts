@@ -13,8 +13,19 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { start } from "workflow/api";
 import { pipelineWorkflow } from "@/lib/pipeline/workflow";
 import { createLogger, newRunId } from "@/lib/logger";
+import type { UserType } from "@/lib/supabase/types";
 
 export const maxDuration = 60;
+
+type StartWorkflow = typeof start;
+let startWorkflow: StartWorkflow = start;
+
+export function __setStartWorkflowForTests(fn: StartWorkflow | null) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Cannot override workflow start in production.");
+  }
+  startWorkflow = fn ?? start;
+}
 
 export async function GET(request: Request) {
   // The cron handler itself doesn't get a runId. It's a thin dispatch shell —
@@ -57,17 +68,46 @@ export async function GET(request: Request) {
     });
   }
 
-  log.info("dispatching workflows", { users: configs.length });
+  const configUserIds = configs.map(({ user_id }) => user_id);
+  const { data: profiles, error: profileError } = await svc
+    .from("profiles")
+    .select("user_id,user_type")
+    .in("user_id", configUserIds);
+
+  if (profileError) {
+    log.error("failed to load profile rows", profileError);
+    return Response.json(
+      { ok: false, error: profileError.message },
+      { status: 500 },
+    );
+  }
+
+  const userTypeById = new Map<string, UserType | null>(
+    (profiles ?? []).map((profile) => [
+      profile.user_id,
+      (profile.user_type ?? null) as UserType | null,
+    ]),
+  );
+  const dispatchConfigs = configs.filter(
+    ({ user_id }) => userTypeById.get(user_id) !== "gtm",
+  );
+  const skippedGtm = configs.length - dispatchConfigs.length;
+
+  log.info("dispatch filter", {
+    dispatched: dispatchConfigs.length,
+    skippedGtm,
+  });
+  log.info("dispatching workflows", { users: dispatchConfigs.length });
 
   // Fire-and-forget: start each user's workflow independently.
   // Each workflow runs with its own durability/retry — no shared timeout.
   // Each user gets a per-user runId so their logs can be correlated end-to-end.
   const runs: Array<{ userId: string; runId: string; error?: string }> = [];
 
-  for (const { user_id } of configs) {
+  for (const { user_id } of dispatchConfigs) {
     const userRunId = newRunId();
     try {
-      await start(pipelineWorkflow, [user_id, userRunId]);
+      await startWorkflow(pipelineWorkflow, [user_id, userRunId]);
       log.info("workflow dispatched", { userId: user_id, runId: userRunId });
       runs.push({ userId: user_id, runId: userRunId });
     } catch (err) {
@@ -83,5 +123,10 @@ export async function GET(request: Request) {
     }
   }
 
-  return Response.json({ ok: true, processed: configs.length, runs });
+  return Response.json({
+    ok: true,
+    processed: dispatchConfigs.length,
+    skippedGtm,
+    runs,
+  });
 }
