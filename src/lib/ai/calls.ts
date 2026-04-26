@@ -114,9 +114,28 @@ interface RunGenerateObjectArgs<S extends z.ZodType> {
   scope?: AiCallScope;
 }
 
+type GenerateObjectForTests = <S extends z.ZodType>(
+  args: RunGenerateObjectArgs<S>,
+) => Promise<z.infer<S>> | z.infer<S>;
+
+let generateObjectForTests: GenerateObjectForTests | null = null;
+
+export function __setRunGenerateObjectForTests(
+  fn: GenerateObjectForTests | null,
+) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Cannot override AI object generation in production.");
+  }
+  generateObjectForTests = fn;
+}
+
 export async function runGenerateObject<S extends z.ZodType>(
   args: RunGenerateObjectArgs<S>,
 ): Promise<z.infer<S>> {
+  if (generateObjectForTests) {
+    return generateObjectForTests(args);
+  }
+
   const start = Date.now();
   try {
     const result = await generateObject({
