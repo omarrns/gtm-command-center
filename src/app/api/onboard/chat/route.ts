@@ -160,8 +160,9 @@ async function handleAgenticTurn(
   }
 
   // Step 3: ask the next low-confidence dimension.
+  const dim = state.dimensions[next.key];
   const hypothesis =
-    state.dimensions[next.key]?.summary ??
+    dim?.summary ??
     "(no prior inference — artifacts yielded nothing for this dimension)";
 
   // ICP exemplar-scarcity guidance needs the positive count. Skipped for
@@ -177,6 +178,8 @@ async function handleAgenticTurn(
     nextDimension: next,
     currentHypothesis: hypothesis,
     positiveExemplarCount,
+    hypothesisValue: dim?.value,
+    hypothesisConfidence: dim?.confidence,
   });
 
   // Always push — askedDimensionKeys is a log of ask events, not a set.

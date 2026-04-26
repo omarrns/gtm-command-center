@@ -718,6 +718,316 @@ const ICP_FIXTURE_B: IcpEdits = {
   },
 };
 
+// ── C8: URL paste parsing ──────────────────────────────────────────────────
+//
+// Bug repro: a user pasted six bullet-prefixed URLs ("- https://...")
+// expecting six separate URL artifacts; got one text artifact instead.
+// Root cause was that parseUrlLikeBatch split on whitespace before
+// handling list markers, so "-" survived as its own token and killed
+// the batch. normalizeListLines runs first now to strip those.
+
+function unitTestUrlPasteParsing() {
+  console.log("\n=== C8: URL paste parsing ===");
+  const {
+    parseUrlLike,
+    parseUrlLikeBatch,
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+  } =
+    require("../src/lib/onboarding/url-paste") as typeof import("../src/lib/onboarding/url-paste");
+
+  const dashList = parseUrlLikeBatch(
+    "- https://a.com\n- https://b.com\n- https://c.com",
+  );
+  assert(
+    dashList?.length === 3 &&
+      dashList[0] === "https://a.com/" &&
+      dashList[2] === "https://c.com/",
+    "dash-prefixed bullet list returns all URLs",
+  );
+
+  const numbered = parseUrlLikeBatch("1. https://a.com\n2. https://b.com");
+  assert(
+    numbered?.length === 2 &&
+      numbered[0] === "https://a.com/" &&
+      numbered[1] === "https://b.com/",
+    "numbered list returns all URLs",
+  );
+
+  const starList = parseUrlLikeBatch("* https://a.com\n* https://b.com");
+  assert(
+    starList?.length === 2 && starList[1] === "https://b.com/",
+    "asterisk list returns all URLs",
+  );
+
+  const commaList = parseUrlLikeBatch("https://a.com, https://b.com");
+  assert(
+    commaList?.length === 2 && commaList[0] === "https://a.com/",
+    "comma-separated URLs (no bullets) still parse — regression guard",
+  );
+
+  const oneBad = parseUrlLikeBatch("- not a url\n- https://a.com");
+  assert(oneBad === null, "one bad token returns null (whole batch fails)");
+
+  const single = parseUrlLikeBatch("https://a.com");
+  assert(
+    single === null,
+    "single URL returns null from batch path — parseUrlLike handles it",
+  );
+
+  // The exact input from the original bug report.
+  const fireworks = parseUrlLikeBatch(
+    [
+      "- https://fireworks.ai/blog/vercel",
+      "- https://fireworks.ai/blog/genspark",
+      "- https://fireworks.ai/blog/Story-Notion",
+      "- https://fireworks.ai/blog/Story-Sentient",
+      "- https://fireworks.ai/blog/story-sourcegraph-code-generation",
+      "- https://fireworks.ai/blog/story-cresta-knowledge-assist",
+    ].join("\n"),
+  );
+  assert(
+    fireworks?.length === 6,
+    "the exact bug-report bullet list returns six URLs",
+  );
+
+  // Sanity check: parseUrlLike still works in isolation
+  assert(
+    parseUrlLike("https://a.com") === "https://a.com/",
+    "parseUrlLike normalizes a bare URL",
+  );
+}
+
+// ── C9: ICP prompt embeds structured hypothesis ────────────────────────────
+//
+// Bug repro: the orchestrator inferred a structured product value
+// (category, JTBD, wedge) but the interviewer prompt only saw
+// dim.summary. The chat route + interview-actions now pass dim.value
+// through, the icp-definition wrapper renders it, and the prompt embeds
+// it under "Structured value (...)" so the model can confirm/correct.
+
+function unitTestIcpPromptStructuredHypothesis() {
+  console.log("\n=== C9: ICP prompt embeds structured hypothesis ===");
+  if (!ICP_DEFINITION_TEMPLATE.agenticMode) {
+    throw new Error("expected agentic template");
+  }
+
+  const productDim = makeDim(
+    {
+      category: "AI inference platform",
+      core_jtbd: "Run open-source models in production",
+      wedge: "Fastest cold-start in the market",
+    },
+    0.45,
+    0.75,
+    "needs_question",
+  );
+
+  const prompt = ICP_DEFINITION_TEMPLATE.interviewerSystemPrompt({
+    isRefresh: false,
+    nextDimension: ICP_DEFINITION_TEMPLATE.dimensions.find(
+      (d) => d.key === "product",
+    )!,
+    currentHypothesis: "Fireworks looks like an AI inference platform.",
+    positiveExemplarCount: 4,
+    hypothesisValue: productDim.value,
+    hypothesisConfidence: productDim.confidence,
+  });
+
+  assert(
+    prompt.includes("AI inference platform"),
+    "prompt embeds inferred category",
+  );
+  assert(
+    prompt.includes("Run open-source models in production"),
+    "prompt embeds inferred core_jtbd",
+  );
+  assert(
+    prompt.includes("Fastest cold-start in the market"),
+    "prompt embeds inferred wedge",
+  );
+  assert(
+    prompt.includes("Confidence"),
+    "prompt surfaces confidence + threshold",
+  );
+  assert(
+    prompt.includes("confirm or correct"),
+    "prompt instructs model to confirm or correct (not ask cold)",
+  );
+  assert(
+    prompt.includes("Structured value"),
+    "prompt heads the structured-value block explicitly",
+  );
+}
+
+// ── C10: ICP prompt has no copyable example sentences ──────────────────────
+//
+// Bug repro: the prompt contained Example: "What's the JTBD your
+// product replaces, and what's the wedge in?" which the model copied
+// verbatim. Anti-regression: every Example: "..." string is gone, and
+// the specific failure-mode strings stay out.
+
+function unitTestIcpPromptHasNoExampleSentences() {
+  console.log("\n=== C10: ICP prompt has no copyable example sentences ===");
+  if (!ICP_DEFINITION_TEMPLATE.agenticMode) {
+    throw new Error("expected agentic template");
+  }
+
+  // Build prompts for both branches to make sure neither path leaks an
+  // example string. Branch A: structured hypothesis present.
+  const productDim = makeDim(
+    {
+      category: "AI inference platform",
+      core_jtbd: "X",
+      wedge: "Y",
+    },
+    0.45,
+    0.75,
+    "needs_question",
+  );
+  const productDimDef = ICP_DEFINITION_TEMPLATE.dimensions.find(
+    (d) => d.key === "product",
+  )!;
+
+  const promptWithHypothesis = ICP_DEFINITION_TEMPLATE.interviewerSystemPrompt({
+    isRefresh: false,
+    nextDimension: productDimDef,
+    currentHypothesis: "summary",
+    positiveExemplarCount: 4,
+    hypothesisValue: productDim.value,
+    hypothesisConfidence: productDim.confidence,
+  });
+
+  // Branch B: no hypothesis (zero positive exemplars, product dimension)
+  const promptWithoutHypothesis =
+    ICP_DEFINITION_TEMPLATE.interviewerSystemPrompt({
+      isRefresh: false,
+      nextDimension: productDimDef,
+      currentHypothesis: "summary",
+      positiveExemplarCount: 0,
+    });
+
+  for (const [label, prompt] of [
+    ["with hypothesis", promptWithHypothesis],
+    ["without hypothesis", promptWithoutHypothesis],
+  ] as const) {
+    assert(
+      !prompt.includes("Example:"),
+      `prompt (${label}) has no "Example:" sentence`,
+    );
+    assert(
+      !prompt.includes("What's the JTBD your product replaces"),
+      `prompt (${label}) does not contain the bug-report failure mode string`,
+    );
+    assert(
+      !prompt.includes("and what's the wedge in"),
+      `prompt (${label}) does not contain the wedge-template tail`,
+    );
+  }
+}
+
+// ── C11: hasMeaningfulHypothesisValue predicate ────────────────────────────
+//
+// Bug repro guardrail: if this predicate ever flips on a fully
+// defaulted firmographics object (because employee_range_max=10000 > 0
+// looks like a meaningful number), the prompt will spuriously offer
+// "confirm or correct" guidance over an empty rubric.
+
+function unitTestHasMeaningfulHypothesisValue() {
+  console.log("\n=== C11: hasMeaningfulHypothesisValue predicate ===");
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { hasMeaningfulHypothesisValue } =
+    require("../src/lib/onboarding/templates/icp-definition") as typeof import("../src/lib/onboarding/templates/icp-definition");
+
+  // Product
+  assert(
+    !hasMeaningfulHypothesisValue("product", {
+      category: "",
+      core_jtbd: "",
+      wedge: "",
+    }),
+    "all-empty product → false",
+  );
+  assert(
+    !hasMeaningfulHypothesisValue("product", {
+      category: "   ",
+      core_jtbd: "\n\t",
+      wedge: "",
+    }),
+    "whitespace-only product → false (.trim() rule)",
+  );
+  assert(
+    hasMeaningfulHypothesisValue("product", {
+      category: "AI inference",
+      core_jtbd: "",
+      wedge: "",
+    }),
+    "product with one filled field → true",
+  );
+
+  // Firmographics — the critical numeric-default case
+  assert(
+    !hasMeaningfulHypothesisValue("firmographics", {
+      industries: [],
+      employee_range_min: 0,
+      employee_range_max: 10000,
+      stages: [],
+      geographies: [],
+    }),
+    "fully defaulted firmographics → false (defaults must not look meaningful)",
+  );
+  assert(
+    hasMeaningfulHypothesisValue("firmographics", {
+      industries: [],
+      employee_range_min: 50,
+      employee_range_max: 500,
+      stages: [],
+      geographies: [],
+    }),
+    "firmographics with non-default range → true",
+  );
+  assert(
+    hasMeaningfulHypothesisValue("firmographics", {
+      industries: ["devtools"],
+      employee_range_min: 0,
+      employee_range_max: 10000,
+      stages: [],
+      geographies: [],
+    }),
+    "firmographics with default range but one industry → true",
+  );
+
+  // Disqualifiers
+  assert(
+    !hasMeaningfulHypothesisValue("disqualifiers", []),
+    "empty disqualifiers → false",
+  );
+  assert(
+    hasMeaningfulHypothesisValue("disqualifiers", ["pre-seed companies"]),
+    "disqualifiers with one entry → true",
+  );
+
+  // Arrays of blank strings — would-be false positive guard
+  assert(
+    !hasMeaningfulHypothesisValue("disqualifiers", [""]),
+    'disqualifiers [""] → false (blank entry doesn\'t count)',
+  );
+  assert(
+    !hasMeaningfulHypothesisValue("disqualifiers", ["", "  ", "\n"]),
+    "disqualifiers of all-whitespace strings → false",
+  );
+  assert(
+    !hasMeaningfulHypothesisValue("firmographics", {
+      industries: ["", "  "],
+      employee_range_min: 0,
+      employee_range_max: 10000,
+      stages: [""],
+      geographies: [],
+    }),
+    "firmographics with only blank-string array entries + default range → false",
+  );
+}
+
 async function resolveUserId(email: string): Promise<string | null> {
   const { data } = await supabase
     .from("profiles")
@@ -1024,6 +1334,10 @@ async function main() {
   unitTestNextDimensionToAsk();
   unitTestAdapterCoercion();
   unitTestDisagreements();
+  unitTestUrlPasteParsing();
+  unitTestIcpPromptStructuredHypothesis();
+  unitTestIcpPromptHasNoExampleSentences();
+  unitTestHasMeaningfulHypothesisValue();
 
   const userId =
     process.env.SEED_USER_ID ?? (await resolveUserId("omarns059@gmail.com"));
