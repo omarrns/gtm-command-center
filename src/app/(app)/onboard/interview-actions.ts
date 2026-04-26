@@ -331,12 +331,15 @@ export async function startAgenticInterviewAction(
       ? await loadPositiveExemplarCount(svc, interviewId)
       : undefined;
 
+  const dim = state.dimensions[next.key];
   const systemPrompt = template.interviewerSystemPrompt({
     isRefresh: interview.is_refresh,
     existingProfile,
     nextDimension: next,
-    currentHypothesis: state.dimensions[next.key]?.summary ?? "",
+    currentHypothesis: dim?.summary ?? "",
     positiveExemplarCount,
+    hypothesisValue: dim?.value,
+    hypothesisConfidence: dim?.confidence,
   });
 
   const text = await runClaudeText({

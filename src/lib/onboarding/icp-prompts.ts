@@ -78,34 +78,55 @@ export interface IcpInterviewerContext {
   nextDimension: Dimension;
   currentHypothesis: string;
   positiveExemplarCount: number;
+  // Pre-rendered markdown of the orchestrator's structured guess for
+  // this dimension. The ICP template wrapper renders this from
+  // OrchestratorDimension.value before calling the prompt builder
+  // (avoids an import cycle into icp-definition.ts). When present, the
+  // interviewer's job changes from "ask cold" to "confirm or correct".
+  renderedHypothesisBlock?: string;
+  hypothesisConfidence?: number;
 }
 
 export function buildIcpInterviewerSystemPrompt(
   ctx: IcpInterviewerContext,
 ): string {
-  const { nextDimension, currentHypothesis, positiveExemplarCount } = ctx;
+  const {
+    nextDimension,
+    currentHypothesis,
+    positiveExemplarCount,
+    renderedHypothesisBlock,
+    hypothesisConfidence,
+  } = ctx;
 
-  // Exemplar scarcity changes what's worth asking. The interviewer
-  // behaves differently depending on whether the orchestrator has
-  // enough exemplars to pattern-match against. Audit finding 7:
-  // product + buyer are grounded in company_context / buyer_persona
-  // artifacts, NOT positive_example artifacts — they're askable even
-  // at zero positive exemplars.
+  const hasHypothesis = Boolean(renderedHypothesisBlock);
+
+  // Branch on hypothesis presence first, exemplar count second. With a
+  // hypothesis to react to, the interviewer's job is confirm-or-correct
+  // regardless of exemplar count. Without one, exemplar count + dimension
+  // type pick which "ask cold" recipe applies. Bug-fix history: this
+  // section used to embed Example: "..." sentences that the model
+  // copied verbatim — every branch is now behavioral instruction only.
   const dimensionIsExemplarDerived =
     nextDimension.key !== "product" && nextDimension.key !== "buyer";
 
-  const scarcityGuidance =
-    positiveExemplarCount >= 3
-      ? `You have ${positiveExemplarCount} positive exemplars to pattern-match against. Ask a SHARPENING question: surface the pattern the orchestrator found and ask whether it matches the user's intent. Example: "4 of your 5 exemplars are Series A-B — are you open to Series C, or is A-B the real shape?"`
-      : positiveExemplarCount > 0
-        ? `You only have ${positiveExemplarCount} positive exemplar(s). Do NOT treat this as a pattern. ${
-            dimensionIsExemplarDerived
-              ? 'Your question should probe whether this exemplar is REPRESENTATIVE or OUTLIER, OR ask the user for 2-3 more by name. Example: "Your one example is [attributes]. Would you add 2-3 more so I can see whether that\'s the pattern or a one-off?"'
-              : "This dimension (product/buyer) is grounded in company_context or buyer_persona, not positive exemplars. Ask the substantive question for this dimension directly."
-          }`
-        : dimensionIsExemplarDerived
-          ? `You have zero positive exemplars and this dimension (${nextDimension.key}) is pattern-extracted from positives. Do NOT ask an abstract ICP question — instead ask the user to name 2-3 customers they'd want more of so the orchestrator can work backwards. Example: "Before we narrow ${nextDimension.label.toLowerCase()}, name 2-3 customers you'd want more of — they'll teach me more than abstract criteria will."`
-          : `You have zero positive exemplars BUT this dimension (${nextDimension.key}) is grounded in company_context or buyer_persona, not positives. Ask the substantive question for this dimension directly — exemplars aren't required for it. Example for product: "What's the JTBD your product replaces, and what's the wedge in?"`;
+  let scarcityGuidance: string;
+  if (hasHypothesis) {
+    scarcityGuidance = `The orchestrator has a structured guess for this dimension (shown above). Your job is to surface that guess and ask the user to confirm or correct ONE specific field — not to re-ask the dimension from scratch. Pick the field where the confidence is weakest or the inference is most likely to be wrong, name it, and ask whether it's right. If the structured guess names specific customers, tools, or roles, anchor your question on those. Do not ask an open-ended "what is your X" question when you already have an inference to validate.`;
+  } else if (positiveExemplarCount >= 3) {
+    scarcityGuidance = `You have ${positiveExemplarCount} positive exemplars to pattern-match against, but no structured value for this dimension yet. Ask a SHARPENING question: surface the pattern across the exemplars and ask whether it matches the user's intent. Name what specific attribute you're testing.`;
+  } else if (positiveExemplarCount > 0) {
+    scarcityGuidance = dimensionIsExemplarDerived
+      ? `You only have ${positiveExemplarCount} positive exemplar(s) — that's evidence, not a pattern. Probe whether the one exemplar is REPRESENTATIVE or an OUTLIER, OR ask the user to name 2-3 more so a pattern can emerge.`
+      : `You only have ${positiveExemplarCount} positive exemplar(s), but this dimension (${nextDimension.key}) is grounded in company_context or buyer_persona, not positive exemplars. Ask the substantive question for this dimension directly.`;
+  } else if (dimensionIsExemplarDerived) {
+    scarcityGuidance = `You have zero positive exemplars and this dimension (${nextDimension.key}) is pattern-extracted from positives. Do NOT ask an abstract ICP question — instead ask the user to name 2-3 customers they'd want more of so the orchestrator can work backwards.`;
+  } else {
+    scarcityGuidance = `You have zero positive exemplars BUT this dimension (${nextDimension.key}) is grounded in company_context or buyer_persona, not positives. Ask the substantive question for this dimension directly — exemplars aren't required for it.`;
+  }
+
+  const hypothesisBlock = hasHypothesis
+    ? `Summary: ${currentHypothesis}\nConfidence: ${formatConfidence(hypothesisConfidence)} (threshold ${nextDimension.confidenceThreshold.toFixed(2)})\n\nStructured value (this is what the orchestrator inferred from artifacts — confirm or correct it):\n${renderedHypothesisBlock}`
+    : `Summary: ${currentHypothesis}\nConfidence: ${formatConfidence(hypothesisConfidence)} (threshold ${nextDimension.confidenceThreshold.toFixed(2)})\n\n(no structured inference — artifacts yielded nothing concrete for this dimension)`;
 
   const refreshNote = ctx.isRefresh
     ? `\n\n## Refresh mode\nThe user has previously confirmed an ICP. Existing rubric for context:\n\n${ctx.existingProfile ?? "(none)"}\n\nDon't re-ask what's already settled; probe for what's changed (new customer patterns, new disqualifiers, new signals).`
@@ -119,9 +140,9 @@ export function buildIcpInterviewerSystemPrompt(
 - **Description**: ${nextDimension.description}
 
 ## Orchestrator's current hypothesis
-${currentHypothesis}
+${hypothesisBlock}
 
-## Exemplar-count guidance
+## What to ask
 ${scarcityGuidance}
 
 ## General rules
@@ -134,4 +155,9 @@ ${scarcityGuidance}
 ## Tone and length
 
 ONE sentence. Drop straight into the question — no setup, no framing, no preamble. Slack-message energy: casual, direct, zero jargon. No "Great!", no "Based on what I'm seeing...", no "I notice that...". If you catch yourself summarizing before asking, delete the summary.${refreshNote}`;
+}
+
+function formatConfidence(value: number | undefined): string {
+  if (typeof value !== "number" || Number.isNaN(value)) return "unknown";
+  return value.toFixed(2);
 }

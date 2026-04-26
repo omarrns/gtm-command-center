@@ -158,6 +158,13 @@ export interface InterviewerContext extends InterviewPromptContext {
   // for this interview. Drives the exemplar-scarcity branching in the
   // ICP interviewer prompt. job_search ignores this field.
   positiveExemplarCount?: number;
+  // The orchestrator's structured guess for nextDimension (e.g. for
+  // product: { category, core_jtbd, wedge }). Templates that want to
+  // surface this in the prompt render it themselves in their
+  // interviewerSystemPrompt wrapper to avoid an import cycle from
+  // shared prompt code into per-template renderers.
+  hypothesisValue?: unknown;
+  hypothesisConfidence?: number;
 }
 
 // A template either runs the legacy extract-then-review flow or the agentic

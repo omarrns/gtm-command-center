@@ -25,6 +25,7 @@ import {
   defaultTextKind,
   detectKindFromUrl,
 } from "@/lib/onboarding/templates/artifact-kind";
+import { parseUrlLike, parseUrlLikeBatch } from "@/lib/onboarding/url-paste";
 
 interface ArtifactResponse {
   artifact: OnboardingArtifactRow;
@@ -80,38 +81,6 @@ type ArtifactListItem = Pick<
   | "status"
   | "error_message"
 >;
-
-// Accepts `https://linkedin.com/in/foo`, `linkedin.com/in/foo`, and
-// `www.linkedin.com/in/foo`. Returns the normalized URL or null for things
-// that should be treated as pasted text (multi-word resume snippets, etc.).
-function parseUrlLike(value: string): string | null {
-  const v = value.trim();
-  if (!v || /\s/.test(v) || v.length > 500) return null;
-  const candidate = /^https?:\/\//i.test(v) ? v : `https://${v}`;
-  try {
-    const u = new URL(candidate);
-    if (!u.hostname.includes(".")) return null;
-    return u.toString();
-  } catch {
-    return null;
-  }
-}
-
-// Splits the input on whitespace/commas and runs each token through
-// parseUrlLike. Returns the normalized URL list only when every token is a
-// URL AND there are at least two — so single URLs fall to parseUrlLike and
-// mixed text + URL pastes still land as text.
-function parseUrlLikeBatch(value: string): string[] | null {
-  const tokens = value.split(/[\s,]+/).filter(Boolean);
-  if (tokens.length < 2) return null;
-  const urls: string[] = [];
-  for (const token of tokens) {
-    const url = parseUrlLike(token);
-    if (!url) return null;
-    urls.push(url);
-  }
-  return urls;
-}
 
 // Kind resolution for URLs / text / files is driven by the template's
 // ArtifactKindContract (see @/lib/onboarding/templates/artifact-kind).
