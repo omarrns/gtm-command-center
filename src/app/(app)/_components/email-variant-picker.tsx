@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import { Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import type { EmailDraftRow } from "@/lib/supabase/types";
 import { editDraftAction } from "../actions";
 
@@ -58,7 +58,7 @@ export function EmailVariantPicker({
         const showActions = !readOnly && !isEditing;
 
         return (
-          <div key={draft.id} className={cn("surface-muted p-3")}>
+          <Card key={draft.id} className="bg-muted gap-2 p-3">
             {showActions && (
               <div className="flex items-center justify-end gap-1 mb-2">
                 <Button
@@ -116,7 +116,7 @@ export function EmailVariantPicker({
                 </div>
               </>
             )}
-          </div>
+          </Card>
         );
       })}
     </div>

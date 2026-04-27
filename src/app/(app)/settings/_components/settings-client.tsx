@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FadeIn } from "@/components/ui/fade-in";
 import { ExternalLink, UserPen } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type { UserScoringProfileRow, UserType } from "@/lib/supabase/types";
 import { SettingsGmailPanel } from "./settings-gmail-panel";
 import { SettingsSearchPanel } from "./settings-search-panel";
@@ -56,7 +57,7 @@ export function SettingsClient({
         </div>
       )}
 
-      <section className="surface p-5 space-y-3">
+      <Card className="gap-3 p-5">
         <div className="flex items-center gap-2">
           <UserPen size={16} />
           <h2 className="text-sm font-semibold">{profileTitle}</h2>
@@ -71,7 +72,7 @@ export function SettingsClient({
           <ExternalLink size={13} />
           {profileLinkLabel}
         </Link>
-      </section>
+      </Card>
 
       {!isGtm && (
         <>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { Card } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
 
 export const metadata = {
@@ -20,7 +21,7 @@ export default async function LoginPage({
 
   return (
     <div className="w-full max-w-md">
-      <div className="surface p-8 shadow-sm">
+      <Card className="gap-0 p-8 shadow-sm">
         <div className="mb-8">
           <div className="text-xs uppercase tracking-[0.18em] text-[var(--color-text-subtle)] mb-2">
             GTM Command Center
@@ -33,7 +34,7 @@ export default async function LoginPage({
           </p>
         </div>
         <LoginForm next={next} error={error} />
-      </div>
+      </Card>
     </div>
   );
 }

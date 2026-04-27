@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { ScorecardPanel } from "../scorecard-panel";
 import { RequirementTable } from "../requirement-table";
 import { FlagCallout } from "../flag-callout";
@@ -35,14 +36,14 @@ export function StandardAnalysisView({ result }: { result: Obj }) {
   return (
     <div className="space-y-6">
       {bottomLine && (
-        <div className="surface-muted p-5 border-l-3 border-[var(--color-blue)]">
-          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5">
+        <Card className="bg-muted gap-1.5 p-5 border-l-3 border-[var(--color-blue)]">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
             Bottom Line
           </div>
           <div className="text-sm leading-relaxed max-w-prose">
             {bottomLine}
           </div>
-        </div>
+        </Card>
       )}
 
       {jdScorecard && jdTotal !== null && jdVerdict && (
@@ -122,8 +123,8 @@ export function StandardAnalysisView({ result }: { result: Obj }) {
       {renderIf(
         companyOverview,
         companyOverview && (
-          <div className="surface p-5">
-            <h3 className="text-sm font-semibold mb-3">Company Overview</h3>
+          <Card className="gap-3 p-5">
+            <h3 className="text-sm font-semibold">Company Overview</h3>
             <div className="space-y-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
               <p>
                 <strong>What they do:</strong>{" "}
@@ -138,15 +139,15 @@ export function StandardAnalysisView({ result }: { result: Obj }) {
                 {String(companyOverview.gtm_motion ?? "")}
               </p>
             </div>
-          </div>
+          </Card>
         ),
       )}
 
       {renderIf(
         outreachAngle,
         outreachAngle && (
-          <div className="surface p-5">
-            <h3 className="text-sm font-semibold mb-3">Outreach Angle</h3>
+          <Card className="gap-3 p-5">
+            <h3 className="text-sm font-semibold">Outreach Angle</h3>
             <div className="space-y-2 text-xs leading-relaxed">
               <p>
                 <strong>Hook:</strong> {String(outreachAngle.hook ?? "")}
@@ -158,13 +159,13 @@ export function StandardAnalysisView({ result }: { result: Obj }) {
                 <strong>Ask:</strong> {String(outreachAngle.ask ?? "")}
               </p>
             </div>
-          </div>
+          </Card>
         ),
       )}
 
       {positioning && positioning.length > 0 && (
-        <div className="surface p-5">
-          <h3 className="text-sm font-semibold mb-3">
+        <Card className="gap-3 p-5">
+          <h3 className="text-sm font-semibold">
             Positioning Recommendations
           </h3>
           <ul className="space-y-2">
@@ -180,7 +181,7 @@ export function StandardAnalysisView({ result }: { result: Obj }) {
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       )}
     </div>
   );

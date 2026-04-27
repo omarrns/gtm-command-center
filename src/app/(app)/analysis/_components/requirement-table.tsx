@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 interface RequirementMatch {
   requirement: string;
@@ -9,7 +10,7 @@ interface RequirementMatch {
 
 export function RequirementTable({ matches }: { matches: RequirementMatch[] }) {
   return (
-    <div className="surface overflow-hidden">
+    <Card className="gap-0 py-0">
       <div className="px-5 py-3 border-b border-[var(--color-border)]">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           Requirement Matches ({matches.length})
@@ -48,6 +49,6 @@ export function RequirementTable({ matches }: { matches: RequirementMatch[] }) {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

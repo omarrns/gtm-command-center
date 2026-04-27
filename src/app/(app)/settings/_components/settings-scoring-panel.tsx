@@ -5,6 +5,7 @@ import { Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { updateScoringWeightsAction } from "../actions";
 import type { UserScoringProfileRow } from "@/lib/supabase/types";
 
@@ -75,7 +76,7 @@ export function SettingsScoringPanel({
   }
 
   return (
-    <section className="surface p-5 space-y-5">
+    <Card className="gap-5 p-5">
       <div className="flex items-center gap-2">
         <SlidersHorizontal size={16} />
         <h2 className="text-sm font-semibold">Scoring Profile</h2>
@@ -147,7 +148,7 @@ export function SettingsScoringPanel({
         <Save size={14} />
         {isSavingWeights ? "Saving..." : "Save Weights"}
       </Button>
-    </section>
+    </Card>
   );
 }
 

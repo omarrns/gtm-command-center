@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import {
   sentTodayColor,
   scoreAvgColor,
@@ -18,7 +19,7 @@ export function TodayMetricsRow({
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div className="surface px-3 py-2.5">
+        <Card className="gap-0 px-3 py-2.5">
           <p className="text-xs text-[var(--color-text-subtle)]">Reply Rate</p>
           <p className="text-lg font-semibold tabular-nums">
             {metrics.replyRate != null ? (
@@ -32,8 +33,8 @@ export function TodayMetricsRow({
               <span className="text-[var(--color-text-subtle)]">—</span>
             )}
           </p>
-        </div>
-        <div className="surface px-3 py-2.5">
+        </Card>
+        <Card className="gap-0 px-3 py-2.5">
           <p className="text-xs text-[var(--color-text-subtle)]">Sent Today</p>
           <p className="text-lg font-semibold tabular-nums">
             <span
@@ -45,16 +46,16 @@ export function TodayMetricsRow({
               / {metrics.dailyCap}
             </span>
           </p>
-        </div>
-        <div className="surface-muted px-3 py-2.5">
+        </Card>
+        <Card className="bg-muted gap-0 px-3 py-2.5">
           <p className="text-xs text-[var(--color-text-subtle)]">
             Sent This Week
           </p>
           <p className="text-lg font-semibold tabular-nums">
             {metrics.sentThisWeek}
           </p>
-        </div>
-        <div className="surface-muted px-3 py-2.5">
+        </Card>
+        <Card className="bg-muted gap-0 px-3 py-2.5">
           <p className="text-xs text-[var(--color-text-subtle)]">Avg Score</p>
           <p className="text-lg font-semibold tabular-nums">
             {metrics.avgScore != null ? (
@@ -65,7 +66,7 @@ export function TodayMetricsRow({
               <span className="text-[var(--color-text-subtle)]">—</span>
             )}
           </p>
-        </div>
+        </Card>
       </div>
 
       {metrics.funnel.length > 0 && (

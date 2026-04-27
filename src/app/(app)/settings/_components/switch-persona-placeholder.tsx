@@ -6,6 +6,7 @@
 import { Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { UserType } from "@/lib/supabase/types";
 
 const PERSONA_LABEL: Record<"job_seeker" | "gtm", string> = {
@@ -22,7 +23,7 @@ export function SwitchPersonaPlaceholder({
 }: SwitchPersonaPlaceholderProps) {
   const personaLabel = userType ? PERSONA_LABEL[userType] : "Not set";
   return (
-    <section className="surface p-5 space-y-3">
+    <Card className="gap-3 p-5">
       <div className="flex items-center gap-2">
         <Users size={16} />
         <h2 className="text-sm font-semibold">Persona</h2>
@@ -35,6 +36,6 @@ export function SwitchPersonaPlaceholder({
           destructive reset ships in a follow-up release.
         </AlertDescription>
       </Alert>
-    </section>
+    </Card>
   );
 }

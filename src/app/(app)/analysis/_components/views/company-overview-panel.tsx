@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import type { Obj } from "../result-guards";
 
 export function CompanyOverviewPanel({ result }: { result: Obj }) {
@@ -9,8 +10,8 @@ export function CompanyOverviewPanel({ result }: { result: Obj }) {
   if (!whatTheyDo && !stageAndFunding && !gtmMotion) return null;
 
   return (
-    <div className="surface p-5">
-      <h3 className="text-sm font-semibold mb-3">Company Overview</h3>
+    <Card className="gap-3 p-5">
+      <h3 className="text-sm font-semibold">Company Overview</h3>
       <div className="space-y-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
         {whatTheyDo && (
           <p>
@@ -33,6 +34,6 @@ export function CompanyOverviewPanel({ result }: { result: Obj }) {
           </p>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

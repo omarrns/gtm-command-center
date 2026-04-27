@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -12,9 +13,9 @@ interface ResultCardSkeletonProps {
 
 export function ResultCardSkeleton({ className }: ResultCardSkeletonProps) {
   return (
-    <div
+    <Card
       aria-hidden="true"
-      className={cn("surface flex items-start gap-4 p-4 sm:p-5", className)}
+      className={cn("flex-row items-start gap-4 p-4 sm:p-5", className)}
     >
       <div className="min-w-0 flex-1 space-y-2.5">
         <div className="flex items-center gap-2">
@@ -28,6 +29,6 @@ export function ResultCardSkeleton({ className }: ResultCardSkeletonProps) {
         </div>
       </div>
       <Skeleton className="h-7 w-11 rounded-md shrink-0" />
-    </div>
+    </Card>
   );
 }

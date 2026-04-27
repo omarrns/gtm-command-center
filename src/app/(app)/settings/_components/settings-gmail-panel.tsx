@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { Mail, MailX, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { disconnectGmailAction } from "../actions";
 
 interface SettingsGmailPanelProps {
@@ -29,7 +30,7 @@ export function SettingsGmailPanel({
   }
 
   return (
-    <section className="surface p-5 space-y-4">
+    <Card className="gap-4 p-5">
       <div className="flex items-center gap-2">
         <Mail size={16} />
         <h2 className="text-sm font-semibold">Gmail Integration</h2>
@@ -68,6 +69,6 @@ export function SettingsGmailPanel({
           </a>
         </div>
       )}
-    </section>
+    </Card>
   );
 }

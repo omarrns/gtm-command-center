@@ -1,4 +1,5 @@
 import { Badge, type badgeVariants } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { VariantProps } from "class-variance-authority";
 
@@ -52,8 +53,8 @@ export function ScorecardPanel({
   verdict,
 }: ScorecardProps) {
   return (
-    <div className="surface p-6">
-      <div className="flex items-center justify-between mb-5">
+    <Card className="gap-5 p-6">
+      <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           Scorecard
         </h3>
@@ -93,6 +94,6 @@ export function ScorecardPanel({
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

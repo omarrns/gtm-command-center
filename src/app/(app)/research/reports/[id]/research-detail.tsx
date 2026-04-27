@@ -8,6 +8,7 @@ import { formatRelativeTime } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { DetailHeader } from "@/components/detail-header";
 import type { ResearchReportRow } from "@/lib/supabase/types";
 
@@ -94,39 +95,39 @@ export function ResearchDetail({
         result.imported === true &&
         typeof result.raw_markdown === "string" && (
           <div className="space-y-6">
-            <div className="surface p-6">
+            <Card className="p-6">
               <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)]">
                 {String(result.raw_markdown)}
               </pre>
-            </div>
+            </Card>
           </div>
         )}
 
       {result && result.imported !== true && (
         <div className="space-y-6">
           {typeof result.bottom_line === "string" ? (
-            <div className="surface-muted p-5 border-l-3 border-[var(--color-blue)]">
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5">
+            <Card className="bg-muted gap-1.5 p-5 border-l-3 border-[var(--color-blue)]">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Bottom Line
               </div>
               <div className="text-sm leading-relaxed max-w-prose">
                 {result.bottom_line}
               </div>
-            </div>
+            </Card>
           ) : null}
 
           {ceo ? <PersonCard label="CEO / Founder" person={ceo} /> : null}
           {hm ? <PersonCard label="Hiring Manager" person={hm} /> : null}
 
           {typeof result.recommended_first_contact === "string" ? (
-            <div className="surface p-5">
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5">
+            <Card className="gap-1.5 p-5">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Recommended First Contact
               </div>
               <div className="text-sm font-medium capitalize">
                 {result.recommended_first_contact}
               </div>
-            </div>
+            </Card>
           ) : null}
         </div>
       )}
@@ -143,20 +144,20 @@ function PersonCard({
 }) {
   if (!person.identified) {
     return (
-      <div className="surface p-5">
-        <h3 className="text-sm font-semibold mb-2">{label}</h3>
+      <Card className="gap-2 p-5">
+        <h3 className="text-sm font-semibold">{label}</h3>
         <p className="text-xs text-[var(--color-text-muted)]">
           Not identified with sufficient confidence.
         </p>
         <Badge variant="warning" className="mt-2">
           {person.confidence}
         </Badge>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="surface p-5">
+    <Card className="gap-0 p-5">
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="text-sm font-semibold">{label}</h3>
@@ -262,6 +263,6 @@ function PersonCard({
           </ul>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

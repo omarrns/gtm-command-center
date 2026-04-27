@@ -5,6 +5,13 @@ import { Search, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import { FadeIn } from "@/components/ui/fade-in";
 import { MOCK_CALLS } from "@/lib/calls/data";
@@ -134,18 +141,26 @@ export function CallsClient() {
             className="pl-8 h-8 text-sm"
           />
         </div>
-        <select
-          value={outcomeFilter}
-          onChange={(e) => setOutcomeFilter(e.target.value as CallOutcome | "")}
-          className="h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-blue)]"
+        <Select
+          value={outcomeFilter || "all"}
+          onValueChange={(value) =>
+            setOutcomeFilter(
+              !value || value === "all" ? "" : (value as CallOutcome),
+            )
+          }
         >
-          <option value="">All Stages</option>
-          {OUTCOMES.map((o) => (
-            <option key={o} value={o}>
-              {OUTCOME_LABEL[o]}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger size="sm" className="text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Stages</SelectItem>
+            {OUTCOMES.map((o) => (
+              <SelectItem key={o} value={o}>
+                {OUTCOME_LABEL[o]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="relative h-8 mb-3">

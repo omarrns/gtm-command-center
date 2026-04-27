@@ -305,6 +305,8 @@ The streaming chat route still serves both modes — agentic templates get a `sy
 ### Shared UI Patterns
 
 - **UI primitives live in `src/components/ui/`.** Use `<Button>`, `<Input>`, `<Textarea>`, `<Badge>`, `<Alert>` — never `className="btn-primary"`, `className="input"`, `className="badge"`, or hand-rolled banners. For anchors and `next/link` that need button styling, use `buttonVariants()` from `@/components/ui/button`.
+- **Surfaces use `<Card>` from `src/components/ui/card.tsx`.** The `surface` / `surface-muted` utilities in `globals.css` are deprecated — do not add new call sites. For a muted variant, use `<Card className="bg-muted ...">`.
+- `QueueFilterBar` (`src/app/(app)/_components/queue-filter-bar.tsx`) owns Min/Max Score + Company search. Pass a `leftSlot` for stage / window / tier controls. Optional `onApply` switches to server-roundtrip mode (form submit + Apply button); omit it for live client-side filtering.
 - `PageHeader` on every list page. `DetailHeader` on every detail page. `EmptyState` for zero items. `<Alert>` (with optional `<RefreshCw className="animate-spin">` for running states) for status banners.
 - `command-palette.tsx` and `sidebar-nav.tsx` are **intentionally custom** — they own spring motion, LayoutGroup active-pill, and ⌘K / ⌘B shortcuts. Do not swap them for shadcn `command` / `sidebar` without an explicit ask.
 - Background jobs: server action enqueues → client polls via `useJobPoll(jobId)` → `router.refresh()` on completion.

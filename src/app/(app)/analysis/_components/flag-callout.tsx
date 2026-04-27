@@ -1,4 +1,5 @@
 import { Badge, type badgeVariants } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { VariantProps } from "class-variance-authority";
 
 type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
@@ -24,8 +25,8 @@ const FLAG_LABELS: Record<string, string> = {
 
 export function FlagCallout({ flags }: { flags: Flags }) {
   return (
-    <div className="surface p-5">
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
+    <Card className="gap-3 p-5">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
         Flags
       </h3>
       <div className="space-y-2.5">
@@ -81,6 +82,6 @@ export function FlagCallout({ flags }: { flags: Flags }) {
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
