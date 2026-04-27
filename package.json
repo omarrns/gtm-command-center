@@ -61,6 +61,7 @@
     "embla-carousel-react": "^8.6.0",
     "google-auth-library": "^10.6.2",
     "googleapis": "^171.4.0",
+    "jose": "^6.2.3",
     "lucide-react": "^1.8.0",
     "media-chrome": "^4.19.0",
     "motion": "^12.38.0",
