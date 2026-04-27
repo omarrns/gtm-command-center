@@ -14,10 +14,11 @@ import { gtmAccountResearchSchema } from "@/lib/pipeline/steps/research-account"
 import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
 import { createLogger } from "@/lib/logger";
 import {
-  AccountCard,
+  type AccountCardProps,
   type AccountResearchSummary,
 } from "../_components/account-card";
 import { FadeIn } from "@/components/ui/fade-in";
+import { AccountsList } from "./_components/accounts-list";
 import type { Contact } from "@/components/contact-panel";
 
 // GTM-only queue of accounts the pipeline promoted for the user. Rows
@@ -166,107 +167,90 @@ export default async function AccountsPage() {
     );
   }
 
+  const cards: AccountCardProps[] = opps.map((o) => {
+    const triggers = (o.trigger_signals ?? [])[0] as
+      | Record<string, unknown>
+      | undefined;
+    const components = (o.score_components ?? {}) as Record<string, unknown>;
+
+    const tier =
+      typeof components.tier === "string" &&
+      ["A", "B", "C"].includes(components.tier)
+        ? (components.tier as "A" | "B" | "C")
+        : "C";
+    const verdict =
+      components.verdict === "Pursue" ||
+      components.verdict === "Worth exploring" ||
+      components.verdict === "Skip"
+        ? components.verdict
+        : "Worth exploring";
+
+    const reason = o.analysis_id ? (reasonById.get(o.analysis_id) ?? "") : "";
+    const research = o.research_id ? researchById.get(o.research_id) : undefined;
+    const candidates: Contact[] = [
+      {
+        role: "primary",
+        name: o.recipient_name,
+        title: o.recipient_title,
+        email: o.recipient_email,
+        linkedinUrl: o.recipient_linkedin_url,
+        xUrl: o.recipient_x_url,
+        pictureUrl: o.recipient_picture_url,
+        location: o.recipient_location,
+        matchReasons: o.recipient_match_reasons,
+      },
+      {
+        role: "alternate",
+        name: o.alt_recipient_name,
+        title: o.alt_recipient_title,
+        email: o.alt_recipient_email,
+        linkedinUrl: o.alt_recipient_linkedin_url,
+        xUrl: o.alt_recipient_x_url,
+        pictureUrl: o.alt_recipient_picture_url,
+        location: o.alt_recipient_location,
+        matchReasons: o.alt_recipient_match_reasons,
+      },
+    ];
+    const contacts = candidates.filter((c) => !!c.name);
+
+    return {
+      opportunityId: o.id,
+      canSkip: SKIPPABLE_STAGES.includes(o.stage as OpportunityStage),
+      companyName: o.company_name,
+      companyDomain: o.company_domain,
+      roleTitle: o.role_title,
+      score: o.score ?? 0,
+      stage: o.stage as OpportunityStage,
+      tier,
+      verdict,
+      reasonToBelieve: reason,
+      fundingStage:
+        typeof triggers?.funding_stage === "string"
+          ? triggers.funding_stage
+          : null,
+      employeeCount:
+        typeof triggers?.employee_count === "number"
+          ? triggers.employee_count
+          : null,
+      industry:
+        typeof triggers?.industry === "string" ? triggers.industry : null,
+      discoveredAt: o.discovered_at,
+      source: o.source as Extract<
+        OpportunitySource,
+        "theirstack" | "exa-dormant"
+      >,
+      contacts,
+      research,
+    };
+  });
+
   return (
     <FadeIn className="space-y-6">
       <PageHeader
         title="Accounts"
         description={`${opps.length} promoted ${opps.length === 1 ? "account" : "accounts"}, highest-scoring first.`}
       />
-      <div className="space-y-2">
-        {opps.map((o) => {
-          const triggers = (o.trigger_signals ?? [])[0] as
-            | Record<string, unknown>
-            | undefined;
-          const components = (o.score_components ?? {}) as Record<
-            string,
-            unknown
-          >;
-
-          const tier =
-            typeof components.tier === "string" &&
-            ["A", "B", "C"].includes(components.tier)
-              ? (components.tier as "A" | "B" | "C")
-              : "C";
-          const verdict =
-            components.verdict === "Pursue" ||
-            components.verdict === "Worth exploring" ||
-            components.verdict === "Skip"
-              ? components.verdict
-              : "Worth exploring";
-
-          const reason = o.analysis_id
-            ? (reasonById.get(o.analysis_id) ?? "")
-            : "";
-          const research = o.research_id
-            ? researchById.get(o.research_id)
-            : undefined;
-          const candidates: Contact[] = [
-            {
-              role: "primary",
-              name: o.recipient_name,
-              title: o.recipient_title,
-              email: o.recipient_email,
-              linkedinUrl: o.recipient_linkedin_url,
-              xUrl: o.recipient_x_url,
-              pictureUrl: o.recipient_picture_url,
-              location: o.recipient_location,
-              matchReasons: o.recipient_match_reasons,
-            },
-            {
-              role: "alternate",
-              name: o.alt_recipient_name,
-              title: o.alt_recipient_title,
-              email: o.alt_recipient_email,
-              linkedinUrl: o.alt_recipient_linkedin_url,
-              xUrl: o.alt_recipient_x_url,
-              pictureUrl: o.alt_recipient_picture_url,
-              location: o.alt_recipient_location,
-              matchReasons: o.alt_recipient_match_reasons,
-            },
-          ];
-          const contacts = candidates.filter((c) => !!c.name);
-
-          return (
-            <AccountCard
-              key={o.id}
-              opportunityId={o.id}
-              canSkip={SKIPPABLE_STAGES.includes(o.stage as OpportunityStage)}
-              companyName={o.company_name}
-              companyDomain={o.company_domain}
-              roleTitle={o.role_title}
-              score={o.score ?? 0}
-              stage={o.stage as OpportunityStage}
-              tier={tier}
-              verdict={verdict}
-              reasonToBelieve={reason}
-              fundingStage={
-                typeof triggers?.funding_stage === "string"
-                  ? triggers.funding_stage
-                  : null
-              }
-              employeeCount={
-                typeof triggers?.employee_count === "number"
-                  ? triggers.employee_count
-                  : null
-              }
-              industry={
-                typeof triggers?.industry === "string"
-                  ? triggers.industry
-                  : null
-              }
-              discoveredAt={o.discovered_at}
-              source={
-                o.source as Extract<
-                  OpportunitySource,
-                  "theirstack" | "exa-dormant"
-                >
-              }
-              contacts={contacts}
-              research={research}
-            />
-          );
-        })}
-      </div>
+      <AccountsList cards={cards} />
     </FadeIn>
   );
 }

@@ -1,9 +1,8 @@
 "use client";
 
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { WINDOW_OPTIONS, type DiscoveredWindow } from "../today-helpers";
+import { QueueFilterBar } from "../queue-filter-bar";
 
 interface TodayFilterBarProps {
   companySearch: string;
@@ -31,115 +30,52 @@ export function TodayFilterBar({
   onReset,
 }: TodayFilterBarProps) {
   return (
-    <div className="flex flex-wrap items-end gap-2 mb-5">
-      <div>
-        <span
-          id="today-discovered-label"
-          className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
-        >
-          Discovered
-        </span>
-        <div
-          role="group"
-          aria-labelledby="today-discovered-label"
-          className="inline-flex rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-0.5"
-        >
-          {WINDOW_OPTIONS.map((opt) => {
-            const active = discoveredWindow === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onDiscoveredWindowChange(opt.value)}
-                className={cn(
-                  "px-2.5 h-7 text-xs font-medium rounded-md transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
-                  active
-                    ? "bg-[var(--color-blue-muted)] text-[var(--color-blue)]"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
-                )}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
+    <QueueFilterBar
+      idPrefix="today"
+      companySearch={companySearch}
+      onCompanySearchChange={onCompanySearchChange}
+      minScore={minScore}
+      onMinScoreChange={onMinScoreChange}
+      maxScore={maxScore}
+      onMaxScoreChange={onMaxScoreChange}
+      hasActiveFilters={hasActiveFilters}
+      onReset={onReset}
+      leftSlot={
+        <div>
+          <span
+            id="today-discovered-label"
+            className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+          >
+            Discovered
+          </span>
+          <div
+            role="group"
+            aria-labelledby="today-discovered-label"
+            className="inline-flex rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-0.5"
+          >
+            {WINDOW_OPTIONS.map((opt) => {
+              const active = discoveredWindow === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onDiscoveredWindowChange(opt.value)}
+                  className={cn(
+                    "px-2.5 h-7 text-xs font-medium rounded-md transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
+                    active
+                      ? "bg-[var(--color-blue-muted)] text-[var(--color-blue)]"
+                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
-
-      <div>
-        <label
-          htmlFor="today-min-score"
-          className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
-        >
-          Min Score
-        </label>
-        <Input
-          id="today-min-score"
-          type="number"
-          min={0}
-          max={100}
-          inputMode="numeric"
-          placeholder="0"
-          className="w-16 text-xs tabular-nums"
-          value={minScore}
-          onChange={(e) => onMinScoreChange(e.target.value)}
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="today-max-score"
-          className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
-        >
-          Max Score
-        </label>
-        <Input
-          id="today-max-score"
-          type="number"
-          min={0}
-          max={100}
-          inputMode="numeric"
-          placeholder="100"
-          className="w-16 text-xs tabular-nums"
-          value={maxScore}
-          onChange={(e) => onMaxScoreChange(e.target.value)}
-        />
-      </div>
-
-      <div className="flex-1 min-w-[180px]">
-        <label
-          htmlFor="today-company"
-          className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
-        >
-          Company
-        </label>
-        <div className="relative">
-          <Search
-            size={13}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
-          />
-          <Input
-            id="today-company"
-            type="search"
-            placeholder="Search company…"
-            className="pl-7 text-xs"
-            value={companySearch}
-            onChange={(e) => onCompanySearchChange(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {hasActiveFilters && (
-        <button
-          type="button"
-          onClick={onReset}
-          className="h-8 px-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1 rounded-md"
-        >
-          Clear
-        </button>
-      )}
-    </div>
+      }
+    />
   );
 }

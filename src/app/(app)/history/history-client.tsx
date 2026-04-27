@@ -1,18 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { FadeIn } from "@/components/ui/fade-in";
 import { EmptyState } from "@/components/empty-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   OpportunityRow,
   OpportunityStage,
   EmailDraftRow,
 } from "@/lib/supabase/types";
 import { OpportunityCard } from "../_components/opportunity-card";
+import { QueueFilterBar } from "../_components/queue-filter-bar";
 import { groupByDate } from "../_loaders/today-queue";
 import { getHistoryAction } from "./actions";
 
@@ -116,101 +121,49 @@ export function HistoryClient({
         description="All pipeline opportunities across time."
       />
 
-      {/* Filters */}
-      <form
-        role="search"
-        aria-label="Filter opportunities"
-        onSubmit={(e) => {
-          e.preventDefault();
-          applyFilters();
-        }}
-        className="flex flex-wrap items-end gap-3 mb-6"
-      >
-        <div>
-          <label
-            htmlFor="history-stage"
-            className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
-          >
-            Stage
-          </label>
-          <select
-            id="history-stage"
-            className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-            value={stageFilter}
-            onChange={(e) =>
-              setStageFilter(e.target.value as OpportunityStage | "")
-            }
-          >
-            {STAGE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label
-            htmlFor="history-min-score"
-            className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
-          >
-            Min Score
-          </label>
-          <Input
-            id="history-min-score"
-            className="w-20 text-xs"
-            type="number"
-            min={0}
-            max={100}
-            placeholder="0"
-            value={minScore}
-            onChange={(e) => setMinScore(e.target.value)}
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="history-max-score"
-            className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
-          >
-            Max Score
-          </label>
-          <Input
-            id="history-max-score"
-            className="w-20 text-xs"
-            type="number"
-            min={0}
-            max={100}
-            placeholder="100"
-            value={maxScore}
-            onChange={(e) => setMaxScore(e.target.value)}
-          />
-        </div>
-        <div className="flex-1 min-w-[140px]">
-          <label
-            htmlFor="history-company"
-            className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
-          >
-            Company
-          </label>
-          <div className="relative">
-            <Search
-              size={13}
-              aria-hidden="true"
-              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
-            />
-            <Input
-              id="history-company"
-              className="pl-7 text-xs"
-              placeholder="Search company…"
-              value={companySearch}
-              onChange={(e) => setCompanySearch(e.target.value)}
-            />
+      <QueueFilterBar
+        idPrefix="history"
+        companySearch={companySearch}
+        onCompanySearchChange={setCompanySearch}
+        minScore={minScore}
+        onMinScoreChange={setMinScore}
+        maxScore={maxScore}
+        onMaxScoreChange={setMaxScore}
+        onApply={applyFilters}
+        applyPending={isPending}
+        leftSlot={
+          <div>
+            <label
+              htmlFor="history-stage"
+              className="text-xs font-medium text-[var(--color-text-muted)] block mb-1"
+            >
+              Stage
+            </label>
+            <Select
+              value={stageFilter || "all"}
+              onValueChange={(value) =>
+                setStageFilter(
+                  !value || value === "all" ? "" : (value as OpportunityStage),
+                )
+              }
+            >
+              <SelectTrigger id="history-stage" size="sm" className="text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STAGE_OPTIONS.map((opt) => (
+                  <SelectItem
+                    key={opt.value || "all"}
+                    value={opt.value || "all"}
+                  >
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-        <Button type="submit" size="sm" disabled={isPending}>
-          {isPending && <Loader2 size={14} className="animate-spin" />}
-          {isPending ? "Filtering…" : "Apply"}
-        </Button>
-      </form>
+        }
+      />
 
       {/* Screen reader results announcement */}
       <div
