@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { Obj } from "../result-guards";
 
 export function ImportedMarkdownView({ result }: { result: Obj }) {
@@ -16,11 +17,11 @@ export function ImportedMarkdownView({ result }: { result: Obj }) {
           ) : null}
         </div>
       ) : null}
-      <div className="surface p-6">
+      <Card className="p-6">
         <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-[var(--color-text-muted)]">
           {String(result.raw_markdown)}
         </pre>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { ChevronDown, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge, type badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/empty-state";
 import { FadeIn } from "@/components/ui/fade-in";
@@ -81,10 +82,8 @@ export function WatchlistClient({ entries }: { entries: WatchlistEntry[] }) {
   return (
     <FadeIn className="space-y-5">
       {/* Add company form */}
-      <form
-        onSubmit={handleAdd}
-        className="surface p-3 flex items-center gap-2"
-      >
+      <Card className="p-3">
+        <form onSubmit={handleAdd} className="flex items-center gap-2">
         <Input
           type="text"
           value={companyName}
@@ -107,7 +106,8 @@ export function WatchlistClient({ entries }: { entries: WatchlistEntry[] }) {
           )}
           Add
         </Button>
-      </form>
+        </form>
+      </Card>
 
       {/* Entries */}
       {entries.length === 0 ? (
@@ -154,7 +154,7 @@ function WatchlistCard({ entry }: { entry: WatchlistEntry }) {
   const isManualSource = entry.source === "manual";
 
   return (
-    <div className="surface p-4">
+    <Card className="gap-0 p-4">
       {/* Header row */}
       <div className="flex items-start gap-4">
         {/* Left: company info + preview */}
@@ -259,7 +259,7 @@ function WatchlistCard({ entry }: { entry: WatchlistEntry }) {
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -271,7 +271,7 @@ function AlertCard({ alert }: { alert: WatchlistAlertRow }) {
   const typeInfo = ALERT_TYPE_CONFIG[alert.alert_type];
 
   return (
-    <article className="surface-muted p-3 space-y-1.5">
+    <Card className="bg-muted gap-1.5 p-3">
       <div className="flex items-center justify-between gap-2">
         <Badge variant={typeInfo.variant}>{typeInfo.label}</Badge>
         <span className="text-[11px] text-[var(--color-text-subtle)] tabular-nums">
@@ -300,6 +300,6 @@ function AlertCard({ alert }: { alert: WatchlistAlertRow }) {
           Source <ExternalLink size={11} aria-hidden="true" />
         </a>
       )}
-    </article>
+    </Card>
   );
 }

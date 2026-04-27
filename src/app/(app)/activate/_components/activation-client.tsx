@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, ExternalLink, Play, Settings, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { SearchProgress } from "@/components/ui/search-progress";
 import { ResultCardSkeleton } from "@/components/ui/result-card-skeleton";
 import { triggerPipelineAction } from "../../actions";
@@ -259,14 +260,14 @@ export function ActivationClient({
             {emptyCopy.subtitle}
           </p>
         </div>
-        <div className="surface p-4 space-y-1.5">
+        <Card className="gap-1.5 p-4">
           <p className="text-sm font-medium">Try:</p>
           <ul className="text-sm text-[var(--color-text-muted)] list-disc pl-5 space-y-1">
             {emptyCopy.bullets.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
-        </div>
+        </Card>
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
@@ -352,7 +353,7 @@ export function ActivationClient({
 
       {/* Gmail prompt */}
       {!gmailConnected && (
-        <div className="surface p-5 space-y-3">
+        <Card className="gap-3 p-5">
           <div className="flex items-center gap-2">
             <Mail size={16} />
             <h3 className="text-sm font-semibold">Gmail Integration</h3>
@@ -375,7 +376,7 @@ export function ActivationClient({
             Gmail is optional. The pipeline can discover, score, and draft
             emails without it.
           </p>
-        </div>
+        </Card>
       )}
 
       {/* Bottom actions */}

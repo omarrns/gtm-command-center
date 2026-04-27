@@ -28,6 +28,7 @@
 
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface HandoffCardProps {
   title: string;
@@ -53,7 +54,7 @@ export function HandoffCard({
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="mx-auto max-w-md p-6 pt-20"
     >
-      <div className="surface p-8 text-center">
+      <Card className="gap-0 p-8 text-center">
         <h1 className="text-lg font-semibold tracking-tight mb-3">{title}</h1>
         <p className="text-sm text-[var(--color-text-muted)] mb-8">
           {description}
@@ -73,7 +74,7 @@ export function HandoffCard({
             {ctaSubtext}
           </p>
         )}
-      </div>
+      </Card>
     </motion.div>
   );
 }

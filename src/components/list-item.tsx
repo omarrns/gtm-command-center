@@ -12,7 +12,7 @@ export function ListItem({ href, title, subtitle, meta }: ListItemProps) {
   return (
     <Link
       href={href}
-      className="surface flex items-center justify-between px-5 py-4 hover:bg-[var(--color-surface-muted)] hover:shadow-sm transition-all duration-150"
+      className="rounded-xl bg-card ring-1 ring-foreground/10 flex items-center justify-between px-5 py-4 hover:bg-[var(--color-surface-muted)] hover:shadow-sm transition-all duration-150"
     >
       <div className="min-w-0">
         <div className="font-semibold text-sm truncate">{title}</div>

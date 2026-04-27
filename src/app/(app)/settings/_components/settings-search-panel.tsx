@@ -5,6 +5,7 @@ import { Clock, Save } from "lucide-react";
 import { toast } from "sonner";
 import { TagInput } from "@/components/tag-input";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { updateConfigAction } from "../actions";
 
@@ -59,7 +60,7 @@ export function SettingsSearchPanel({
   }
 
   return (
-    <section className="surface p-5 space-y-5">
+    <Card className="gap-5 p-5">
       <div className="space-y-1">
         <h2 className="text-sm font-semibold">Pipeline Configuration</h2>
         <p className="text-xs text-[var(--color-text-muted)]">
@@ -149,6 +150,6 @@ export function SettingsSearchPanel({
         <Save size={14} />
         {isSaving ? "Saving..." : "Save Changes"}
       </Button>
-    </section>
+    </Card>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   saveProfileAction,
   saveSearchConfigAction,
@@ -236,7 +237,7 @@ export function OnboardClient({
         })}
       </div>
 
-      <div className="surface p-6">
+      <Card className="gap-0 p-6">
         <div className="mb-5">
           <h2 className="text-base font-semibold">{stepTitles[step - 1]}</h2>
           <p className="text-xs text-[var(--color-text-subtle)] mt-1">
@@ -307,7 +308,7 @@ export function OnboardClient({
             )}
           </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

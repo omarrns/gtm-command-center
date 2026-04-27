@@ -7,6 +7,7 @@ import { saveEmailDraftAction } from "../actions";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DetailHeader } from "@/components/detail-header";
@@ -97,14 +98,14 @@ export function DraftEditor({
       {/* Reasoning note */}
       {String((draft.context as Record<string, unknown>)?.reasoning ?? "") !==
         "" && (
-        <div className="surface-muted p-4 mb-5">
-          <div className="text-xs font-medium text-[var(--color-text-subtle)] mb-1">
+        <Card className="bg-muted gap-1 p-4 mb-5">
+          <div className="text-xs font-medium text-[var(--color-text-subtle)]">
             Why this variant
           </div>
           <div className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             {String((draft.context as Record<string, unknown>).reasoning ?? "")}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Editable fields */}

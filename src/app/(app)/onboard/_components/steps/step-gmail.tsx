@@ -1,5 +1,6 @@
 import { Mail, ExternalLink } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface StepGmailProps {
   gmailConnected: boolean;
@@ -12,7 +13,7 @@ export function StepGmail({ gmailConnected, isRefresh }: StepGmailProps) {
 
   return (
     <div className="space-y-5">
-      <div className="surface p-5 space-y-4">
+      <Card className="gap-4 p-5">
         <div className="flex items-center gap-2">
           <Mail size={16} />
           <h3 className="text-sm font-semibold">Gmail Integration</h3>
@@ -36,7 +37,7 @@ export function StepGmail({ gmailConnected, isRefresh }: StepGmailProps) {
             </a>
           </div>
         )}
-      </div>
+      </Card>
 
       <p className="text-xs text-[var(--color-text-subtle)]">
         Gmail is optional. The pipeline can discover, score, and draft emails
