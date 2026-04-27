@@ -2,6 +2,7 @@
   "name": "gtm-command-center",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.28.1",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -17,7 +18,7 @@
     "onboard:reset": "tsx scripts/onboard-reset.ts",
     "onboard:fixture": "tsx scripts/onboard-fixture.ts",
     "onboard:to-review": "tsx scripts/onboard-to-review.ts",
-    "test": "npm run test:artifact-kind-per-template && npm run test:artifact-persistence && npm run test:confirm-adapter && npm run test:correctness && npm run test:extraction && npm run test:icp-confirm && npm run test:icp-confirm-low-exemplar && npm run test:icp-interview && npm run test:onboarding-complete-per-template && npm run test:onboarding-confirm && npm run test:persona-switch-artifact-retention && npm run test:pipeline-regression && npm run test:pipeline-workflow-persona && npm run test:pipeline-dispatch-persona && npm run test:pursuit-removed && npm run test:scoring-normalize-per-template && npm run test:sender-identity && npm run test:theirstack-webhook",
+    "test": "pnpm test:artifact-kind-per-template && pnpm test:artifact-persistence && pnpm test:confirm-adapter && pnpm test:correctness && pnpm test:extraction && pnpm test:icp-confirm && pnpm test:icp-confirm-low-exemplar && pnpm test:icp-interview && pnpm test:onboarding-complete-per-template && pnpm test:onboarding-confirm && pnpm test:persona-switch-artifact-retention && pnpm test:pipeline-regression && pnpm test:pipeline-workflow-persona && pnpm test:pipeline-dispatch-persona && pnpm test:pursuit-removed && pnpm test:scoring-normalize-per-template && pnpm test:sender-identity && pnpm test:theirstack-webhook",
     "test:sender-identity": "tsx scripts/test-sender-identity.ts",
     "test:extraction": "tsx scripts/test-extraction.ts",
     "test:onboarding-confirm": "tsx scripts/test-onboarding-confirm.ts",
@@ -82,6 +83,18 @@
     "use-stick-to-bottom": "^1.1.3",
     "workflow": "^4.2.0",
     "zod": "^3.23.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@swc/core",
+      "cbor-extract",
+      "esbuild",
+      "msw",
+      "sharp",
+      "supabase",
+      "unrs-resolver"
+    ]
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

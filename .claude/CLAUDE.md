@@ -333,18 +333,18 @@ Only `.surface` and `.surface-muted` remain — container utilities, not primiti
 ## Scripts
 
 ```bash
-npm run dev              # Start dev server
-npm run build            # Production build
-npm run seed             # Run all imports
-npm run onboard:reset    # Delete all onboarding data
-npm run onboard:fixture  # Seed: --state=partial|complete|empty --interview-state=transcript|review|ready
+pnpm dev              # Start dev server
+pnpm build            # Production build
+pnpm seed             # Run all imports
+pnpm onboard:reset    # Delete all onboarding data
+pnpm onboard:fixture  # Seed: --state=partial|complete|empty --interview-state=transcript|review|ready
 
-npm test                 # Umbrella — runs 16 test:* scripts in sequence (correctness, extraction, confirm, icp-confirm, persona-switch, pipeline-regression, etc.)
-npm run test:correctness       # Recent pipeline correctness guardrails
-npm run test:extraction        # Opus extraction on transcript fixture (template-parameterized)
-npm run test:onboarding-confirm # DB-integration regression for the confirm path
-npm run test:sender-identity   # Verify prompt de-Omarification
-# Full list of `test:*` scripts is in package.json — `scripts/test-pipeline-path.ts` and `scripts/test-watchlist-live.ts` exist but are not wired into `npm test` (manual-only).
+pnpm test                 # Umbrella — runs 16 test:* scripts in sequence (correctness, extraction, confirm, icp-confirm, persona-switch, pipeline-regression, etc.)
+pnpm test:correctness       # Recent pipeline correctness guardrails
+pnpm test:extraction        # Opus extraction on transcript fixture (template-parameterized)
+pnpm test:onboarding-confirm # DB-integration regression for the confirm path
+pnpm test:sender-identity   # Verify prompt de-Omarification
+# Full list of `test:*` scripts is in package.json — `scripts/test-pipeline-path.ts` and `scripts/test-watchlist-live.ts` exist but are not wired into `pnpm test` (manual-only).
 ```
 
 ## Plans
