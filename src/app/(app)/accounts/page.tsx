@@ -60,7 +60,7 @@ export default async function AccountsPage() {
     const log = createLogger({ scope: "accounts.page", userId: user.id });
     log.error("opportunities query failed", oppsError);
     return (
-      <div className="mx-auto max-w-2xl px-6 py-10 space-y-6">
+      <div className="space-y-6">
         <PageHeader
           title="Accounts"
           description="Accounts the pipeline promoted from TheirStack + Exa dormant."
@@ -153,7 +153,7 @@ export default async function AccountsPage() {
 
   if (opps.length === 0) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-10 space-y-6">
+      <div className="space-y-6">
         <PageHeader
           title="Accounts"
           description="Accounts the pipeline promoted from TheirStack + Exa dormant. Stay here until you skip."
@@ -167,7 +167,7 @@ export default async function AccountsPage() {
   }
 
   return (
-    <FadeIn className="mx-auto max-w-2xl px-6 py-10 space-y-6">
+    <FadeIn className="space-y-6">
       <PageHeader
         title="Accounts"
         description={`${opps.length} promoted ${opps.length === 1 ? "account" : "accounts"}, highest-scoring first.`}

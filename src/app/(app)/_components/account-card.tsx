@@ -12,11 +12,13 @@ import {
   Moon,
   X,
   Search,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatRelativeTime } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import { cn, formatRelativeTime } from "@/lib/utils";
 import type { OpportunityStage } from "@/lib/supabase/types";
 import { ContactPanel, type Contact } from "@/components/contact-panel";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
@@ -175,6 +177,7 @@ export function AccountCard({
   const router = useRouter();
   const whyNow = whyNowLine(research);
   const [isPending, startTransition] = useTransition();
+  const [isExpanded, setIsExpanded] = useState(false);
   const [contactJobId, setContactJobId] = useState<string | null>(null);
   const contactToastIdRef = useRef<string | number | null>(null);
   const contactJobStartedAtRef = useRef<number | null>(null);
@@ -189,6 +192,7 @@ export function AccountCard({
         stage === "needs_contact")) ||
       (stage === "needs_contact" &&
         contacts.some((contact) => contact.email == null)));
+  const hasExpandableContent = contacts.length > 0 || showFindContacts;
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -302,7 +306,7 @@ export function AccountCard({
   }
 
   return (
-    <div className="surface p-4 space-y-3">
+    <Card className="gap-0 p-4 motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-out">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-0.5">
           <div className="flex items-center gap-2">
@@ -343,6 +347,29 @@ export function AccountCard({
               {verdict}
             </div>
           </div>
+          {hasExpandableContent && (
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className={cn(
+                "p-1.5 -m-0.5 rounded-lg text-[var(--color-text-muted)]",
+                "hover:bg-[var(--color-surface-muted)] active:bg-[var(--color-surface-muted)]",
+                "motion-safe:transition-colors motion-safe:duration-200 ease-out",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
+              )}
+              aria-label={isExpanded ? "Collapse details" : "Expand details"}
+              aria-expanded={isExpanded}
+            >
+              <ChevronDown
+                size={14}
+                aria-hidden="true"
+                className={cn(
+                  "motion-safe:transition-transform motion-safe:duration-200 ease-out",
+                  isExpanded && "rotate-180",
+                )}
+              />
+            </button>
+          )}
           {showDismiss && (
             <Button
               variant="ghost"
@@ -359,11 +386,11 @@ export function AccountCard({
       </div>
 
       {reasonToBelieve && (
-        <p className="text-sm leading-relaxed">{reasonToBelieve}</p>
+        <p className="text-sm leading-relaxed mt-3">{reasonToBelieve}</p>
       )}
 
       {whyNow && (
-        <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+        <p className="text-xs leading-relaxed text-[var(--color-text-muted)] mt-2">
           <span className="font-medium text-[var(--color-text)]">Why now:</span>{" "}
           {truncateLine(whyNow.text)}
           {whyNow.timestamp && (
@@ -374,7 +401,7 @@ export function AccountCard({
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)] mt-3">
         {roleTitle && (
           <span className="inline-flex items-center gap-1">
             <Building2 size={12} />
@@ -407,37 +434,50 @@ export function AccountCard({
         )}
       </div>
 
-      {contacts.length > 0 && (
-        <ContactPanel
-          contacts={contacts}
-          context={{
-            companyName,
-            roleTitle,
-            reasonToBelieve,
-            fundingStage,
-            industry,
-            recentNews: research?.recentNews,
-            recentFunding: research?.recentFunding,
-            hiringTrajectory: research?.hiringTrajectory,
-            competitorMentions: research?.competitorMentions,
-            techStackGaps: research?.techStackGaps,
-          }}
-        />
-      )}
+      {hasExpandableContent && (
+        <div
+          className={cn(
+            "grid motion-safe:transition-[grid-template-rows] motion-safe:duration-200 motion-safe:ease-out",
+            isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="overflow-hidden min-h-0">
+            <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-3">
+              {contacts.length > 0 && (
+                <ContactPanel
+                  contacts={contacts}
+                  context={{
+                    companyName,
+                    roleTitle,
+                    reasonToBelieve,
+                    fundingStage,
+                    industry,
+                    recentNews: research?.recentNews,
+                    recentFunding: research?.recentFunding,
+                    hiringTrajectory: research?.hiringTrajectory,
+                    competitorMentions: research?.competitorMentions,
+                    techStackGaps: research?.techStackGaps,
+                  }}
+                />
+              )}
 
-      {showFindContacts && (
-        <div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleFindContacts}
-            disabled={isPending || contactJob.isLoading}
-          >
-            <Search size={13} />
-            Find contacts
-          </Button>
+              {showFindContacts && (
+                <div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFindContacts}
+                    disabled={isPending || contactJob.isLoading}
+                  >
+                    <Search size={13} />
+                    Find contacts
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
