@@ -117,11 +117,6 @@ function whyNowLine(research: AccountResearchSummary | undefined): {
   return null;
 }
 
-function truncateLine(value: string, max = 220): string {
-  if (value.length <= max) return value;
-  return `${value.slice(0, max - 1).trim()}…`;
-}
-
 function tierVariant(
   tier: "A" | "B" | "C",
 ): "default" | "secondary" | "outline" {
@@ -192,7 +187,9 @@ export function AccountCard({
         stage === "needs_contact")) ||
       (stage === "needs_contact" &&
         contacts.some((contact) => contact.email == null)));
-  const hasExpandableContent = contacts.length > 0 || showFindContacts;
+  // Find-contacts is now a persistent bottom-right CTA, not hidden behind
+  // the expand toggle, so it no longer counts as expandable content.
+  const hasExpandableContent = contacts.length > 0;
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -283,6 +280,19 @@ export function AccountCard({
     });
   }
 
+  function handleCardClick() {
+    // Don't toggle when the user is selecting body text inside the card.
+    if (window.getSelection()?.toString()) return;
+    setIsExpanded((prev) => !prev);
+  }
+
+  function handleCardKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setIsExpanded((prev) => !prev);
+    }
+  }
+
   function handleFindContacts() {
     if (!opportunityId) return;
     startTransition(async () => {
@@ -306,7 +316,19 @@ export function AccountCard({
   }
 
   return (
-    <Card className="gap-0 p-4 motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-out">
+    <Card
+      role={hasExpandableContent ? "button" : undefined}
+      tabIndex={hasExpandableContent ? 0 : undefined}
+      aria-expanded={hasExpandableContent ? isExpanded : undefined}
+      onClick={hasExpandableContent ? handleCardClick : undefined}
+      onKeyDown={hasExpandableContent ? handleCardKeyDown : undefined}
+      className={cn(
+        "gap-0 p-4 max-w-[920px] flex flex-col",
+        "motion-safe:transition-[box-shadow,background-color] motion-safe:duration-200 motion-safe:ease-out",
+        hasExpandableContent &&
+          "cursor-pointer hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]",
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-0.5">
           <div className="flex items-center gap-2">
@@ -346,36 +368,37 @@ export function AccountCard({
             >
               {verdict}
             </div>
+            {hasExpandableContent && (
+              // Subtle click affordance — a count + small caret living
+              // inside the score column, not a standalone button. The
+              // whole card is the clickable surface; this just signals
+              // that there's more to expand.
+              <div className="mt-1 inline-flex items-center gap-0.5 text-[11px] text-[var(--color-text-subtle)] whitespace-nowrap">
+                <span>
+                  {isExpanded
+                    ? "Hide"
+                    : `${contacts.length} contact${contacts.length === 1 ? "" : "s"}`}
+                </span>
+                <ChevronDown
+                  size={10}
+                  aria-hidden="true"
+                  className={cn(
+                    "motion-safe:transition-transform motion-safe:duration-200",
+                    isExpanded && "rotate-180",
+                  )}
+                />
+              </div>
+            )}
           </div>
-          {hasExpandableContent && (
-            <button
-              type="button"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className={cn(
-                "p-1.5 -m-0.5 rounded-lg text-[var(--color-text-muted)]",
-                "hover:bg-[var(--color-surface-muted)] active:bg-[var(--color-surface-muted)]",
-                "motion-safe:transition-colors motion-safe:duration-200 ease-out",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
-              )}
-              aria-label={isExpanded ? "Collapse details" : "Expand details"}
-              aria-expanded={isExpanded}
-            >
-              <ChevronDown
-                size={14}
-                aria-hidden="true"
-                className={cn(
-                  "motion-safe:transition-transform motion-safe:duration-200 ease-out",
-                  isExpanded && "rotate-180",
-                )}
-              />
-            </button>
-          )}
           {showDismiss && (
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
-              onClick={handleSkip}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSkip();
+              }}
               disabled={isPending}
               aria-label={`Dismiss ${companyName}`}
             >
@@ -386,19 +409,33 @@ export function AccountCard({
       </div>
 
       {reasonToBelieve && (
-        <p className="text-sm leading-relaxed mt-3">{reasonToBelieve}</p>
+        <p
+          className={cn(
+            "text-sm leading-relaxed mt-3",
+            !isExpanded && "line-clamp-3",
+          )}
+        >
+          {reasonToBelieve}
+        </p>
       )}
 
       {whyNow && (
-        <p className="text-xs leading-relaxed text-[var(--color-text-muted)] mt-2">
-          <span className="font-medium text-[var(--color-text)]">Why now:</span>{" "}
-          {truncateLine(whyNow.text)}
+        // Body and timestamp on separate lines so line-clamp-2 only
+        // ever truncates the body — the timestamp can't get clipped
+        // mid-character ("· 5d…").
+        <div className="text-xs text-[var(--color-text-muted)] mt-2">
+          <p className={cn("leading-relaxed", !isExpanded && "line-clamp-2")}>
+            <span className="font-medium text-[var(--color-text)]">
+              Why now:
+            </span>{" "}
+            {whyNow.text}
+          </p>
           {whyNow.timestamp && (
-            <span className="ml-1 text-[var(--color-text-subtle)]">
-              · {formatRelativeTime(whyNow.timestamp)}
-            </span>
+            <p className="text-[var(--color-text-subtle)] mt-0.5 leading-tight">
+              {formatRelativeTime(whyNow.timestamp)}
+            </p>
           )}
-        </p>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)] mt-3">
@@ -442,40 +479,42 @@ export function AccountCard({
           )}
         >
           <div className="overflow-hidden min-h-0">
-            <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-3">
-              {contacts.length > 0 && (
-                <ContactPanel
-                  contacts={contacts}
-                  context={{
-                    companyName,
-                    roleTitle,
-                    reasonToBelieve,
-                    fundingStage,
-                    industry,
-                    recentNews: research?.recentNews,
-                    recentFunding: research?.recentFunding,
-                    hiringTrajectory: research?.hiringTrajectory,
-                    competitorMentions: research?.competitorMentions,
-                    techStackGaps: research?.techStackGaps,
-                  }}
-                />
-              )}
-
-              {showFindContacts && (
-                <div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleFindContacts}
-                    disabled={isPending || contactJob.isLoading}
-                  >
-                    <Search size={13} />
-                    Find contacts
-                  </Button>
-                </div>
-              )}
+            <div className="mt-3 pt-3 border-t border-[var(--border)]">
+              <ContactPanel
+                contacts={contacts}
+                verbose={isExpanded}
+                context={{
+                  companyName,
+                  roleTitle,
+                  reasonToBelieve,
+                  fundingStage,
+                  industry,
+                  recentNews: research?.recentNews,
+                  recentFunding: research?.recentFunding,
+                  hiringTrajectory: research?.hiringTrajectory,
+                  competitorMentions: research?.competitorMentions,
+                  techStackGaps: research?.techStackGaps,
+                }}
+              />
             </div>
           </div>
+        </div>
+      )}
+
+      {showFindContacts && (
+        <div className="mt-3 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleFindContacts();
+            }}
+            disabled={isPending || contactJob.isLoading}
+          >
+            <Search size={13} />
+            Find contacts
+          </Button>
         </div>
       )}
     </Card>

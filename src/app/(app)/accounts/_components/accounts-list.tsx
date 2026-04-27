@@ -10,7 +10,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { QueueFilterBar } from "../../_components/queue-filter-bar";
-import { AccountCard, type AccountCardProps } from "../../_components/account-card";
+import {
+  AccountCard,
+  type AccountCardProps,
+} from "../../_components/account-card";
 
 type Tier = "A" | "B" | "C";
 type Source = "theirstack" | "exa-dormant";
@@ -42,7 +45,11 @@ export function AccountsList({ cards }: AccountsListProps) {
   }, [cards, search, min, max, tierFilter, sourceFilter]);
 
   const hasActiveFilters =
-    !!companySearch || !!minScore || !!maxScore || !!tierFilter || !!sourceFilter;
+    !!companySearch ||
+    !!minScore ||
+    !!maxScore ||
+    !!tierFilter ||
+    !!sourceFilter;
 
   function resetFilters() {
     setCompanySearch("");
@@ -53,7 +60,7 @@ export function AccountsList({ cards }: AccountsListProps) {
   }
 
   return (
-    <>
+    <div className="max-w-[920px]">
       <QueueFilterBar
         idPrefix="accounts"
         companySearch={companySearch}
@@ -134,10 +141,13 @@ export function AccountsList({ cards }: AccountsListProps) {
       ) : (
         <div className="space-y-2">
           {filtered.map((card) => (
-            <AccountCard key={card.opportunityId ?? card.companyName} {...card} />
+            <AccountCard
+              key={card.opportunityId ?? card.companyName}
+              {...card}
+            />
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }

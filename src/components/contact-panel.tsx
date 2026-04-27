@@ -46,29 +46,37 @@ export interface AccountContactContext {
   techStackGaps?: string[];
 }
 
-function positiveMatchReasons(
-  reasons: WebsetMatchReason[] | null | undefined,
-): string[] {
-  return (reasons ?? [])
-    .filter((r) => r.satisfied === "yes" && r.reasoning?.trim())
-    .map((r) => r.reasoning.trim());
-}
-
 function truncateSentence(value: string, max = 150): string {
   if (value.length <= max) return value;
   return `${value.slice(0, max - 1).trim()}…`;
 }
 
+// Derives an actionable "why this contact" from role + title + account context.
+// Exa match reasons are employment verifications ("still works there"), not signals
+// a rep can act on — so we build this from what we actually know about the account.
 function contactWhy(
   contact: Contact,
-  context?: AccountContactContext,
+  context: AccountContactContext | undefined,
 ): string | null {
-  const match = positiveMatchReasons(contact.matchReasons)[0];
-  if (match) return truncateSentence(match);
-  if (contact.title && context?.companyName) {
-    return `${contact.title} at ${context.companyName}; sits in the buying motion for this account.`;
+  const title = contact.title;
+  const company = context?.companyName;
+  const roleSignal = context?.roleTitle;
+  if (!title) return null;
+
+  const isBuyer = contact.role === "primary";
+  if (roleSignal && company) {
+    const verb = isBuyer
+      ? "likely owns the decision for"
+      : "leads the team driving";
+    return `${title} at ${company} — ${verb} ${roleSignal}.`;
   }
-  return null;
+  if (company) {
+    const signal = isBuyer
+      ? "sits in the buying motion"
+      : "leads a relevant team";
+    return `${title} at ${company} — ${signal}.`;
+  }
+  return `${title} — ${isBuyer ? "economic buyer" : "team lead in the use-case"}.`;
 }
 
 // Search intent at discovery time decides this label:
@@ -82,12 +90,16 @@ function roleLabel(contact: Contact): string {
 
 function openerLine(
   contact: Contact,
-  context?: AccountContactContext,
+  context: AccountContactContext | undefined,
+  verbose: boolean,
 ): string | null {
   const remit = contact.title ?? "their remit";
   const news = context?.recentNews?.[0];
   if (news?.headline) {
-    return `Lead with "${truncateSentence(news.headline, 70)}" — pivot to ${remit}.`;
+    const headline = verbose
+      ? news.headline
+      : truncateSentence(news.headline, 70);
+    return `Lead with "${headline}" — pivot to ${remit}.`;
   }
   const funding = context?.recentFunding;
   if (funding?.stage) {
@@ -110,6 +122,7 @@ function outreachAngles(
   contact: Contact,
   context: AccountContactContext | undefined,
   hasOpener: boolean,
+  verbose: boolean,
 ): string[] {
   const angles: string[] = [];
 
@@ -136,7 +149,11 @@ function outreachAngles(
   }
 
   if (angles.length === 0 && context?.reasonToBelieve) {
-    angles.push(truncateSentence(context.reasonToBelieve, 130));
+    angles.push(
+      verbose
+        ? context.reasonToBelieve
+        : truncateSentence(context.reasonToBelieve, 130),
+    );
   }
 
   if (angles.length === 0 && contact.title) {
@@ -151,11 +168,15 @@ export function ContactPanel({
   className,
   variant = "rich",
   context,
+  verbose = false,
 }: {
   contacts: Contact[];
   className?: string;
   variant?: "plain" | "rich";
   context?: AccountContactContext;
+  // When true, skip per-line truncation. Used by AccountCard's expanded
+  // state so "Why" / "Open" / fallback angles render the full string.
+  verbose?: boolean;
 }) {
   const visible = contacts.filter((contact) => contact.name);
   if (visible.length === 0) return null;
@@ -170,12 +191,16 @@ export function ContactPanel({
     );
   }
 
+  // Anchors live inside a click-to-expand card; stop propagation so
+  // following the link doesn't toggle the card collapsed.
+  const stopBubble = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
     <div className={cn("space-y-2", className)}>
       {visible.map((contact) => {
         const why = contactWhy(contact, context);
-        const opener = openerLine(contact, context);
-        const angles = outreachAngles(contact, context, !!opener);
+        const opener = openerLine(contact, context, verbose);
+        const angles = outreachAngles(contact, context, !!opener, verbose);
         const label = roleLabel(contact);
         return (
           <div
@@ -205,6 +230,7 @@ export function ContactPanel({
               {contact.email && (
                 <a
                   href={`mailto:${contact.email}`}
+                  onClick={stopBubble}
                   className="shrink-0 rounded-sm hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]"
                   aria-label={`Email ${contact.name}`}
                 >
@@ -216,6 +242,7 @@ export function ContactPanel({
                   href={contact.linkedinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={stopBubble}
                   className="shrink-0 rounded-sm hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]"
                   aria-label={`${contact.name} profile`}
                 >
@@ -227,6 +254,7 @@ export function ContactPanel({
                   href={contact.xUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={stopBubble}
                   className="shrink-0 rounded-sm hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]"
                   aria-label={`${contact.name} X profile`}
                 >
