@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ExternalLink, Play, Settings, Mail } from "lucide-react";
+import { Loader2, ExternalLink, Play, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,6 +21,10 @@ import type {
 import type { UserType } from "@/lib/supabase/types";
 import { OpportunityCard } from "../../_components/opportunity-card";
 import { AccountResultCard } from "./account-result-card";
+import {
+  ActivationEmptyState,
+  ActivationScoringFailedState,
+} from "./activate-message-states";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,7 +44,7 @@ const REASSURANCE_INTERVALS = [0, 8_000, 25_000, 60_000, 90_000];
 // Component
 // ---------------------------------------------------------------------------
 
-type Phase = "searching" | "results" | "empty" | "error";
+type Phase = "searching" | "results" | "empty" | "error" | "scoring-failed";
 
 interface ActivationClientProps {
   gmailConnected: boolean;
@@ -105,7 +109,15 @@ export function ActivationClient({
         const result: AccountActivationSearchResult = await res.json();
         setAccountData(result);
         setAccountResults(result.results);
-        setPhase(result.results.length > 0 ? "results" : "empty");
+        // Distinguish "no candidates returned" from "every candidate
+        // failed scoring" — the former is a rubric/sourcing problem, the
+        // latter is almost always a transient model issue with a
+        // different remediation (Retry, not Adjust Settings).
+        if (result.results.length === 0 && result.stats.errors > 0) {
+          setPhase("scoring-failed");
+        } else {
+          setPhase(result.results.length > 0 ? "results" : "empty");
+        }
       } else {
         const result: ActivationSearchResult = await res.json();
         setData(result);
@@ -229,79 +241,29 @@ export function ActivationClient({
 
   // ── Empty state ──
   if (phase === "empty") {
-    const emptyCopy =
-      userType === "gtm"
-        ? {
-            title: "No accounts hiring a rubric role in the last 30 days",
-            subtitle:
-              "TheirStack didn't find firmographic matches actively posting jobs. Broaden the rubric or wait for the weekly dormant sweep to surface ICP-fit accounts that aren't hiring yet.",
-            bullets: [
-              "Broadening firmographics in Settings (industry, employee range, stage)",
-              "Adding more hiring roles to the rubric signals",
-              "Waiting for the weekly dormant sweep (runs Mondays at 12:00 UTC)",
-            ],
-          }
-        : {
-            title: "No matches in the last 10 days",
-            subtitle:
-              "We searched for your configured queries but didn't find matching roles posted recently.",
-            bullets: [
-              "Broadening your search queries in Settings",
-              "Adding more locations",
-              "Running a deeper search (checks the full month)",
-            ],
-          };
-
     return (
-      <div className="mx-auto max-w-lg py-16 space-y-5">
-        <div className="text-center space-y-2">
-          <h2 className="text-lg font-semibold">{emptyCopy.title}</h2>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            {emptyCopy.subtitle}
-          </p>
-        </div>
-        <Card className="gap-1.5 p-4">
-          <p className="text-sm font-medium">Try:</p>
-          <ul className="text-sm text-[var(--color-text-muted)] list-disc pl-5 space-y-1">
-            {emptyCopy.bullets.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </Card>
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={handleAdjustSettings}
-            disabled={isPending}
-          >
-            <Settings size={14} />
-            Adjust Settings
-          </Button>
-          <div className="flex items-center gap-2">
-            {userType !== "gtm" && (
-              <Button
-                variant="outline"
-                onClick={handleDeeperSearch}
-                disabled={isPending}
-              >
-                {isPending ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Play size={14} />
-                )}
-                Run Deeper Search
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              onClick={handleGoToDashboard}
-              disabled={isPending}
-            >
-              Go to Dashboard
-            </Button>
-          </div>
-        </div>
-      </div>
+      <ActivationEmptyState
+        userType={userType}
+        isPending={isPending}
+        onAdjustSettings={handleAdjustSettings}
+        onDeeperSearch={handleDeeperSearch}
+        onGoToDashboard={handleGoToDashboard}
+      />
+    );
+  }
+
+  // ── Scoring-failed state (GTM only — every candidate failed schema
+  // validation in the per-row scorer). Distinct from `error` because
+  // the request itself succeeded; the model output did not.
+  if (phase === "scoring-failed") {
+    return (
+      <ActivationScoringFailedState
+        discovered={accountData?.stats.discovered ?? 0}
+        errors={accountData?.stats.errors ?? 0}
+        isPending={isPending}
+        onRetry={handleRetry}
+        onGoToDashboard={handleGoToDashboard}
+      />
     );
   }
 
