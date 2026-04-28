@@ -1,11 +1,20 @@
 /**
  * Prompt builder — ICP account fit scoring.
  *
- * Consumed by `scoreAccountAgainstIcp`. Output is a 6-dimension scorecard
- * plus verdict/tier/reason_to_believe. The prompt is intentionally blunt
- * — this scores whether to pursue, not how to position.
+ * Consumed by `scoreAccountAgainstIcp`. The model returns the legacy
+ * six broad components (firmo_fit, techno_fit, ...), a per-sub-dimension
+ * breakdown keyed by the canonical ICP_DIMENSIONS config, and verdict +
+ * tier + reason_to_believe. The prompt is intentionally blunt — this
+ * scores whether to pursue, not how to position.
+ *
+ * The full per-sub-dimension checklist comes from
+ * `renderPromptChecklist({ mode: "full_scoring" })` so any change to
+ * the canonical config flows into the scoring prompt without a manual
+ * edit here.
  */
 
+import { renderPromptChecklist } from "@/lib/onboarding/icp-dimensions";
+import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
 import type { SenderIdentity } from "../sender-identity";
 
 export function buildIcpAccountFitSystem(sender: SenderIdentity): string {
@@ -15,31 +24,24 @@ Job: tell the AE in one line whether this account is worth pursuing, and why. Be
 
 PRINCIPLES:
 - Ground every score in the rubric + evidence provided. No speculation.
-- If firmographics clearly disqualify the account (e.g. 50x too big, wrong geo), return tier='C' and verdict='Skip' regardless of other signals.
+- A clear disqualifier match (any disqualifier sub-dim scoring 1/5) MUST force verdict='Skip' and tier='C', regardless of strong firmographic / buyer / signal fit. Disqualifier hits dominate.
 - "Pursue" requires real alignment across firmographic fit + active buying signal. "Worth exploring" is the default when data is mixed.
+- Treat the rubric's evidence_strength field as a confidence weight: \`direct_user_provided\` evidence is the strongest anchor, then \`inferred_from_customer_examples\`, then \`inferred_from_public_data\`, then \`weak_or_unknown\`. When the rubric value is weak_or_unknown for a sub-dim, score conservatively (3) and explain in reasoning rather than over-asserting fit.
 - reason_to_believe must be a single sentence an AE can paste into their CRM.
 
-OUTPUT: Return valid JSON with the full 6-dimension scorecard:
-{
-  "company_name": string,
-  "firmo_fit":            {"score": 1-5, "reasoning": string},
-  "techno_fit":           {"score": 1-5, "reasoning": string},
-  "hiring_signal_fit":    {"score": 1-5, "reasoning": string},
-  "buyer_fit":            {"score": 1-5, "reasoning": string},
-  "proof_point_relevance":{"score": 1-5, "reasoning": string},
-  "disqualifier_risk":    {"score": 1-5, "reasoning": string},
-  "verdict": "Pursue" | "Worth exploring" | "Skip",
-  "tier": "A" | "B" | "C",
-  "reason_to_believe": string
-}
+OUTPUT: Return valid JSON matching the schema.
 
-Scoring anchors:
+Top-level scorecard (broad rollups, kept for compatibility):
 - firmo_fit: industry, employee count, funding stage, geography vs rubric
 - techno_fit: required/excluded tools match — if rubric has no tech signals, score 3 and say so
 - hiring_signal_fit: how strongly does the current hiring role match signals.hiring_roles
 - buyer_fit: seniority + role alignment to rubric.buyer (economic_buyer/champion/end_user)
 - proof_point_relevance: does this account look like rubric.proof_points.existing_customers
-- disqualifier_risk: 5 = no overlap with disqualifiers; 1 = clear disqualifier match`;
+- disqualifier_risk: 5 = no overlap with disqualifiers; 1 = clear disqualifier match (forces verdict='Skip')
+
+Per-sub-dimension breakdown — score every sub-field below from 1-5 with one line of reasoning. The rubric's structured disqualifiers (tech_disqualifiers, size_disqualifiers, stage_disqualifiers, behavioral_disqualifiers) are scored individually; ANY of them scoring 1/5 means a disqualifier hit.
+
+${renderPromptChecklist({ mode: "full_scoring" })}`;
 }
 
 export interface AccountFirmographics {
@@ -61,7 +63,7 @@ export function buildIcpAccountFitPrompt({
   research,
 }: {
   companyName: string;
-  rubric: unknown;
+  rubric: IcpRubric;
   firmographics: AccountFirmographics;
   research: string;
 }): string {
@@ -90,5 +92,5 @@ ${JSON.stringify(rubric, null, 2)}
 
 ${research}
 
-Score the account now.`;
+Score the account now: every broad component AND every per-sub-dimension entry must be filled.`;
 }

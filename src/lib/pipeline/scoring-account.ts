@@ -1,10 +1,18 @@
 /**
- * ICP account scorer — parallel Exa enrichment + generateObject.
+ * ICP account scorer — Exa enrichment + generateObject (single Sonnet
+ * call) returning broad components + per-sub-dimension breakdown.
  *
- * Per-account analog of `scoreOpportunity` in scoring.ts, but scoped to
- * the GTM persona. The rubric drives the scoring anchors; Exa provides
- * research evidence (funding news, competitive context) the scorer needs
- * to judge proof-point relevance.
+ * v1 keeps a single LLM call: the prompt asks for the existing six
+ * broad fields (firmo_fit, techno_fit, ...) for backward-compatible
+ * persistence + UI, plus a closed nested breakdown keyed by
+ * canonical `ICP_DIMENSIONS`. Two passes were considered and deferred
+ * (see plan §5 "scoring strategy") — split only if structured-output
+ * cost or reliability becomes an issue.
+ *
+ * Disqualifier matches MUST force verdict='Skip' / tier='C' regardless
+ * of model output. We trust the model to score sub-dimensions but not
+ * to honor the override consistently, so the post-processing
+ * `applyDisqualifierOverride` is the safety net.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -18,56 +26,83 @@ import {
   buildIcpAccountFitPrompt,
   type AccountFirmographics,
 } from "@/lib/skills/prompts/icp-account-fit";
-import type { IcpRubric } from "@/lib/pipeline/icp-to-theirstack-filters";
+import {
+  buildAccountScoringBreakdownSchema,
+  computeAccountScoreFromBreakdown,
+  detectDisqualifierOverride,
+  type AccountScoringBreakdown,
+  type DisqualifierOverride,
+  type SubDimensionWeightMap,
+} from "@/lib/onboarding/icp-dimensions";
+import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
 import { coerceIcpRubric } from "@/lib/onboarding/icp-schemas";
 
-const accountDimensionSchema = z.object({
-  score: z.number().min(1).max(5),
+const broadComponentSchema = z.object({
+  score: z.number().int().min(1).max(5),
   reasoning: z.string(),
 });
 
+const breakdownSchema = buildAccountScoringBreakdownSchema();
+
+export interface IcpAccountBroadComponent {
+  score: number;
+  reasoning: string;
+}
+
+export interface IcpAccountAnalysis {
+  company_name: string;
+  firmo_fit: IcpAccountBroadComponent;
+  techno_fit: IcpAccountBroadComponent;
+  hiring_signal_fit: IcpAccountBroadComponent;
+  buyer_fit: IcpAccountBroadComponent;
+  proof_point_relevance: IcpAccountBroadComponent;
+  disqualifier_risk: IcpAccountBroadComponent;
+  breakdown: AccountScoringBreakdown;
+  verdict: "Pursue" | "Worth exploring" | "Skip";
+  tier: "A" | "B" | "C";
+  reason_to_believe: string;
+}
+
 export const icpAccountAnalysisSchema = z.object({
   company_name: z.string(),
-  firmo_fit: accountDimensionSchema,
-  techno_fit: accountDimensionSchema,
-  hiring_signal_fit: accountDimensionSchema,
-  buyer_fit: accountDimensionSchema,
-  proof_point_relevance: accountDimensionSchema,
-  disqualifier_risk: accountDimensionSchema,
+  firmo_fit: broadComponentSchema,
+  techno_fit: broadComponentSchema,
+  hiring_signal_fit: broadComponentSchema,
+  buyer_fit: broadComponentSchema,
+  proof_point_relevance: broadComponentSchema,
+  disqualifier_risk: broadComponentSchema,
+  breakdown: breakdownSchema,
   verdict: z.enum(["Pursue", "Worth exploring", "Skip"]),
   tier: z.enum(["A", "B", "C"]),
   reason_to_believe: z.string(),
-});
-
-export type IcpAccountAnalysis = z.infer<typeof icpAccountAnalysisSchema>;
+}) satisfies z.ZodType<IcpAccountAnalysis>;
 
 export interface AccountScoringResult {
   normalizedScore: number;
   analysisResult: IcpAccountAnalysis;
+  disqualifierOverride: DisqualifierOverride;
 }
 
-const DIMENSIONS = [
+const BROAD_COMPONENT_KEYS = [
   "firmo_fit",
   "techno_fit",
   "hiring_signal_fit",
   "buyer_fit",
   "proof_point_relevance",
   "disqualifier_risk",
-] as const;
+] as const satisfies readonly (keyof IcpAccountAnalysis)[];
 
 /**
- * Normalise the six 1-5 dimension scores into a 0-100 score. Same scaling
- * as scoreOpportunity's `normalizedScore` so downstream thresholds
- * (watchlist >= 80, activation preview tiering) apply unchanged.
+ * Normalise the breakdown into a 0-100 score. Uniform sub-dim weights
+ * for v1 — same scaling target as the previous broad-six average so
+ * downstream thresholds (watchlist >= 80, score_threshold) stay
+ * comparable in magnitude.
  */
-export function computeAccountScore(analysis: IcpAccountAnalysis): number {
-  const MAX_PER_DIM = 5;
-  let sum = 0;
-  for (const dim of DIMENSIONS) {
-    sum += analysis[dim].score;
-  }
-  const max = DIMENSIONS.length * MAX_PER_DIM;
-  return Math.round((sum / max) * 100);
+export function computeAccountScore(
+  analysis: IcpAccountAnalysis,
+  weights?: SubDimensionWeightMap,
+): number {
+  return computeAccountScoreFromBreakdown(analysis.breakdown, weights);
 }
 
 // Narrower than OpportunityRow — the scorer only needs id + company
@@ -140,9 +175,41 @@ export async function scoreAccountAgainstIcp({
     scope,
   });
 
+  const override = detectDisqualifierOverride(analysis.breakdown);
+  const adjusted = applyDisqualifierOverride(analysis, override);
+
   return {
-    normalizedScore: computeAccountScore(analysis),
-    analysisResult: analysis,
+    normalizedScore: computeAccountScore(adjusted),
+    analysisResult: adjusted,
+    disqualifierOverride: override,
+  };
+}
+
+/**
+ * Force verdict='Skip' / tier='C' on a clear disqualifier hit, and
+ * clamp the broad `disqualifier_risk` rollup down to 1 so the broad
+ * scorecard agrees with the breakdown. Reason-to-believe is rewritten
+ * to surface the trigger so the AE knows why the row was killed.
+ */
+function applyDisqualifierOverride(
+  analysis: IcpAccountAnalysis,
+  override: DisqualifierOverride,
+): IcpAccountAnalysis {
+  if (!override.triggered) return analysis;
+  const triggerSummary = override.triggers
+    .map((t) => `${t.subDimension}: ${t.reasoning}`)
+    .join(" | ");
+  return {
+    ...analysis,
+    verdict: "Skip",
+    tier: "C",
+    disqualifier_risk: {
+      score: Math.min(analysis.disqualifier_risk.score, 1),
+      reasoning:
+        analysis.disqualifier_risk.reasoning ||
+        "Disqualifier override engaged.",
+    },
+    reason_to_believe: `Disqualifier match — ${triggerSummary}`.slice(0, 400),
   };
 }
 
@@ -167,3 +234,10 @@ function extractFirmographics(opp: ScoreAccountSubject): AccountFirmographics {
     seniority: typeof p.seniority === "string" ? p.seniority : null,
   };
 }
+
+/**
+ * Re-export for callers (analytics, persistence) that want a stable
+ * list of the broad rollup fields without importing the constants
+ * tuple inline.
+ */
+export const ICP_ACCOUNT_BROAD_COMPONENT_KEYS = BROAD_COMPONENT_KEYS;

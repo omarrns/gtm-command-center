@@ -109,6 +109,7 @@ export function icpToTheirStackFilters(
   const firmo = normalizedRubric.firmographics;
   const techno = normalizedRubric.technographics;
   const signals = normalizedRubric.signals;
+  const disqualifiers = normalizedRubric.disqualifiers;
 
   const filters: TheirStackFilters = {
     posted_at_max_age_days: opts.postedMaxAgeDays ?? 30,
@@ -120,16 +121,18 @@ export function icpToTheirStackFilters(
   }
 
   if (firmo) {
-    // Employee count: only send if the rubric supplied non-default values.
-    // The extraction schema defaults to [0, 10000], which would over-filter
-    // every call with a meaningless "under 10k employees" floor.
+    // Employee count: only send when the rubric supplied a meaningful
+    // bound. `max === null` means the user explicitly chose unbounded
+    // and we drop the upper filter; `max < 10000` keeps the historical
+    // default-rubric guardrail (extraction defaults to [0, 10000], and
+    // sending that as a literal cap would tag every loose firmographic
+    // call with a useless "under 10k employees" filter). A user who
+    // wants the literal cap of 10000 should pick a slightly tighter
+    // value or rely on null/unbounded semantics.
     if (firmo.employee_range.min > 0) {
       filters.min_employee_count = firmo.employee_range.min;
     }
-    if (
-      firmo.employee_range.max !== null &&
-      firmo.employee_range.max < 10000
-    ) {
+    if (firmo.employee_range.max !== null && firmo.employee_range.max < 10000) {
       filters.max_employee_count = firmo.employee_range.max;
     }
 
@@ -147,9 +150,13 @@ export function icpToTheirStackFilters(
   }
 
   // company_keyword_slug_or/not uses TheirStack's internal slug vocab.
-  // Same deferral pattern as industry_id — requires a translation table
-  // we don't have yet. Rubric tech hints get used in scoring instead.
+  // Same deferral pattern as industry_id — we don't have a translation
+  // table from rubric tech hints to TheirStack slugs yet. Rubric tech
+  // signals + structured disqualifiers (tech_disqualifiers,
+  // behavioral_disqualifiers, etc.) are read by the scoring prompt
+  // instead, where free-text matching is already the norm.
   void techno;
+  void disqualifiers;
 
   return filters;
 }

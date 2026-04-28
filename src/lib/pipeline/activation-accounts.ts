@@ -26,6 +26,7 @@ import {
   type IcpAccountAnalysis,
   type ScoreAccountSubject,
 } from "@/lib/pipeline/scoring-account";
+import { buildScoreComponents } from "@/lib/pipeline/steps/score-accounts";
 import { createOpportunity, advanceStage } from "@/lib/pipeline/opportunities";
 import { createLogger } from "@/lib/logger";
 
@@ -270,16 +271,7 @@ async function persistActivationResult(
 
   await advanceStage(svc, newOpp.id, userId, "discovered", "scored", {
     score: result.score,
-    score_components: {
-      firmo_fit: result.analysis.firmo_fit.score,
-      techno_fit: result.analysis.techno_fit.score,
-      hiring_signal_fit: result.analysis.hiring_signal_fit.score,
-      buyer_fit: result.analysis.buyer_fit.score,
-      proof_point_relevance: result.analysis.proof_point_relevance.score,
-      disqualifier_risk: result.analysis.disqualifier_risk.score,
-      tier: result.tier,
-      verdict: result.verdict,
-    },
+    score_components: buildScoreComponents(result.analysis),
     analysis_id: analysis.id,
   });
 }

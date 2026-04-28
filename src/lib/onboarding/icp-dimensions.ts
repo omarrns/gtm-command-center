@@ -33,6 +33,15 @@ export {
   type CoreIcpDimensionKey,
   type IcpDimensionConfig,
 } from "@/lib/onboarding/icp-dimension-config";
+export {
+  buildAccountScoringBreakdownSchema,
+  computeAccountScoreFromBreakdown,
+  detectDisqualifierOverride,
+  type AccountScoringBreakdown,
+  type AccountScoringSubDimension,
+  type DisqualifierOverride,
+  type SubDimensionWeightMap,
+} from "@/lib/onboarding/icp-scoring";
 
 export type {
   BuyerIcpRubric,
@@ -195,8 +204,12 @@ export function coerceIcpRubric(input: unknown): IcpRubric {
       geographies: stringArray(firmographics?.geographies),
     },
     technographics: {
-      required_tools: stringArray(asRecord(source.technographics)?.required_tools),
-      excluded_tools: stringArray(asRecord(source.technographics)?.excluded_tools),
+      required_tools: stringArray(
+        asRecord(source.technographics)?.required_tools,
+      ),
+      excluded_tools: stringArray(
+        asRecord(source.technographics)?.excluded_tools,
+      ),
       tech_maturity:
         stringValue(asRecord(source.technographics)?.tech_maturity) ?? "",
       data_infrastructure:
@@ -226,12 +239,15 @@ function coerceEmployeeRange(
 ): EmployeeRange {
   const nested = asRecord(firmographics?.employee_range);
   const min =
-    numberValue(nested?.min) ?? numberValue(firmographics?.employee_range_min) ?? 0;
+    numberValue(nested?.min) ??
+    numberValue(firmographics?.employee_range_min) ??
+    0;
   const nestedMax = nullableNumberValue(nested?.max);
   const max =
     nestedMax !== undefined
       ? nestedMax
-      : (numberValue(firmographics?.employee_range_max) ?? DEFAULT_EMPLOYEE_MAX);
+      : (numberValue(firmographics?.employee_range_max) ??
+        DEFAULT_EMPLOYEE_MAX);
   return { min: Math.max(0, min), max: max === null ? null : Math.max(0, max) };
 }
 
