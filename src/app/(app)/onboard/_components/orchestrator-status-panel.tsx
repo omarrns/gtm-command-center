@@ -10,6 +10,10 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  ICP_DIMENSIONS,
+  type SubDimensionEvidence,
+} from "@/lib/onboarding/icp-dimensions";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 
@@ -26,6 +30,44 @@ interface StatusPanelProps {
 function truncate(s: string, n: number): string {
   if (s.length <= n) return s;
   return `${s.slice(0, n).trimEnd()}…`;
+}
+
+// Looks up sub-dim names from the canonical ICP config. Returns null for
+// non-ICP templates so the panel falls through to the model-confidence %
+// badge (job_search confidence is still model-reported).
+function icpSubDimensions(
+  templateId: string,
+  dimensionKey: string,
+): readonly string[] | null {
+  if (templateId !== "icp_definition") return null;
+  const dim = ICP_DIMENSIONS.find((d) => d.key === dimensionKey);
+  return dim?.subDimensions ?? null;
+}
+
+// Dominant strength across a dimension's evidence map. The badge text is
+// terse so it fits next to the structural fraction without crowding.
+function dominantEvidenceLabel(
+  evidence: Record<string, SubDimensionEvidence> | undefined,
+): string | null {
+  if (!evidence) return null;
+  const strengths = Object.values(evidence).map((e) => e.strength);
+  if (strengths.length === 0) return null;
+  if (strengths.every((s) => s === "direct_user_provided")) {
+    return "User-confirmed";
+  }
+  if (strengths.some((s) => s === "direct_user_provided")) {
+    return "Mixed: some user-confirmed";
+  }
+  if (strengths.every((s) => s === "inferred_from_customer_examples")) {
+    return "From exemplars";
+  }
+  if (strengths.every((s) => s === "inferred_from_public_data")) {
+    return "From public data";
+  }
+  if (strengths.every((s) => s === "weak_or_unknown")) {
+    return "Weak evidence";
+  }
+  return "Mixed evidence";
 }
 
 export function OrchestratorStatusPanel({
@@ -150,6 +192,23 @@ export function OrchestratorStatusPanel({
                   const confident =
                     x.dim.status === "answered" ||
                     x.dim.confidence >= x.dim.threshold;
+                  // ICP confidence is structural completeness (filled
+                  // sub-dims / total), not the model's gut feel. Render it
+                  // as a fraction so the user reads "4/4 filled" instead
+                  // of "100% sure". Job_search confidence is still
+                  // model-reported, so it keeps the % badge. Pre-Phase-2
+                  // saved interviews don't carry missingFields, so we fall
+                  // back to % rather than guess every sub-dim is filled.
+                  const subDims = icpSubDimensions(clientTemplate.id, x.key);
+                  const useStructuredDisplay =
+                    subDims !== null && x.dim.missingFields !== undefined;
+                  const missing = new Set(x.dim.missingFields ?? []);
+                  const weak = new Set(x.dim.weakFields ?? []);
+                  const filledLabel =
+                    useStructuredDisplay && subDims !== null
+                      ? `${subDims.length - missing.size}/${subDims.length}`
+                      : `${(x.dim.confidence * 100).toFixed(0)}%`;
+                  const evidenceLabel = dominantEvidenceLabel(x.dim.evidence);
                   return (
                     <li key={x.key} className="text-xs">
                       <div className="flex items-center gap-1.5">
@@ -168,13 +227,51 @@ export function OrchestratorStatusPanel({
                         <Badge
                           variant={confident ? "success" : "muted"}
                           className="ml-auto text-[10px] h-4"
+                          title={
+                            useStructuredDisplay && subDims !== null
+                              ? `${subDims.length - missing.size} of ${subDims.length} sub-fields filled`
+                              : undefined
+                          }
                         >
-                          {(x.dim.confidence * 100).toFixed(0)}%
+                          {filledLabel}
                         </Badge>
                       </div>
                       <p className="text-[var(--color-text-muted)] mt-0.5 pl-4 leading-snug">
                         {truncate(x.dim.summary, 140)}
                       </p>
+                      {useStructuredDisplay && subDims !== null && (
+                        <div className="mt-1 pl-4 flex flex-wrap gap-x-1.5 gap-y-0.5 text-[10px]">
+                          {subDims.map((field) => {
+                            const isMissing = missing.has(field);
+                            const isWeak = weak.has(field);
+                            const tone = isMissing
+                              ? "text-[var(--color-text-subtle)] line-through"
+                              : isWeak
+                                ? "text-[var(--color-warning)]"
+                                : "text-[var(--color-text-muted)]";
+                            return (
+                              <span
+                                key={field}
+                                className={`inline-flex items-center gap-0.5 ${tone}`}
+                                title={
+                                  isMissing
+                                    ? "Not filled"
+                                    : isWeak
+                                      ? "Weak evidence"
+                                      : "Filled"
+                                }
+                              >
+                                {isMissing ? "○" : isWeak ? "◐" : "●"} {field}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {evidenceLabel && (
+                        <p className="mt-1 pl-4 text-[10px] text-[var(--color-text-subtle)]">
+                          {evidenceLabel}
+                        </p>
+                      )}
                     </li>
                   );
                 })}
