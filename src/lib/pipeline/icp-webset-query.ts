@@ -13,7 +13,8 @@
  * later is a two-line change in discover-dormant.ts.
  */
 
-import type { IcpRubric } from "@/lib/pipeline/icp-to-theirstack-filters";
+import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
+import { coerceIcpRubric } from "@/lib/onboarding/icp-schemas";
 
 export interface IcpWebsetQuery {
   query: string;
@@ -28,9 +29,10 @@ export function buildIcpWebsetQuery(
   rubric: IcpRubric,
   opts: IcpWebsetQueryOptions = {},
 ): IcpWebsetQuery {
+  const normalizedRubric = coerceIcpRubric(rubric);
   const parts: string[] = [];
 
-  const firmo = rubric.firmographics;
+  const firmo = normalizedRubric.firmographics;
   if (firmo?.industries?.length) {
     parts.push(firmo.industries.join(" / "));
   }
@@ -40,8 +42,8 @@ export function buildIcpWebsetQuery(
     parts.push(`at ${firmo.stages.join(" or ")}`);
   }
 
-  const min = firmo?.employee_range_min;
-  const max = firmo?.employee_range_max;
+  const min = firmo?.employee_range.min;
+  const max = firmo?.employee_range.max;
   const meaningfulRange =
     (typeof min === "number" && min > 0) ||
     (typeof max === "number" && max < 10000);
@@ -55,7 +57,7 @@ export function buildIcpWebsetQuery(
     parts.push(`in ${firmo.geographies.join(" or ")}`);
   }
 
-  const techno = rubric.technographics;
+  const techno = normalizedRubric.technographics;
   if (techno?.required_tools?.length) {
     parts.push(`using ${techno.required_tools.join(" or ")}`);
   }

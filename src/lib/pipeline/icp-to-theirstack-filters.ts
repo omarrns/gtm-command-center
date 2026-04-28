@@ -11,14 +11,14 @@
  * dropped — better to filter loose than to reject a good match on a typo.
  */
 
-import type { z } from "zod";
-import type { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
+import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
+import { coerceIcpRubric } from "@/lib/onboarding/icp-schemas";
 import type {
   FundingStage,
   TheirStackFilters,
 } from "@/lib/integrations/theirstack";
 
-export type IcpRubric = z.infer<typeof icpRubricSchema>;
+export type { IcpRubric };
 
 // Rubric ships "Series B", "series b", "SeriesB" etc. Normalize to
 // TheirStack enum form. Anything off-map gets dropped.
@@ -105,9 +105,10 @@ export function icpToTheirStackFilters(
   rubric: IcpRubric,
   opts: IcpToFiltersOptions = {},
 ): TheirStackFilters {
-  const firmo = rubric.firmographics;
-  const techno = rubric.technographics;
-  const signals = rubric.signals;
+  const normalizedRubric = coerceIcpRubric(rubric);
+  const firmo = normalizedRubric.firmographics;
+  const techno = normalizedRubric.technographics;
+  const signals = normalizedRubric.signals;
 
   const filters: TheirStackFilters = {
     posted_at_max_age_days: opts.postedMaxAgeDays ?? 30,
@@ -122,11 +123,14 @@ export function icpToTheirStackFilters(
     // Employee count: only send if the rubric supplied non-default values.
     // The extraction schema defaults to [0, 10000], which would over-filter
     // every call with a meaningless "under 10k employees" floor.
-    if (firmo.employee_range_min && firmo.employee_range_min > 0) {
-      filters.min_employee_count = firmo.employee_range_min;
+    if (firmo.employee_range.min > 0) {
+      filters.min_employee_count = firmo.employee_range.min;
     }
-    if (firmo.employee_range_max && firmo.employee_range_max < 10000) {
-      filters.max_employee_count = firmo.employee_range_max;
+    if (
+      firmo.employee_range.max !== null &&
+      firmo.employee_range.max < 10000
+    ) {
+      filters.max_employee_count = firmo.employee_range.max;
     }
 
     const fundingStages = normalizeFundingStages(firmo.stages);

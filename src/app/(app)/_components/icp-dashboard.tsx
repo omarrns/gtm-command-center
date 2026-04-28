@@ -9,6 +9,7 @@ import Link from "next/link";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EmptyState } from "@/components/empty-state";
 import { buttonVariants } from "@/components/ui/button";
+import { safeParseIcpRubric, type IcpRubric } from "@/lib/onboarding/icp-schemas";
 import { IcpDashboardClient } from "./icp-dashboard-client";
 
 const REFRESH_HREF = "/onboard?mode=refresh&template=icp_definition";
@@ -23,41 +24,6 @@ interface ArtifactSummary {
   source_label: string | null;
   source_url: string | null;
   status: string;
-}
-
-interface IcpRubric {
-  product?: {
-    category?: string;
-    core_jtbd?: string;
-    wedge?: string;
-  };
-  buyer?: {
-    economic_buyer?: string;
-    champion?: string;
-    end_user?: string;
-  };
-  firmographics?: {
-    industries?: string[];
-    employee_range_min?: number;
-    employee_range_max?: number;
-    stages?: string[];
-    geographies?: string[];
-  };
-  technographics?: {
-    required_tools?: string[];
-    excluded_tools?: string[];
-  };
-  signals?: {
-    hiring_roles?: string[];
-    jtbd_evidence?: string[];
-    trigger_events?: string[];
-  };
-  disqualifiers?: string[];
-  proof_points?: {
-    existing_customers?: string[];
-    won_deals?: string[];
-    lost_deals_reasons?: string[];
-  };
 }
 
 export async function IcpDashboard({ userId }: IcpDashboardProps) {
@@ -93,7 +59,10 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
       .maybeSingle(),
   ]);
 
-  const rubric = (scoringRes.data?.icp_rubric as IcpRubric | null) ?? null;
+  const rawRubric = scoringRes.data?.icp_rubric ?? null;
+  const parsedRubric = rawRubric ? safeParseIcpRubric(rawRubric) : null;
+  const rubric: IcpRubric | null =
+    parsedRubric?.success === true ? parsedRubric.data : null;
   const artifacts = (artifactsRes.data ?? []) as ArtifactSummary[];
   const activationCompleted = !!configRes.data?.activation_completed_at;
 

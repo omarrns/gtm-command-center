@@ -1,0 +1,10 @@
+export const employeeRangeBands = [
+  { value: "1_10", label: "1-10", min: 1, max: 10 },
+  { value: "11_50", label: "11-50", min: 11, max: 50 },
+  { value: "51_100", label: "51-100", min: 51, max: 100 },
+  { value: "101_250", label: "101-250", min: 101, max: 250 },
+  { value: "251_1000", label: "251-1,000", min: 251, max: 1000 },
+  { value: "1001_5000", label: "1,001-5,000", min: 1001, max: 5000 },
+  { value: "5001_20000", label: "5,001-20,000", min: 5001, max: 20000 },
+  { value: "20001_plus", label: "20,001+", min: 20001, max: null },
+] as const;

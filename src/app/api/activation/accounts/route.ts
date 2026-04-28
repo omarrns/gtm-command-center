@@ -14,7 +14,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { runAccountActivationSearch } from "@/lib/pipeline/activation-accounts";
-import { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
+import { safeParseIcpRubric } from "@/lib/onboarding/icp-schemas";
 
 export const maxDuration = 300;
 
@@ -43,7 +43,7 @@ export async function POST() {
     );
   }
 
-  const parsed = icpRubricSchema.safeParse(rawRubric);
+  const parsed = safeParseIcpRubric(rawRubric);
   if (!parsed.success) {
     return NextResponse.json(
       { error: `icp_rubric failed validation: ${parsed.error.message}` },

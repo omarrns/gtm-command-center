@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EditableField } from "@/components/ui/editable-field";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
+import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
 import { updateIcpRubricAction } from "../_actions/update-icp-rubric";
 
 const REFRESH_HREF = "/onboard?mode=refresh&template=icp_definition";
@@ -18,41 +19,6 @@ interface ArtifactSummary {
   source_label: string | null;
   source_url: string | null;
   status: string;
-}
-
-interface IcpRubric {
-  product?: {
-    category?: string;
-    core_jtbd?: string;
-    wedge?: string;
-  };
-  buyer?: {
-    economic_buyer?: string;
-    champion?: string;
-    end_user?: string;
-  };
-  firmographics?: {
-    industries?: string[];
-    employee_range_min?: number;
-    employee_range_max?: number;
-    stages?: string[];
-    geographies?: string[];
-  };
-  technographics?: {
-    required_tools?: string[];
-    excluded_tools?: string[];
-  };
-  signals?: {
-    hiring_roles?: string[];
-    jtbd_evidence?: string[];
-    trigger_events?: string[];
-  };
-  disqualifiers?: string[];
-  proof_points?: {
-    existing_customers?: string[];
-    won_deals?: string[];
-    lost_deals_reasons?: string[];
-  };
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -99,6 +65,7 @@ export function IcpDashboardClient({
           category: rubric.product?.category ?? "",
           core_jtbd: rubric.product?.core_jtbd ?? "",
           wedge: rubric.product?.wedge ?? "",
+          delivery_model: rubric.product?.delivery_model ?? "",
           [key]: value,
         },
       });
@@ -115,6 +82,7 @@ export function IcpDashboardClient({
           economic_buyer: rubric.buyer?.economic_buyer ?? "",
           champion: rubric.buyer?.champion ?? "",
           end_user: rubric.buyer?.end_user ?? "",
+          deal_blocker: rubric.buyer?.deal_blocker ?? "",
           [key]: value,
         },
       });
@@ -129,8 +97,11 @@ export function IcpDashboardClient({
         ...rubric,
         firmographics: {
           industries: rubric.firmographics?.industries ?? [],
-          employee_range_min: rubric.firmographics?.employee_range_min ?? 0,
-          employee_range_max: rubric.firmographics?.employee_range_max ?? 10000,
+          employee_range: rubric.firmographics?.employee_range ?? {
+            min: 0,
+            max: 10000,
+          },
+          business_model: rubric.firmographics?.business_model ?? "",
           stages: rubric.firmographics?.stages ?? [],
           geographies: rubric.firmographics?.geographies ?? [],
           [key]: value,
@@ -140,7 +111,7 @@ export function IcpDashboardClient({
   }
 
   function updateEmployeeRange(
-    key: "employee_range_min" | "employee_range_max",
+    key: "min" | "max",
   ) {
     return (value: string) => {
       const parsed = Math.max(0, parseInt(value, 10) || 0);
@@ -148,11 +119,14 @@ export function IcpDashboardClient({
         ...rubric,
         firmographics: {
           industries: rubric.firmographics?.industries ?? [],
-          employee_range_min: rubric.firmographics?.employee_range_min ?? 0,
-          employee_range_max: rubric.firmographics?.employee_range_max ?? 10000,
+          employee_range: {
+            min: rubric.firmographics?.employee_range.min ?? 0,
+            max: rubric.firmographics?.employee_range.max ?? 10000,
+            [key]: parsed,
+          },
+          business_model: rubric.firmographics?.business_model ?? "",
           stages: rubric.firmographics?.stages ?? [],
           geographies: rubric.firmographics?.geographies ?? [],
-          [key]: parsed,
         },
       });
     };
@@ -167,6 +141,9 @@ export function IcpDashboardClient({
         technographics: {
           required_tools: rubric.technographics?.required_tools ?? [],
           excluded_tools: rubric.technographics?.excluded_tools ?? [],
+          tech_maturity: rubric.technographics?.tech_maturity ?? "",
+          data_infrastructure:
+            rubric.technographics?.data_infrastructure ?? "",
           [key]: value,
         },
       });
@@ -183,6 +160,7 @@ export function IcpDashboardClient({
           hiring_roles: rubric.signals?.hiring_roles ?? [],
           jtbd_evidence: rubric.signals?.jtbd_evidence ?? [],
           trigger_events: rubric.signals?.trigger_events ?? [],
+          pain_language: rubric.signals?.pain_language ?? [],
           [key]: value,
         },
       });
@@ -190,7 +168,13 @@ export function IcpDashboardClient({
   }
 
   function updateDisqualifiers(value: string[]) {
-    persist({ ...rubric, disqualifiers: value });
+    persist({
+      ...rubric,
+      disqualifiers: {
+        ...rubric.disqualifiers,
+        behavioral_disqualifiers: value,
+      },
+    });
   }
 
   function updateProofPoints<
@@ -286,14 +270,14 @@ export function IcpDashboardClient({
             <EditableField
               label="Min employees"
               kind="text"
-              value={String(rubric.firmographics?.employee_range_min ?? 0)}
-              onCommit={updateEmployeeRange("employee_range_min")}
+              value={String(rubric.firmographics?.employee_range.min ?? 0)}
+              onCommit={updateEmployeeRange("min")}
             />
             <EditableField
               label="Max employees"
               kind="text"
-              value={String(rubric.firmographics?.employee_range_max ?? 10000)}
-              onCommit={updateEmployeeRange("employee_range_max")}
+              value={String(rubric.firmographics?.employee_range.max ?? 10000)}
+              onCommit={updateEmployeeRange("max")}
             />
           </div>
           <EditableField
@@ -355,7 +339,7 @@ export function IcpDashboardClient({
         <EditableField
           label="One per line"
           kind="list"
-          value={rubric.disqualifiers ?? []}
+          value={rubric.disqualifiers.behavioral_disqualifiers}
           onCommit={updateDisqualifiers}
         />
       </ReviewFormSection>

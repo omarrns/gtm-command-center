@@ -14,7 +14,7 @@
  */
 
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
+import { safeParseIcpRubric } from "@/lib/onboarding/icp-schemas";
 import { runDiscoverDormant } from "@/lib/pipeline/steps/discover-dormant";
 import { runScoreAccounts } from "@/lib/pipeline/steps/score-accounts";
 import { enqueueGtmFindContactsJob } from "@/lib/jobs/gtm-find-contacts";
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const parsed = icpRubricSchema.safeParse(rawRubric);
+      const parsed = safeParseIcpRubric(rawRubric);
       if (!parsed.success) {
         userLog.error("icp_rubric failed schema validation", parsed.error);
         row.skipped = `icp_rubric invalid: ${parsed.error.message}`;

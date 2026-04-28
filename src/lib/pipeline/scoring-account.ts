@@ -19,6 +19,7 @@ import {
   type AccountFirmographics,
 } from "@/lib/skills/prompts/icp-account-fit";
 import type { IcpRubric } from "@/lib/pipeline/icp-to-theirstack-filters";
+import { coerceIcpRubric } from "@/lib/onboarding/icp-schemas";
 
 const accountDimensionSchema = z.object({
   score: z.number().min(1).max(5),
@@ -115,6 +116,7 @@ export async function scoreAccountAgainstIcp({
 
   const sender = extractSenderIdentity(memoryCtx, memoryCtx.displayName);
   const firmographics = extractFirmographics(opp);
+  const normalizedRubric = coerceIcpRubric(rubric);
 
   const scope: AiCallScope = {
     userId,
@@ -129,7 +131,7 @@ export async function scoreAccountAgainstIcp({
     system: buildIcpAccountFitSystem(sender),
     prompt: buildIcpAccountFitPrompt({
       companyName: opp.company_name,
-      rubric,
+      rubric: normalizedRubric,
       firmographics,
       research,
     }),

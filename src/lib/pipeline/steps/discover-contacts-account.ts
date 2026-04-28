@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpportunityRow, WebsetMatchReason } from "@/lib/supabase/types";
-import { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
+import { safeParseIcpRubric } from "@/lib/onboarding/icp-schemas";
 import type { IcpRubric } from "@/lib/pipeline/icp-to-theirstack-filters";
 import {
   runWebsetPersonSearch,
@@ -121,8 +121,15 @@ async function loadIcpRubric(
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;
-  const parsed = icpRubricSchema.safeParse(data?.icp_rubric ?? {});
-  return parsed.success ? parsed.data : {};
+  const parsed = safeParseIcpRubric(data?.icp_rubric ?? {});
+  if (!parsed.success) {
+    console.error(
+      `[discover-contacts-account] icp_rubric failed schema validation for user ${userId}:`,
+      parsed.error.message,
+    );
+    throw new Error(`icp_rubric schema validation failed: ${parsed.error.message}`);
+  }
+  return parsed.data;
 }
 
 interface ContactSearchOutcome {

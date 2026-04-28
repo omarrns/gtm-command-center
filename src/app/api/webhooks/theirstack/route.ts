@@ -29,7 +29,7 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { jobSchema } from "@/lib/integrations/theirstack";
-import { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
+import { safeParseIcpRubric } from "@/lib/onboarding/icp-schemas";
 import { createOpportunity } from "@/lib/pipeline/opportunities";
 import {
   claimOpportunity,
@@ -224,7 +224,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const rubric = icpRubricSchema.safeParse(rawRubric);
+    const rubric = safeParseIcpRubric(rawRubric);
   if (!rubric.success) {
     userLog.error("icp_rubric failed schema validation", rubric.error);
     return NextResponse.json(
