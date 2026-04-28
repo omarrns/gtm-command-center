@@ -48,12 +48,25 @@ export interface AccountActivationResult {
   employeeCount: number | null;
   industry: string | null;
   analysis: IcpAccountAnalysis;
+  // True when scoreAccountAgainstIcp couldn't validate the model output
+  // and returned a deterministic Skip/C fallback. UI renders a "Scoring
+  // degraded" badge so the AE sees this is an infrastructure failure
+  // signal, not a real low-fit verdict.
+  degradedFallback: boolean;
 }
 
 export interface AccountActivationStats {
   discovered: number;
   scored: number;
   errors: number;
+  // PR 6 will increment `degraded` when scoreAccountAgainstIcp returns
+  // degradedFallback=true; PR 3 declares the field so the UI types lock
+  // in. Until then the field stays at 0 and the UI's "all degraded" path
+  // is unreachable.
+  degraded: number;
+  // First per-row error message (truncated, mapped through mapAiError) so
+  // the UI can show the user a friendly cause instead of a stuck spinner.
+  firstError: string | null;
   rubricIncomplete: boolean;
 }
 
@@ -79,7 +92,14 @@ export async function runAccountActivationSearch(
     log.info("activation skipped — rubric has no hiring_roles");
     return {
       results: [],
-      stats: { discovered: 0, scored: 0, errors: 0, rubricIncomplete: true },
+      stats: {
+        discovered: 0,
+        scored: 0,
+        errors: 0,
+        degraded: 0,
+        firstError: null,
+        rubricIncomplete: true,
+      },
     };
   }
 
@@ -88,6 +108,8 @@ export async function runAccountActivationSearch(
 
   const scored: AccountActivationResult[] = [];
   let errors = 0;
+  let degraded = 0;
+  let firstError: string | null = null;
 
   // Inline scoring loop. Per-row error isolation mirrors
   // runScoreAccounts' contract — a single bad job doesn't blow the
@@ -98,7 +120,7 @@ export async function runAccountActivationSearch(
     if (!subject) continue;
 
     try {
-      const { normalizedScore, analysisResult } = await scoreAccountAgainstIcp({
+      const scoring = await scoreAccountAgainstIcp({
         opp: subject,
         rubric,
         userId,
@@ -106,6 +128,18 @@ export async function runAccountActivationSearch(
         model: ACTIVATION_MODEL,
         runId,
       });
+      const { normalizedScore, analysisResult } = scoring;
+
+      // Degraded fallback rows still go into the result list — the AE
+      // sees a row with a "Scoring degraded" badge instead of nothing.
+      // They count toward `degraded`, NOT `errors`, because the request
+      // didn't error: scoring just couldn't validate the model output.
+      if (scoring.degradedFallback) {
+        degraded++;
+        if (firstError === null) {
+          firstError = mapAiError(analysisResult.reason_to_believe);
+        }
+      }
 
       const activationResult: AccountActivationResult = {
         id: subject.id,
@@ -120,6 +154,7 @@ export async function runAccountActivationSearch(
         employeeCount: job.company_object?.employee_count ?? null,
         industry: job.company_object?.industry ?? null,
         analysis: analysisResult,
+        degradedFallback: scoring.degradedFallback,
       };
       scored.push(activationResult);
 
@@ -141,6 +176,11 @@ export async function runAccountActivationSearch(
     } catch (err) {
       errors++;
       log.error("activation scoring failed", err, { jobId: job.id });
+      if (firstError === null) {
+        firstError = mapAiError(
+          err instanceof Error ? err.message : String(err),
+        );
+      }
     }
   }
 
@@ -152,9 +192,36 @@ export async function runAccountActivationSearch(
       discovered: jobs.length,
       scored: scored.length,
       errors,
+      degraded,
+      firstError,
       rubricIncomplete: false,
     },
   };
+}
+
+// Strip SDK-internal prefixes from raw error messages before exposing to
+// the user. Two upstream sources land here:
+//   1. Raw thrown errors from the SDK (`AI_NoObjectGeneratedError: …`,
+//      `AI_RetryError: …`) when scoring throws above the degraded
+//      fallback. Today this only fires for non-scoring errors (Exa,
+//      memory load, etc.) since PR 6's fallback absorbs schema/SDK
+//      failures from the model boundary.
+//   2. Degraded-fallback `reason_to_believe` strings of the form
+//      "Scoring failed — degraded fallback (<cause>)". These already
+//      carry the inner cause; we still want a clean banner instead of
+//      the raw nested message.
+// Either way, return one user-meaningful sentence under 240 chars. No
+// stack traces, no nested prefixes.
+function mapAiError(raw: string): string {
+  const trimmed = raw.replace(/^AI_[A-Za-z]+Error:\s*/, "").trim();
+  if (
+    trimmed.startsWith("No object generated") ||
+    trimmed.startsWith("Scoring failed") ||
+    trimmed.startsWith("Failed after")
+  ) {
+    return "Scoring response didn't match the expected shape — retry, or narrow the rubric.";
+  }
+  return trimmed.slice(0, 240);
 }
 
 function toScoreSubject(job: TheirStackJob): ScoreAccountSubject | null {

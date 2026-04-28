@@ -105,6 +105,16 @@ function truncate(s: string | undefined | null): string | null {
 
 /* ── Wrapped generateObject — auto-captures every call ────────────────── */
 
+// Mirrors the @ai-sdk/anthropic v3.0.71 enum at
+// node_modules/@ai-sdk/anthropic/dist/index.d.ts:134-138. `outputFormat`
+// uses Anthropic's native `output_config.format.schema` (strictest;
+// good for closed Zod schemas like icpAccountAnalysisSchema).
+// `jsonTool` is the legacy tool-calling path (more permissive; required
+// for orchestrator/extraction schemas that use z.record / z.unknown).
+// `auto` lets the SDK pick. Default stays `jsonTool` for backward
+// compatibility with existing call sites.
+export type StructuredOutputMode = "outputFormat" | "jsonTool" | "auto";
+
 interface RunGenerateObjectArgs<S extends z.ZodType> {
   model: string;
   system: string;
@@ -112,6 +122,10 @@ interface RunGenerateObjectArgs<S extends z.ZodType> {
   schema: S;
   maxOutputTokens?: number;
   scope?: AiCallScope;
+  // Per-call override for Anthropic's structured-output strategy. Closed
+  // schemas should pass `"outputFormat"` for stricter validation. Most
+  // callers should leave this undefined and inherit `jsonTool`.
+  structuredOutputMode?: StructuredOutputMode;
 }
 
 type GenerateObjectForTests = <S extends z.ZodType>(
@@ -137,6 +151,14 @@ export async function runGenerateObject<S extends z.ZodType>(
   }
 
   const start = Date.now();
+  // Default mode is `jsonTool` — Anthropic's native `outputFormat` path
+  // enforces a strict subset of JSON Schema and rejects
+  // `additionalProperties: <schema>` (z.record) plus empty schemas
+  // (z.unknown/z.any). Orchestrator + extraction schemas use those, so
+  // they must keep the legacy tool-calling path. Closed schemas (e.g.
+  // icpAccountAnalysisSchema) opt into `outputFormat` per call for
+  // stricter validation against verdict/tier enums and required fields.
+  const structuredOutputMode = args.structuredOutputMode ?? "jsonTool";
   try {
     const result = await generateObject({
       model: anthropic(args.model),
@@ -144,15 +166,8 @@ export async function runGenerateObject<S extends z.ZodType>(
       prompt: args.prompt,
       schema: args.schema,
       maxOutputTokens: args.maxOutputTokens,
-      // Opt out of Anthropic's native `output_config.format.schema` path
-      // (the v3 @ai-sdk/anthropic default on Claude 4.x models). That path
-      // enforces a strict subset of JSON Schema — rejects
-      // `additionalProperties: <schema>` (z.record) and empty schemas
-      // (z.unknown/z.any). Forcing the old `jsonTool` path keeps the
-      // permissive tool-calling semantics our schemas were designed
-      // against under @ai-sdk/anthropic v2.
       providerOptions: {
-        anthropic: { structuredOutputMode: "jsonTool" },
+        anthropic: { structuredOutputMode },
       },
     });
 

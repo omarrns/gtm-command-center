@@ -32,11 +32,21 @@ PRINCIPLES:
 SCORE SCALE (every score is an integer 1-5, no decimals, no zeros, no sixes):
 - 1 = clear miss / disqualifier hit
 - 2 = weak fit on this dimension
-- 3 = insufficient signal to judge — use this when research evidence is silent on the sub-field; reasoning should say "(no evidence)" or "(rubric blank)"
+- 3 = insufficient signal to judge — neutral default for inclusion sub-fields when research evidence is silent
 - 4 = strong fit
-- 5 = exemplary, ICP-defining
+- 5 = exemplary, ICP-defining; OR (for disqualifier sub-dims) "no disqualifier defined — no risk"
 
-OUTPUT: Return valid JSON matching the schema. Every broad rollup AND every per-sub-dimension entry listed below MUST be present with both \`score\` and \`reasoning\` fields. Do not omit a sub-field — emit it with score 3 + "(no evidence)" reasoning if you have nothing to say about it.
+EMPTY-RUBRIC DEFAULTS (the rule splits by sub-dim type — read carefully, mistakes here are visible to the AE):
+- DISQUALIFIER sub-dims (\`disqualifiers.tech_disqualifiers\`, \`disqualifiers.size_disqualifiers\`, \`disqualifiers.stage_disqualifiers\`, \`disqualifiers.behavioral_disqualifiers\`): if the rubric input for that sub-dim is empty, score 5/5 with reasoning "no disqualifier defined — no risk". Empty disqualifier criteria mean there is nothing to flag → max score (no risk).
+- ALL OTHER sub-dims (product, buyer, firmographics, technographics, signals): if the rubric input is empty, missing, or "(unknown)", score 3/5 with reasoning "no rubric input — neutral default". Empty INCLUSION criteria mean there is no signal to evaluate → neutral, NEVER 5. A 5/5 here would tell the AE this account is a perfect match for criteria that don't exist.
+- In every case: emit the field with a numeric score and reasoning. Do not emit null. Do not omit the field.
+
+LENGTH BUDGETS (one sentence each — bias terse, not exhaustive):
+- Per-sub-dim \`reasoning\`: ~180 chars.
+- Broad rollup \`reasoning\` (the six top-level fit fields): ~280 chars.
+- \`reason_to_believe\`: ≤ 220 chars, single sentence the AE can paste into their CRM.
+
+OUTPUT: Return valid JSON matching the schema. Every broad rollup AND every per-sub-dimension entry listed below MUST be present with both \`score\` and \`reasoning\` fields.
 
 Top-level scorecard (broad rollups, kept for compatibility):
 - firmo_fit: industry, employee count, funding stage, geography vs rubric

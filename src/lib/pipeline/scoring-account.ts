@@ -88,6 +88,14 @@ export interface AccountScoringResult {
   normalizedScore: number;
   analysisResult: IcpAccountAnalysis;
   disqualifierOverride: DisqualifierOverride;
+  // True when the model boundary failed (schema mismatch, all retries
+  // exhausted) and we returned a deterministic Skip/C fallback rather
+  // than throwing. Callers SHOULD persist this signal explicitly:
+  // `runScoreAccounts` writes `last_error` so the cron path keeps a
+  // visible trail; activation surfaces it as a "Scoring degraded"
+  // badge. Distinct from `disqualifierOverride.triggered`, which is a
+  // valid model output that just hit a disqualifier.
+  degradedFallback: boolean;
 }
 
 const BROAD_COMPONENT_KEYS = [
@@ -178,30 +186,68 @@ export async function scoreAccountAgainstIcp({
     model: model ?? "claude-sonnet-4-6",
     system: buildIcpAccountFitSystem(sender),
     schema: icpAccountAnalysisSchema,
-    maxOutputTokens: 4096,
+    // 25 sub-dim breakdown × {score, reasoning} + 6 broad rollups +
+    // verdict/tier/reason ≈ 3K tokens at typical reasoning length. 8192
+    // gives headroom against truncation. Matches `scoring.ts:158`
+    // (job_seeker analysisSchema) — same pattern, same budget.
+    maxOutputTokens: 8192,
+    // Stay on the default `jsonTool` path — Anthropic's strict
+    // `outputFormat` grammar compiler rejects icpAccountAnalysisSchema
+    // with "compiled grammar is too large" because the closed shape has
+    // 31 required nested {score, reasoning} pairs. `jsonTool` is more
+    // permissive and successfully accepts the same schema.
     scope,
   };
 
-  // One-shot retry on schema validation / no-object-generated. Scoped
-  // here rather than inside runGenerateObject so the blast radius stays
-  // narrow — other call sites keep single-shot semantics. If the second
-  // attempt also fails, throw; per-row try/catch in the caller
-  // (runAccountActivationSearch / runScoreAccounts) increments errors
-  // and continues.
-  const analysis = await runGenerateObject({
-    ...baseArgs,
-    prompt: basePrompt,
-  }).catch(async (err: unknown) => {
-    const log = createLogger({ runId, userId, scope: "scoring-account" });
-    log.warn("first scoring attempt failed; retrying with strict reminder", {
-      oppId: opp.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return runGenerateObject({
+  // Three-layer model boundary. Each layer is the net for the one
+  // above it; only this caller has all three so other call sites keep
+  // their single-shot semantics.
+  //   1. First attempt with the standard prompt.
+  //   2. One-shot retry with an explicit reminder about emitting every
+  //      sub-field (added in d54e1a0 to absorb non-canonical model
+  //      output from the closed schema).
+  //   3. Degraded fallback: deterministic Skip/C with every sub-dim
+  //      scored 1, reason_to_believe explaining the failure. Caller
+  //      never sees a thrown error from this seam — preserves per-row
+  //      throughput in batch scoring and lets activation render a
+  //      "Scoring degraded" placeholder instead of stranding the row.
+  // Telemetry note: `degradedFallback` rate measures retry-survived
+  // failures, not raw model output drift. PR 8's retro should adjust
+  // the threshold accordingly.
+  const log = createLogger({ runId, userId, scope: "scoring-account" });
+  let analysis: IcpAccountAnalysis;
+  let degradedFallback = false;
+  try {
+    analysis = await runGenerateObject({
       ...baseArgs,
-      prompt: `${basePrompt}\n\nReminder: every sub-field listed in the breakdown must appear with both \`score\` (integer 1-5) and \`reasoning\` (string). When you have no signal for a sub-field, emit score 3 with reasoning "(no evidence)" — do not omit the key.`,
+      prompt: basePrompt,
+    }).catch(async (err: unknown) => {
+      log.warn("first scoring attempt failed; retrying with strict reminder", {
+        oppId: opp.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return runGenerateObject({
+        ...baseArgs,
+        prompt: `${basePrompt}\n\nReminder: every sub-field listed in the breakdown must appear with both \`score\` (integer 1-5) and \`reasoning\` (string). When you have no signal for a sub-field, emit score 3 with reasoning "(no evidence)" — do not omit the key.`,
+      });
     });
-  });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log.error("scoring failed after retry — degraded fallback", err, {
+      oppId: opp.id,
+      companyName: opp.company_name,
+    });
+    return {
+      normalizedScore: 0,
+      analysisResult: buildFallbackAnalysis(opp.company_name, message),
+      // No real disqualifier hit — the model never produced a breakdown.
+      // Keeping triggered=false here means callers that rely on the
+      // override flag for analytics see scoring failures as a separate
+      // signal from genuine disqualifier hits.
+      disqualifierOverride: { triggered: false, triggers: [] },
+      degradedFallback: true,
+    };
+  }
 
   const override = detectDisqualifierOverride(analysis.breakdown);
   const adjusted = applyDisqualifierOverride(analysis, override);
@@ -210,6 +256,79 @@ export async function scoreAccountAgainstIcp({
     normalizedScore: computeAccountScore(adjusted),
     analysisResult: adjusted,
     disqualifierOverride: override,
+    degradedFallback,
+  };
+}
+
+/**
+ * Schema-valid stand-in for failed scoring. Skip/C with all sub-dim
+ * scores at 1, broad rollups at 1, and `reason_to_believe` carrying the
+ * underlying error message (truncated). Critical: the caller MUST NOT
+ * route this through `applyDisqualifierOverride` — that function checks
+ * for sub-dim score ≤ 1 under disqualifiers and would fabricate a
+ * "Disqualifier match — …" string for what is actually an infrastructure
+ * failure. The override is bypassed in the catch path above.
+ *
+ * Exported for the fixture test, which asserts both the schema-valid
+ * shape and that the override-suppression rule holds (all-1 disqualifier
+ * subdims would otherwise trigger the override).
+ */
+export function buildFallbackAnalysis(
+  companyName: string,
+  errMessage: string,
+): IcpAccountAnalysis {
+  const stub = (reasoning: string) => ({ score: 1, reasoning });
+  const failureReason = "Scoring infrastructure failure";
+  return {
+    company_name: companyName,
+    firmo_fit: stub(failureReason),
+    techno_fit: stub(failureReason),
+    hiring_signal_fit: stub(failureReason),
+    buyer_fit: stub(failureReason),
+    proof_point_relevance: stub(failureReason),
+    disqualifier_risk: stub(failureReason),
+    breakdown: {
+      product: {
+        category: stub(failureReason),
+        core_jtbd: stub(failureReason),
+        wedge: stub(failureReason),
+        delivery_model: stub(failureReason),
+      },
+      buyer: {
+        economic_buyer: stub(failureReason),
+        champion: stub(failureReason),
+        end_user: stub(failureReason),
+        deal_blocker: stub(failureReason),
+      },
+      firmographics: {
+        industries: stub(failureReason),
+        business_model: stub(failureReason),
+        employee_range: stub(failureReason),
+        stages: stub(failureReason),
+        geographies: stub(failureReason),
+      },
+      technographics: {
+        required_tools: stub(failureReason),
+        excluded_tools: stub(failureReason),
+        tech_maturity: stub(failureReason),
+        data_infrastructure: stub(failureReason),
+      },
+      signals: {
+        hiring_roles: stub(failureReason),
+        jtbd_evidence: stub(failureReason),
+        trigger_events: stub(failureReason),
+        pain_language: stub(failureReason),
+      },
+      disqualifiers: {
+        tech_disqualifiers: stub(failureReason),
+        size_disqualifiers: stub(failureReason),
+        stage_disqualifiers: stub(failureReason),
+        behavioral_disqualifiers: stub(failureReason),
+      },
+    },
+    verdict: "Skip",
+    tier: "C",
+    reason_to_believe: `Scoring failed — degraded fallback (${errMessage.slice(0, 140)})`,
   };
 }
 

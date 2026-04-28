@@ -254,11 +254,22 @@ export function renderPromptChecklist(opts: {
         ? "Confirm or correct the weakest configured sub-field. Use canonical enum values verbatim."
         : "Score each account against every configured sub-field.";
 
+  // For scoring, the model emits `{score, reasoning}` per sub-dim. The
+  // rubric INPUT type/enum hints (`(enum_single): saas, on_prem, …`) are
+  // misleading in that context — they describe the rubric input shape,
+  // not what the scorer should produce. Drop them. Extraction and
+  // focused-interview modes still need the input-shape hints because
+  // those modes ARE about emitting rubric values.
+  const lineFor =
+    opts.mode === "full_scoring"
+      ? (_d: string, field: string) => `- ${field}`
+      : formatSubDimensionLine;
+
   return dimensions
     .map(
       (dimension) =>
         `## ${dimension.label}\n${detail}\n${dimension.subDimensions
-          .map((field) => formatSubDimensionLine(dimension.key, field))
+          .map((field) => lineFor(dimension.key, field))
           .join("\n")}`,
     )
     .join("\n\n");
