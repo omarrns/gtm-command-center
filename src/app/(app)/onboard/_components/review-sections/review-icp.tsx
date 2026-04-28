@@ -18,7 +18,6 @@ import { detectIcpDisagreements } from "@/lib/onboarding/orchestrator/icp-disagr
 import { DeclaredIcp } from "./icp/declared-icp";
 import { InferredFromExemplars } from "./icp/inferred-from-exemplars";
 import { CommonPatterns } from "./icp/common-patterns";
-import { MeaningfulVariations } from "./icp/meaningful-variations";
 import { Exclusions } from "./icp/exclusions";
 import { Disagreements } from "./icp/disagreements";
 import { ScoringPreview } from "./icp/scoring-preview";
@@ -191,11 +190,6 @@ export function ReviewIcp({
           positiveExemplarCount={positiveExemplarCount}
         />
       )}
-
-      <MeaningfulVariations
-        orchestratorState={orchestratorState}
-        positiveExemplarCount={positiveExemplarCount}
-      />
 
       <Exclusions
         disqualifiers={edits.icp.disqualifiers}
