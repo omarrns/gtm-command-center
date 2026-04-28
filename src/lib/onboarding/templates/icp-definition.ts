@@ -6,6 +6,10 @@ import {
   buildIcpInterviewerSystemPrompt,
 } from "@/lib/onboarding/icp-prompts";
 import {
+  CORE_ICP_DIMENSION_KEYS,
+  ICP_DIMENSIONS,
+} from "@/lib/onboarding/icp-dimensions";
+import {
   coerceIcpRubric,
   icpEditsSchema,
   icpExtractionSchema,
@@ -277,14 +281,15 @@ async function normalizeScoringProfile(
 
 // ── Template ───────────────────────────────────────────────────────────────
 
-const ICP_TOPICS = [
-  "product",
-  "buyer",
-  "firmographics",
-  "technographics",
-  "signals",
-  "disqualifiers",
-] as const;
+// Topics + labels are derived from the canonical ICP_DIMENSIONS config so
+// the template never drifts from the rubric source of truth. Adding a
+// dimension to icp-dimension-config.ts now flows here automatically.
+const ICP_TOPIC_LABELS: Record<
+  (typeof CORE_ICP_DIMENSION_KEYS)[number],
+  string
+> = Object.fromEntries(
+  ICP_DIMENSIONS.map((dimension) => [dimension.key, dimension.label]),
+) as Record<(typeof CORE_ICP_DIMENSION_KEYS)[number], string>;
 
 export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   IcpEdits,
@@ -336,15 +341,8 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   chatModel: "claude-sonnet-4-6",
   chatMaxOutputTokens: 1024,
 
-  topics: ICP_TOPICS,
-  topicLabels: {
-    product: "Product",
-    buyer: "Buyer",
-    firmographics: "Firmographics",
-    technographics: "Technographics",
-    signals: "Signals",
-    disqualifiers: "Disqualifiers",
-  },
+  topics: CORE_ICP_DIMENSION_KEYS,
+  topicLabels: ICP_TOPIC_LABELS,
 
   extractionSchema: icpExtractionSchema,
   extractionSystemPrompt: ICP_EXTRACTION_SYSTEM_PROMPT,

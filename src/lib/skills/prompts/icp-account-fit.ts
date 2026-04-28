@@ -26,7 +26,7 @@ PRINCIPLES:
 - Ground every score in the rubric + evidence provided. No speculation.
 - A clear disqualifier match (any disqualifier sub-dim scoring 1/5) MUST force verdict='Skip' and tier='C', regardless of strong firmographic / buyer / signal fit. Disqualifier hits dominate.
 - "Pursue" requires real alignment across firmographic fit + active buying signal. "Worth exploring" is the default when data is mixed.
-- Treat the rubric's evidence_strength field as a confidence weight: \`direct_user_provided\` evidence is the strongest anchor, then \`inferred_from_customer_examples\`, then \`inferred_from_public_data\`, then \`weak_or_unknown\`. When the rubric value is weak_or_unknown for a sub-dim, score conservatively (3) and explain in reasoning rather than over-asserting fit.
+- Treat \`rubric.evidence.<dimension>.<sub_dimension>.strength\` as a confidence weight: \`direct_user_provided\` evidence is the strongest anchor, then \`inferred_from_customer_examples\`, then \`inferred_from_public_data\`, then \`weak_or_unknown\`. When the strength for a sub-dim is \`weak_or_unknown\`, score conservatively (3) and explain in reasoning rather than over-asserting fit.
 - reason_to_believe must be a single sentence an AE can paste into their CRM.
 
 OUTPUT: Return valid JSON matching the schema.

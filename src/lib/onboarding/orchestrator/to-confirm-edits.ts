@@ -231,6 +231,11 @@ function orchestratorIcpEdits(state: OrchestratorState): IcpEdits {
     }
   }
 
+  // proof_points was dropped as a core dimension in Phase 2; the
+  // orchestrator no longer emits state.dimensions.proof_points. The
+  // rubric still carries proof_points as evidence/calibration data, but
+  // it's populated downstream from the user's review edits, not from
+  // orchestrator state.
   const rubric = coerceIcpRubric({
     product: unwrapEvidenceWrappedValue(state.dimensions.product?.value),
     buyer: unwrapEvidenceWrappedValue(state.dimensions.buyer?.value),
@@ -243,9 +248,6 @@ function orchestratorIcpEdits(state: OrchestratorState): IcpEdits {
     signals: unwrapEvidenceWrappedValue(state.dimensions.signals?.value),
     disqualifiers: unwrapEvidenceWrappedValue(
       state.dimensions.disqualifiers?.value,
-    ),
-    proof_points: unwrapEvidenceWrappedValue(
-      state.dimensions.proof_points?.value,
     ),
     evidence,
   });
