@@ -1,0 +1,4 @@
+{
+  "pathPrefix": ["breakdown", "signals", "hiring_roles", "score"],
+  "codes": ["invalid_type"]
+}

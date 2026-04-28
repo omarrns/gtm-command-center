@@ -1,0 +1,4 @@
+{
+  "pathPrefix": ["breakdown", "disqualifiers", "tech_disqualifiers"],
+  "codes": ["invalid_type"]
+}

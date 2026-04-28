@@ -1,0 +1,4 @@
+{
+  "pathPrefix": ["verdict"],
+  "codes": ["invalid_value", "invalid_enum_value"]
+}

@@ -1,0 +1,138 @@
+{
+  "company_name": "Sparse Inc",
+  "firmo_fit": {
+    "score": 3,
+    "reasoning": "Industry match unclear; size in band."
+  },
+  "techno_fit": {
+    "score": 3,
+    "reasoning": "No required tools defined in rubric."
+  },
+  "hiring_signal_fit": {
+    "score": 3,
+    "reasoning": "No hiring_roles in rubric to evaluate against."
+  },
+  "buyer_fit": { "score": 3, "reasoning": "Buyer not specified in rubric." },
+  "proof_point_relevance": {
+    "score": 3,
+    "reasoning": "No existing customer pattern to compare."
+  },
+  "disqualifier_risk": {
+    "score": 5,
+    "reasoning": "No disqualifiers defined — no risk to flag."
+  },
+  "breakdown": {
+    "product": {
+      "category": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "core_jtbd": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "wedge": { "score": 3, "reasoning": "no rubric input — neutral default" },
+      "delivery_model": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      }
+    },
+    "buyer": {
+      "economic_buyer": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "champion": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "end_user": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "deal_blocker": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      }
+    },
+    "firmographics": {
+      "industries": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "business_model": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "employee_range": {
+        "score": 4,
+        "reasoning": "150 employees in default band."
+      },
+      "stages": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "geographies": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      }
+    },
+    "technographics": {
+      "required_tools": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "excluded_tools": {
+        "score": 5,
+        "reasoning": "no disqualifier defined — no risk"
+      },
+      "tech_maturity": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "data_infrastructure": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      }
+    },
+    "signals": {
+      "hiring_roles": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "jtbd_evidence": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "trigger_events": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      },
+      "pain_language": {
+        "score": 3,
+        "reasoning": "no rubric input — neutral default"
+      }
+    },
+    "disqualifiers": {
+      "tech_disqualifiers": {
+        "score": 5,
+        "reasoning": "no disqualifier defined — no risk"
+      },
+      "size_disqualifiers": {
+        "score": 5,
+        "reasoning": "no disqualifier defined — no risk"
+      },
+      "stage_disqualifiers": {
+        "score": 5,
+        "reasoning": "no disqualifier defined — no risk"
+      },
+      "behavioral_disqualifiers": {
+        "score": 5,
+        "reasoning": "no disqualifier defined — no risk"
+      }
+    }
+  },
+  "verdict": "Worth exploring",
+  "tier": "B",
+  "reason_to_believe": "Sparse rubric — neutral defaults across most dimensions; reviewer should fill in rubric before re-scoring."
+}
