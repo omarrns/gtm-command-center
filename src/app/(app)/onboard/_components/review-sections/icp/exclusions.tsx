@@ -3,8 +3,14 @@
 import { TagInput } from "@/components/tag-input";
 import { Input } from "@/components/ui/input";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
+import { ICP_ENUMS, humanizeEnumValue } from "@/lib/onboarding/icp-dimensions";
 import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
 import { DimensionMeta } from "./dimension-meta";
+
+const STAGE_OPTIONS = ICP_ENUMS.stageValues.map((value) => ({
+  value,
+  label: humanizeEnumValue(value),
+}));
 
 // Section 5 of the ICP review. Disqualifiers — hard no's that exclude
 // an account even if firmographics + signals look right.
@@ -86,6 +92,7 @@ export function Exclusions({
           placeholder="Add a stage disqualifier..."
           itemNoun="disqualifier"
           maxLength={200}
+          options={STAGE_OPTIONS}
         />
         <TagInput
           values={disqualifiers.behavioral_disqualifiers}

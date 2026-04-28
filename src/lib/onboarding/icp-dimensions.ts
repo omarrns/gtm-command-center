@@ -32,8 +32,12 @@ export {
 export {
   CORE_ICP_DIMENSION_KEYS,
   ICP_DIMENSIONS,
+  getSubDimensionEnumValues,
+  getSubDimensionType,
+  humanizeEnumValue,
   type CoreIcpDimensionKey,
   type IcpDimensionConfig,
+  type SubDimensionType,
 } from "@/lib/onboarding/icp-dimension-config";
 export {
   buildAccountScoringBreakdownSchema,

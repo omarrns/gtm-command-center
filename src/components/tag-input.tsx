@@ -20,6 +20,15 @@ interface TagInputProps {
   itemNounPlural?: string;
   maxCount?: number;
   maxLength?: number;
+  /**
+   * Suggested values rendered as click-to-add chips below the input.
+   * Used for enum_multi sub-dimensions (stages, geographies, etc.) so
+   * the user sees the canonical option set without typing it from
+   * memory. Already-selected options are hidden from the suggestion
+   * row. Free-form entry is still allowed — passing `options` is a
+   * hint, not a constraint.
+   */
+  options?: ReadonlyArray<{ value: string; label: string }>;
 }
 
 export function TagInput({
@@ -33,13 +42,14 @@ export function TagInput({
   itemNounPlural,
   maxCount = 10,
   maxLength = 100,
+  options,
 }: TagInputProps) {
   const [buffer, setBuffer] = useState("");
   const plural = itemNounPlural ?? `${itemNoun}s`;
   const capitalized = itemNoun.charAt(0).toUpperCase() + itemNoun.slice(1);
 
-  function add() {
-    const trimmed = buffer.trim();
+  function add(raw?: string) {
+    const trimmed = (raw ?? buffer).trim();
     if (!trimmed) return;
     if (trimmed.length > maxLength) {
       toast.error(`${capitalized} must be ${maxLength} characters or less`);
@@ -54,12 +64,15 @@ export function TagInput({
       return;
     }
     onChange([...values, trimmed]);
-    setBuffer("");
+    if (raw === undefined) setBuffer("");
   }
 
   function remove(index: number) {
     onChange(values.filter((_, i) => i !== index));
   }
+
+  const unselectedOptions =
+    options?.filter((opt) => !values.includes(opt.value)) ?? [];
 
   return (
     <div className="space-y-1.5">
@@ -102,12 +115,27 @@ export function TagInput({
             type="button"
             variant="ghost"
             size="xs"
-            onClick={add}
+            onClick={() => add()}
             disabled={!buffer.trim()}
           >
             <Plus size={14} />
             Add
           </Button>
+        </div>
+      )}
+      {unselectedOptions.length > 0 && values.length < maxCount && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {unselectedOptions.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => add(opt.value)}
+              className="inline-flex items-center gap-0.5 text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] border border-[var(--color-border-strong)] rounded-full px-2 py-0.5 transition-colors"
+            >
+              <Plus size={10} />
+              {opt.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

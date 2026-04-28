@@ -1,10 +1,21 @@
 "use client";
 
 import { TagInput } from "@/components/tag-input";
-import { Input } from "@/components/ui/input";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
+import { ICP_ENUMS, humanizeEnumValue } from "@/lib/onboarding/icp-dimensions";
+import { Input } from "@/components/ui/input";
 import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
 import { DimensionMeta } from "./dimension-meta";
+import { EnumSelect } from "./enum-select";
+
+const STAGE_OPTIONS = ICP_ENUMS.stageValues.map((value) => ({
+  value,
+  label: humanizeEnumValue(value),
+}));
+const GEOGRAPHY_OPTIONS = ICP_ENUMS.geographyValues.map((value) => ({
+  value,
+  label: humanizeEnumValue(value),
+}));
 
 // Section 2 of the ICP review. Firmographics, technographics, signals.
 // When positive_example artifacts exist the orchestrator
@@ -70,22 +81,14 @@ export function InferredFromExemplars({
             itemNoun="industry"
             itemNounPlural="industries"
           />
-          <div className="space-y-1.5">
-            <label className="text-xs text-[var(--color-text-muted)]">
-              Business model
-            </label>
-            <Input
-              type="text"
-              value={firmographics.business_model}
-              onChange={(e) =>
-                onFirmographicsChange({
-                  ...firmographics,
-                  business_model: e.target.value,
-                })
-              }
-              className="border-transparent"
-            />
-          </div>
+          <EnumSelect
+            label="Business model"
+            value={firmographics.business_model}
+            onChange={(business_model) =>
+              onFirmographicsChange({ ...firmographics, business_model })
+            }
+            options={ICP_ENUMS.businessModelValues}
+          />
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs text-[var(--color-text-muted)]">
@@ -141,6 +144,7 @@ export function InferredFromExemplars({
             description="Company maturity stages (e.g. seed, series A)"
             placeholder="Add a stage..."
             itemNoun="stage"
+            options={STAGE_OPTIONS}
           />
           <TagInput
             values={firmographics.geographies}
@@ -153,6 +157,7 @@ export function InferredFromExemplars({
             placeholder="Add a geography..."
             itemNoun="geography"
             itemNounPlural="geographies"
+            options={GEOGRAPHY_OPTIONS}
           />
         </div>
       </ReviewFormSection>
@@ -190,38 +195,25 @@ export function InferredFromExemplars({
             placeholder="Add an excluded tool..."
             itemNoun="tool"
           />
-          <div className="space-y-1.5">
-            <label className="text-xs text-[var(--color-text-muted)]">
-              Tech maturity
-            </label>
-            <Input
-              type="text"
-              value={technographics.tech_maturity}
-              onChange={(e) =>
-                onTechnographicsChange({
-                  ...technographics,
-                  tech_maturity: e.target.value,
-                })
-              }
-              className="border-transparent"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-[var(--color-text-muted)]">
-              Data infrastructure
-            </label>
-            <Input
-              type="text"
-              value={technographics.data_infrastructure}
-              onChange={(e) =>
-                onTechnographicsChange({
-                  ...technographics,
-                  data_infrastructure: e.target.value,
-                })
-              }
-              className="border-transparent"
-            />
-          </div>
+          <EnumSelect
+            label="Tech maturity"
+            value={technographics.tech_maturity}
+            onChange={(tech_maturity) =>
+              onTechnographicsChange({ ...technographics, tech_maturity })
+            }
+            options={ICP_ENUMS.techMaturityValues}
+          />
+          <EnumSelect
+            label="Data infrastructure"
+            value={technographics.data_infrastructure}
+            onChange={(data_infrastructure) =>
+              onTechnographicsChange({
+                ...technographics,
+                data_infrastructure,
+              })
+            }
+            options={ICP_ENUMS.dataInfrastructureValues}
+          />
         </div>
       </ReviewFormSection>
 
