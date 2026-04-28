@@ -94,13 +94,6 @@ const dimensions: readonly Dimension[] = [
       "Hard no's that exclude an account even if other criteria fit. Derived from negative_example artifacts + declarative statements.",
     confidenceThreshold: 0.75,
   },
-  {
-    key: "proof_points",
-    label: "Proof points",
-    description:
-      "Existing customers, won deals, lost-deal reasons. Grounded — only names the user explicitly provided; never invented.",
-    confidenceThreshold: 0.75,
-  },
 ];
 
 // ── Output transforms ──────────────────────────────────────────────────────
@@ -285,7 +278,6 @@ const ICP_TOPICS = [
   "technographics",
   "signals",
   "disqualifiers",
-  "proof_points",
 ] as const;
 
 export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
@@ -334,7 +326,7 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   maxAssistantMessages: 14,
   wrapUpThreshold: 12,
   completionMarker: "[INTERVIEW_COMPLETE]",
-  completionTopicThreshold: 5,
+  completionTopicThreshold: 4,
   chatModel: "claude-sonnet-4-6",
   chatMaxOutputTokens: 1024,
 
@@ -346,7 +338,6 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
     technographics: "Technographics",
     signals: "Signals",
     disqualifiers: "Disqualifiers",
-    proof_points: "Proof points",
   },
 
   extractionSchema: icpExtractionSchema,

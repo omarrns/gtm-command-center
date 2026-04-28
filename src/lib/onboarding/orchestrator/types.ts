@@ -43,8 +43,14 @@ export interface OrchestratorProvenance {
 export interface OrchestratorDimension {
   value: unknown;
   summary: string;
+  // Computed completeness confidence, not model-reported confidence.
+  // ICP Phase 2+ treats this as filled sub-dimensions / total sub-dimensions.
   confidence: number;
   threshold: number;
+  evidenceCoverage?: number;
+  missingFields?: string[];
+  weakFields?: string[];
+  confirmedWeakFields?: string[];
   status: DimensionStatus;
   provenance: OrchestratorProvenance[];
   updatedAt: string;

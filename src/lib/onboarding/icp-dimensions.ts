@@ -14,6 +14,20 @@ import type {
 
 export { ICP_ENUMS } from "@/lib/onboarding/icp-enums";
 export {
+  calculateCompleteness,
+  calculateDimensionQuality,
+  calculateEvidenceCoverage,
+  changedSubDimensionKeys,
+  getCoreDimensionKeys,
+  hasMeaningfulDimensionValue,
+  renderDimensionValue,
+  renderPromptChecklist,
+  shouldSkipDimension,
+  type DimensionQuality,
+  type PromptChecklistMode,
+  type SkipDimensionInput,
+} from "@/lib/onboarding/icp-quality";
+export {
   CORE_ICP_DIMENSION_KEYS,
   ICP_DIMENSIONS,
   type CoreIcpDimensionKey,

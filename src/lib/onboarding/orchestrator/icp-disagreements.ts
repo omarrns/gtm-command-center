@@ -25,7 +25,8 @@ import type { OrchestratorState } from "./types";
 
 type ProvenanceClass = "declared" | "inferred" | "unknown";
 
-// Only the seven ICP rubric dimensions are eligible. Other state keys
+// Only the core ICP rubric dimensions are eligible. Evidence/calibration
+// fields like proof_points are not conflict-routed as dimensions.
 // (none today, but room for orchestrator-internal book-keeping) skip.
 const ICP_DIMENSIONS: ReadonlyArray<{ key: string; label: string }> = [
   { key: "product", label: "Product" },
@@ -34,7 +35,6 @@ const ICP_DIMENSIONS: ReadonlyArray<{ key: string; label: string }> = [
   { key: "technographics", label: "Technographics" },
   { key: "signals", label: "Signals" },
   { key: "disqualifiers", label: "Disqualifiers" },
-  { key: "proof_points", label: "Proof points" },
 ];
 
 const HIGH_SEVERITY_KEYWORDS = [

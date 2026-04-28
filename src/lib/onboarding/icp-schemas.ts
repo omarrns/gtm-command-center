@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import {
+  ICP_DIMENSIONS,
   coerceIcpRubric,
   type DisqualifiersIcpRubric,
   type EvidenceSource,
@@ -158,45 +159,21 @@ const subDimensionEvidenceSchema = z.object({
   notes: z.string(),
 }) satisfies z.ZodType<SubDimensionEvidence>;
 
-const icpEvidenceSchema = z.object({
-  product: z.object({
-    category: subDimensionEvidenceSchema,
-    core_jtbd: subDimensionEvidenceSchema,
-    wedge: subDimensionEvidenceSchema,
-    delivery_model: subDimensionEvidenceSchema,
-  }),
-  buyer: z.object({
-    economic_buyer: subDimensionEvidenceSchema,
-    champion: subDimensionEvidenceSchema,
-    end_user: subDimensionEvidenceSchema,
-    deal_blocker: subDimensionEvidenceSchema,
-  }),
-  firmographics: z.object({
-    industries: subDimensionEvidenceSchema,
-    business_model: subDimensionEvidenceSchema,
-    employee_range: subDimensionEvidenceSchema,
-    stages: subDimensionEvidenceSchema,
-    geographies: subDimensionEvidenceSchema,
-  }),
-  technographics: z.object({
-    required_tools: subDimensionEvidenceSchema,
-    excluded_tools: subDimensionEvidenceSchema,
-    tech_maturity: subDimensionEvidenceSchema,
-    data_infrastructure: subDimensionEvidenceSchema,
-  }),
-  signals: z.object({
-    hiring_roles: subDimensionEvidenceSchema,
-    jtbd_evidence: subDimensionEvidenceSchema,
-    trigger_events: subDimensionEvidenceSchema,
-    pain_language: subDimensionEvidenceSchema,
-  }),
-  disqualifiers: z.object({
-    tech_disqualifiers: subDimensionEvidenceSchema,
-    size_disqualifiers: subDimensionEvidenceSchema,
-    stage_disqualifiers: subDimensionEvidenceSchema,
-    behavioral_disqualifiers: subDimensionEvidenceSchema,
-  }),
-}) satisfies z.ZodType<IcpEvidence>;
+const icpEvidenceSchema = z.object(
+  Object.fromEntries(
+    ICP_DIMENSIONS.map((dimension) => [
+      dimension.key,
+      z.object(
+        Object.fromEntries(
+          dimension.subDimensions.map((subDimension) => [
+            subDimension,
+            subDimensionEvidenceSchema,
+          ]),
+        ),
+      ),
+    ]),
+  ),
+) as unknown as z.ZodType<IcpEvidence>;
 
 const canonicalIcpRubricSchema = z.object({
   product: z.object({
