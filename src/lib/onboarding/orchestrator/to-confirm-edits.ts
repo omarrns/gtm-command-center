@@ -1,12 +1,6 @@
-import type { z } from "zod";
 import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
 import {
-  buyerSchema,
-  firmographicsSchema,
-  productSchema,
-  proofPointsSchema,
-  signalsSchema,
-  technographicsSchema,
+  coerceIcpRubric,
   type IcpEdits,
 } from "@/lib/onboarding/icp-schemas";
 import type { InterviewTemplate } from "@/lib/onboarding/templates/types";
@@ -63,26 +57,21 @@ function getTone(
   return "casual";
 }
 
-/**
- * Safe-parse an orchestrator dimension value against its sub-schema.
- * Used for ICP dimensions where the prompt asks for specific field
- * shapes. If the model emits a tuple or mis-keyed object, safeParse
- * fails and the caller's fallback wins — no silent corruption.
- *
- * The sub-schemas carry `.default()` on every leaf, so a successful
- * parse also fills in any missing keys with their defaults.
- */
-function coerceDimension<T>(
-  state: OrchestratorState,
-  key: string,
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
-  fallback: T,
-): T {
-  const v = state.dimensions[key]?.value;
-  if (v === undefined || v === null) return fallback;
-  const parsed = schema.safeParse(v);
-  if (parsed.success) return parsed.data;
-  return fallback;
+function unwrapEvidenceWrappedValue(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return value;
+  }
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length <= 2 && "value" in record && "evidence" in record) {
+    return unwrapEvidenceWrappedValue(record.value);
+  }
+  return Object.fromEntries(
+    Object.entries(record).map(([key, entry]) => [
+      key,
+      unwrapEvidenceWrappedValue(entry),
+    ]),
+  );
 }
 
 function equalValue(a: unknown, b: unknown): boolean {
@@ -223,56 +212,61 @@ export function toJobSearchConfirmEdits(
 // ── ICP adapter ────────────────────────────────────────────────────────────
 
 function orchestratorIcpEdits(state: OrchestratorState): IcpEdits {
-  // Each sub-schema is the source of truth for its shape. coerceDimension
-  // safeParses the orchestrator's emitted value and falls back to the
-  // typed default on shape mismatch — so a malformed employee_range tuple
-  // or an unexpected sub-key collapses cleanly instead of silently
-  // corrupting the rubric.
+  const rubric = coerceIcpRubric({
+    product: unwrapEvidenceWrappedValue(state.dimensions.product?.value),
+    buyer: unwrapEvidenceWrappedValue(state.dimensions.buyer?.value),
+    firmographics: unwrapEvidenceWrappedValue(
+      state.dimensions.firmographics?.value,
+    ),
+    technographics: unwrapEvidenceWrappedValue(
+      state.dimensions.technographics?.value,
+    ),
+    signals: unwrapEvidenceWrappedValue(state.dimensions.signals?.value),
+    disqualifiers: unwrapEvidenceWrappedValue(
+      state.dimensions.disqualifiers?.value,
+    ),
+    proof_points: unwrapEvidenceWrappedValue(
+      state.dimensions.proof_points?.value,
+    ),
+  });
+  const disqualifiers = [
+    ...rubric.disqualifiers.tech_disqualifiers,
+    rubric.disqualifiers.size_disqualifiers,
+    ...rubric.disqualifiers.stage_disqualifiers,
+    ...rubric.disqualifiers.behavioral_disqualifiers,
+  ].filter((entry) => entry.trim().length > 0);
+
   return {
-    product: coerceDimension(state, "product", productSchema, {
-      category: "",
-      core_jtbd: "",
-      wedge: "",
-    }),
-    icp: {
-      buyer: coerceDimension(state, "buyer", buyerSchema, {
-        economic_buyer: "",
-        champion: "",
-        end_user: "",
-      }),
-      firmographics: coerceDimension(
-        state,
-        "firmographics",
-        firmographicsSchema,
-        {
-          industries: [],
-          employee_range_min: 0,
-          employee_range_max: 10000,
-          stages: [],
-          geographies: [],
-        },
-      ),
-      technographics: coerceDimension(
-        state,
-        "technographics",
-        technographicsSchema,
-        {
-          required_tools: [],
-          excluded_tools: [],
-        },
-      ),
-      signals: coerceDimension(state, "signals", signalsSchema, {
-        hiring_roles: [],
-        jtbd_evidence: [],
-        trigger_events: [],
-      }),
-      disqualifiers: getStringArray(state, "disqualifiers", []),
+    product: {
+      category: rubric.product.category,
+      core_jtbd: rubric.product.core_jtbd,
+      wedge: rubric.product.wedge,
     },
-    proof_points: coerceDimension(state, "proof_points", proofPointsSchema, {
-      existing_customers: [],
-      won_deals: [],
-      lost_deals_reasons: [],
-    }),
+    icp: {
+      buyer: {
+        economic_buyer: rubric.buyer.economic_buyer,
+        champion: rubric.buyer.champion,
+        end_user: rubric.buyer.end_user,
+      },
+      firmographics: {
+        industries: rubric.firmographics.industries,
+        employee_range_min: rubric.firmographics.employee_range.min,
+        employee_range_max: rubric.firmographics.employee_range.max ?? 10000,
+        stages: rubric.firmographics.stages,
+        geographies: rubric.firmographics.geographies,
+      },
+      technographics: {
+        required_tools: rubric.technographics.required_tools,
+        excluded_tools: rubric.technographics.excluded_tools,
+      },
+      signals: {
+        hiring_roles: rubric.signals.hiring_roles,
+        jtbd_evidence: rubric.signals.jtbd_evidence,
+        trigger_events: rubric.signals.trigger_events,
+      },
+      disqualifiers,
+    },
+    proof_points: rubric.proof_points,
   };
 }
 

@@ -1,4 +1,5 @@
 import type { InterviewTemplateId } from "../templates/types";
+import type { SubDimensionEvidence } from "@/lib/onboarding/icp-dimensions";
 
 export type OrchestratorStatus =
   | "empty"
@@ -51,6 +52,7 @@ export interface OrchestratorDimension {
   missingFields?: string[];
   weakFields?: string[];
   confirmedWeakFields?: string[];
+  evidence?: Record<string, SubDimensionEvidence>;
   status: DimensionStatus;
   provenance: OrchestratorProvenance[];
   updatedAt: string;

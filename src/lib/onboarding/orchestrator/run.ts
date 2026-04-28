@@ -5,15 +5,20 @@ import type {
 } from "@/lib/onboarding/templates/types";
 import { runGenerateObject } from "@/lib/ai/calls";
 import {
-  calculateDimensionQuality,
   changedSubDimensionKeys,
-  shouldSkipDimension,
+  renderPromptChecklist,
 } from "@/lib/onboarding/icp-dimensions";
 import { applyIcpExemplarScarcityClamp } from "@/lib/onboarding/orchestrator/icp-exemplar-scarcity";
+import {
+  buildUserAnswerEvidence,
+  computeIcpDimensionMetadata,
+  mergeIcpDimensionEvidence,
+} from "@/lib/onboarding/orchestrator/icp-metadata";
 import {
   buildAnalysisResultSchema,
   buildArtifactsBlock,
   buildDimensionsBlock,
+  computeNextKey,
   dimensionStatusFromConfidence,
   loadArtifactsForInterview,
   singleDimensionResultSchema,
@@ -28,51 +33,6 @@ export {
   countPositiveExemplars,
   loadPositiveExemplarCount,
 } from "@/lib/onboarding/orchestrator/icp-exemplar-scarcity";
-
-const MAX_ASKS_PER_DIMENSION = 2;
-
-function computeNextKey(
-  state: OrchestratorState,
-  template: AgenticTemplate,
-): string | null {
-  for (const dim of template.dimensions) {
-    const askCount = state.askedDimensionKeys.filter(
-      (k) => k === dim.key,
-    ).length;
-    if (askCount >= MAX_ASKS_PER_DIMENSION) continue;
-    const cur = state.dimensions[dim.key];
-    if (!cur) return dim.key;
-    if (template.id === "icp_definition") {
-      if (
-        !shouldSkipDimension(dim.key, {
-          value: cur.value,
-          threshold: dim.confidenceThreshold,
-          evidenceCoverage: cur.evidenceCoverage,
-          missingFields: cur.missingFields,
-          weakFields: cur.weakFields,
-          confirmedWeakFields: cur.confirmedWeakFields,
-        })
-      ) {
-        return dim.key;
-      }
-      continue;
-    }
-    if (cur.confidence < dim.confidenceThreshold) {
-      return dim.key;
-    }
-  }
-  return null;
-}
-
-function icpDimensionMetadata(dimensionKey: string, value: unknown) {
-  const quality = calculateDimensionQuality(dimensionKey, value);
-  return {
-    confidence: quality.completeness,
-    evidenceCoverage: quality.evidenceCoverage,
-    missingFields: quality.missingFields,
-    weakFields: quality.weakFields,
-  };
-}
 
 /**
  * Read all succeeded artifacts for this interview, call Opus to produce a
@@ -137,18 +97,24 @@ export async function analyzeArtifacts(
     return next;
   }
 
+  const dimensionInstructions =
+    template.id === "icp_definition"
+      ? renderPromptChecklist({ mode: "compact_extraction" })
+      : buildDimensionsBlock(template.dimensions);
   const prompt = [
     `<artifacts>\n${buildArtifactsBlock(succeeded)}\n</artifacts>`,
-    `<dimensions>\n${buildDimensionsBlock(template.dimensions)}\n</dimensions>`,
+    `<dimensions>\n${dimensionInstructions}\n</dimensions>`,
     ctx.existingProfile
       ? `<existing_profile>\n${ctx.existingProfile}\n</existing_profile>`
       : "",
     `For each dimension, infer a value from the artifacts. Produce:`,
     `- **value**: your best-guess value for the dimension`,
     `- **summary**: one-line plain-English rationale for a user-facing status panel`,
-    `- **confidence**: 0–1 score. High (>0.8) only when artifact evidence directly supports it. Low (<0.5) when guessing.`,
+    template.id === "icp_definition"
+      ? `- **evidence**: per sub-field evidence metadata with strength, proofPoints, sources, and notes. Use weak_or_unknown when support is thin.`
+      : `- **confidence**: optional 0–1 legacy score. High (>0.8) only when artifact evidence directly supports it. Low (<0.5) when guessing.`,
     `- **provenance**: cite the artifact id + a short quote when possible.`,
-    `Return an entry for EVERY dimension, even low-confidence guesses.`,
+    `Return an entry for EVERY dimension, even weak guesses.`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -202,19 +168,24 @@ export async function analyzeArtifacts(
       }),
     );
 
+    const evidence =
+      template.id === "icp_definition"
+        ? mergeIcpDimensionEvidence(dim.key, analyzed.evidence)
+        : undefined;
     const icpMetadata =
       template.id === "icp_definition"
-        ? icpDimensionMetadata(dim.key, analyzed.value)
+        ? computeIcpDimensionMetadata(dim.key, analyzed.value, evidence)
         : null;
+    const confidence = icpMetadata?.confidence ?? analyzed.confidence ?? 0;
 
     next.dimensions[dim.key] = {
       value: analyzed.value,
       summary: analyzed.summary,
       // ICP confidence is computed completeness, not model-reported confidence.
-      confidence: icpMetadata?.confidence ?? analyzed.confidence,
+      confidence,
       threshold: dim.confidenceThreshold,
       status: dimensionStatusFromConfidence(
-        icpMetadata?.confidence ?? analyzed.confidence,
+        confidence,
         dim.confidenceThreshold,
         false,
       ),
@@ -223,6 +194,7 @@ export async function analyzeArtifacts(
             evidenceCoverage: icpMetadata.evidenceCoverage,
             missingFields: icpMetadata.missingFields,
             weakFields: icpMetadata.weakFields,
+            ...(evidence ? { evidence } : {}),
           }
         : {}),
       provenance,
@@ -231,8 +203,6 @@ export async function analyzeArtifacts(
   }
 
   if (template.id === "icp_definition") {
-    // TODO(phase-3): move exemplar scarcity out of confidence and into
-    // evidence metadata so confidence remains pure completeness.
     applyIcpExemplarScarcityClamp(next, succeeded, template.dimensions);
   }
 
@@ -286,7 +256,9 @@ export async function updateDimensionFromAnswer(
     `<dimension key="${dim.key}">${dim.description}</dimension>`,
     `<prior_inference>${priorSummary}\nValue: ${priorValue}</prior_inference>`,
     `<user_answer>\n${userAnswer}\n</user_answer>`,
-    `Update the dimension based on the user's answer. The user is the source of truth; confidence should be high (>=0.9) unless their answer is ambiguous.`,
+    template.id === "icp_definition"
+      ? `Update the dimension based on the user's answer. The user is the source of truth. Return updated value, summary, and evidence metadata for changed sub-fields.`
+      : `Update the dimension based on the user's answer. Return updated value, summary, and optional legacy confidence.`,
   ].join("\n\n");
 
   const object = await runGenerateObject({
@@ -313,18 +285,31 @@ export async function updateDimensionFromAnswer(
     },
   ];
 
+  const changedFields =
+    template.id === "icp_definition" && existing
+      ? changedSubDimensionKeys(dimensionKey, existing.value, object.value)
+      : [];
+  const userEvidence =
+    template.id === "icp_definition"
+      ? buildUserAnswerEvidence(dimensionKey, changedFields, messageId, userAnswer)
+      : undefined;
+  const evidence =
+    template.id === "icp_definition"
+      ? mergeIcpDimensionEvidence(
+          dimensionKey,
+          existing?.evidence,
+          object.evidence,
+          userEvidence,
+        )
+      : undefined;
   const icpMetadata =
     template.id === "icp_definition"
-      ? icpDimensionMetadata(dimensionKey, object.value)
+      ? computeIcpDimensionMetadata(dimensionKey, object.value, evidence)
       : null;
-  const changedWeakFields =
-    icpMetadata && existing
-      ? changedSubDimensionKeys(
-          dimensionKey,
-          existing.value,
-          object.value,
-        ).filter((field) => icpMetadata.weakFields.includes(field))
-      : [];
+  const confirmedWeakFields = changedFields.filter((field) =>
+    existing?.weakFields?.includes(field),
+  );
+  const confidence = icpMetadata?.confidence ?? object.confidence ?? 0;
 
   const nextDimensions = {
     ...prior.dimensions,
@@ -332,7 +317,7 @@ export async function updateDimensionFromAnswer(
       value: object.value,
       summary: object.summary,
       // ICP confidence is computed completeness, not model-reported confidence.
-      confidence: icpMetadata?.confidence ?? object.confidence,
+      confidence,
       threshold: dim.confidenceThreshold,
       status: "answered" as const,
       ...(icpMetadata
@@ -340,7 +325,8 @@ export async function updateDimensionFromAnswer(
             evidenceCoverage: icpMetadata.evidenceCoverage,
             missingFields: icpMetadata.missingFields,
             weakFields: icpMetadata.weakFields,
-            confirmedWeakFields: changedWeakFields,
+            confirmedWeakFields,
+            ...(evidence ? { evidence } : {}),
           }
         : {}),
       provenance,

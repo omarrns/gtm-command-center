@@ -36,13 +36,24 @@ export const buyerSchema = z.object({
   end_user: z.string().default(""),
 });
 
-export const firmographicsSchema = z.object({
+const legacyFirmographicsSchema = z.object({
   industries: z.array(z.string()).default([]),
   employee_range_min: z.number().default(0),
   employee_range_max: z.number().default(10000),
   stages: z.array(z.string()).default([]),
   geographies: z.array(z.string()).default([]),
 });
+
+export const firmographicsSchema = z.preprocess((input) => {
+  const firmographics = coerceIcpRubric({ firmographics: input }).firmographics;
+  return {
+    industries: firmographics.industries,
+    employee_range_min: firmographics.employee_range.min,
+    employee_range_max: firmographics.employee_range.max ?? 10000,
+    stages: firmographics.stages,
+    geographies: firmographics.geographies,
+  };
+}, legacyFirmographicsSchema);
 
 export const technographicsSchema = z.object({
   required_tools: z.array(z.string()).default([]),
@@ -67,6 +78,16 @@ export const proofPointsSchema = z.object({
   lost_deals_reasons: z.array(z.string()).default([]),
 });
 
+const legacyDisqualifiersSchema = z.preprocess((input) => {
+  const disqualifiers = coerceIcpRubric({ disqualifiers: input }).disqualifiers;
+  return [
+    ...disqualifiers.tech_disqualifiers,
+    disqualifiers.size_disqualifiers,
+    ...disqualifiers.stage_disqualifiers,
+    ...disqualifiers.behavioral_disqualifiers,
+  ].filter((entry) => entry.trim().length > 0);
+}, z.array(z.string()).default([]));
+
 export const icpExtractionSchema = z.object({
   product: productSchema,
   icp: z.object({
@@ -74,7 +95,7 @@ export const icpExtractionSchema = z.object({
     firmographics: firmographicsSchema,
     technographics: technographicsSchema,
     signals: signalsSchema,
-    disqualifiers: z.array(z.string()).default([]),
+    disqualifiers: legacyDisqualifiersSchema,
   }),
   proof_points: proofPointsSchema,
 });

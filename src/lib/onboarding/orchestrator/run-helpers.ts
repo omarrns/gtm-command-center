@@ -1,13 +1,74 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Dimension } from "@/lib/onboarding/templates/types";
+import { shouldSkipDimension } from "@/lib/onboarding/icp-dimensions";
+import type {
+  Dimension,
+  InterviewTemplate,
+} from "@/lib/onboarding/templates/types";
 import type { OnboardingArtifactRow } from "@/lib/supabase/types";
+import type { OrchestratorState } from "./types";
+
+const subDimensionEvidenceSchema = z.object({
+  strength: z.enum([
+    "direct_user_provided",
+    "inferred_from_customer_examples",
+    "inferred_from_public_data",
+    "weak_or_unknown",
+  ]),
+  proofPoints: z.array(z.string()).default([]),
+  sources: z
+    .array(
+      z.object({
+        type: z.enum(["artifact", "url", "user_answer", "public_research"]),
+        label: z.string(),
+        quote: z.string().optional(),
+      }),
+    )
+    .default([]),
+  notes: z.string().default(""),
+});
+
+type AgenticTemplate = Extract<InterviewTemplate, { agenticMode: true }>;
+
+const MAX_ASKS_PER_DIMENSION = 2;
+
+export function computeNextKey(
+  state: OrchestratorState,
+  template: AgenticTemplate,
+): string | null {
+  for (const dim of template.dimensions) {
+    const askCount = state.askedDimensionKeys.filter(
+      (key) => key === dim.key,
+    ).length;
+    if (askCount >= MAX_ASKS_PER_DIMENSION) continue;
+
+    const cur = state.dimensions[dim.key];
+    if (!cur) return dim.key;
+    if (template.id !== "icp_definition") {
+      if (cur.confidence < dim.confidenceThreshold) return dim.key;
+      continue;
+    }
+    if (
+      !shouldSkipDimension(dim.key, {
+        value: cur.value,
+        threshold: dim.confidenceThreshold,
+        evidenceCoverage: cur.evidenceCoverage,
+        missingFields: cur.missingFields,
+        weakFields: cur.weakFields,
+        confirmedWeakFields: cur.confirmedWeakFields,
+      })
+    ) {
+      return dim.key;
+    }
+  }
+  return null;
+}
 
 export const dimensionAnalysisSchema = z.object({
   value: z.unknown(),
   summary: z.string(),
-  // TODO(phase-3): make legacy model-reported confidence optional.
-  confidence: z.number().min(0).max(1),
+  confidence: z.number().min(0).max(1).optional(),
+  evidence: z.record(z.string(), subDimensionEvidenceSchema).optional(),
   provenance: z
     .array(
       z.object({
@@ -35,8 +96,8 @@ export function buildAnalysisResultSchema(dimensions: readonly Dimension[]) {
 export const singleDimensionResultSchema = z.object({
   value: z.unknown(),
   summary: z.string(),
-  // TODO(phase-3): make legacy model-reported confidence optional.
-  confidence: z.number().min(0).max(1),
+  confidence: z.number().min(0).max(1).optional(),
+  evidence: z.record(z.string(), subDimensionEvidenceSchema).optional(),
 });
 
 export async function loadArtifactsForInterview(

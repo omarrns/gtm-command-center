@@ -2,15 +2,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Dimension } from "@/lib/onboarding/templates/types";
 import type { OnboardingArtifactRow } from "@/lib/supabase/types";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
-import { dimensionStatusFromConfidence } from "@/lib/onboarding/orchestrator/run-helpers";
+import {
+  ICP_DIMENSIONS,
+  calculateDimensionQuality,
+  type SubDimensionEvidence,
+} from "@/lib/onboarding/icp-dimensions";
+import { computeIcpDimensionMetadata } from "@/lib/onboarding/orchestrator/icp-metadata";
 
 const ICP_EXEMPLAR_DERIVED_DIMENSIONS = [
   "firmographics",
   "technographics",
   "signals",
 ] as const;
-
-const ICP_EXEMPLAR_SCARCITY_CAP = 0.6;
 
 export function countPositiveExemplars(
   artifacts: ReadonlyArray<OnboardingArtifactRow>,
@@ -36,7 +39,7 @@ export async function loadPositiveExemplarCount(
 export function applyIcpExemplarScarcityClamp(
   state: OrchestratorState,
   succeededArtifacts: ReadonlyArray<OnboardingArtifactRow>,
-  dimensions: ReadonlyArray<Dimension>,
+  _dimensions: ReadonlyArray<Dimension>,
 ): void {
   const count = countPositiveExemplars(succeededArtifacts);
   if (count === 0 || count >= 3) return;
@@ -44,19 +47,51 @@ export function applyIcpExemplarScarcityClamp(
   for (const key of ICP_EXEMPLAR_DERIVED_DIMENSIONS) {
     const dim = state.dimensions[key];
     if (!dim) continue;
-    if (dim.confidence <= ICP_EXEMPLAR_SCARCITY_CAP) continue;
-    const dimDef = dimensions.find((d) => d.key === key);
-    if (!dimDef) continue;
+    const config = ICP_DIMENSIONS.find((dimension) => dimension.key === key);
+    if (!config) continue;
 
+    const quality = calculateDimensionQuality(key, dim.value, dim.evidence);
+    const nextEvidence = { ...(dim.evidence ?? {}) };
+    let changed = false;
+    for (const field of config.subDimensions) {
+      if (quality.missingFields.includes(field)) continue;
+      const current = nextEvidence[field];
+      if (
+        current?.strength === "direct_user_provided" ||
+        current?.strength === "inferred_from_public_data"
+      ) {
+        continue;
+      }
+      nextEvidence[field] = weakScarcityEvidence(count, current);
+      changed = true;
+    }
+    if (!changed) continue;
+
+    const metadata = computeIcpDimensionMetadata(key, dim.value, nextEvidence);
+    const suffix = `evidence remains weak: only ${count} positive exemplar${count === 1 ? "" : "s"}, not enough to call a pattern`;
     state.dimensions[key] = {
       ...dim,
-      confidence: ICP_EXEMPLAR_SCARCITY_CAP,
-      summary: `${dim.summary} (capped at ${ICP_EXEMPLAR_SCARCITY_CAP} — only ${count} positive exemplar${count === 1 ? "" : "s"}, not enough to call a pattern)`,
-      status: dimensionStatusFromConfidence(
-        ICP_EXEMPLAR_SCARCITY_CAP,
-        dimDef.confidenceThreshold,
-        false,
-      ),
+      summary: dim.summary.includes("evidence remains weak")
+        ? dim.summary
+        : `${dim.summary} (${suffix})`,
+      evidence: nextEvidence,
+      evidenceCoverage: metadata.evidenceCoverage,
+      missingFields: metadata.missingFields,
+      weakFields: metadata.weakFields,
     };
   }
+}
+
+function weakScarcityEvidence(
+  count: number,
+  current: SubDimensionEvidence | undefined,
+): SubDimensionEvidence {
+  return {
+    strength: "weak_or_unknown",
+    proofPoints: current?.proofPoints ?? [],
+    sources: current?.sources ?? [],
+    notes:
+      current?.notes ||
+      `Only ${count} positive exemplar${count === 1 ? "" : "s"} available.`,
+  };
 }
