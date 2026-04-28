@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   ICP_DIMENSIONS,
-  type SubDimensionEvidence,
+  dominantEvidenceLabel,
 } from "@/lib/onboarding/icp-dimensions";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
@@ -42,32 +42,6 @@ function icpSubDimensions(
   if (templateId !== "icp_definition") return null;
   const dim = ICP_DIMENSIONS.find((d) => d.key === dimensionKey);
   return dim?.subDimensions ?? null;
-}
-
-// Dominant strength across a dimension's evidence map. The badge text is
-// terse so it fits next to the structural fraction without crowding.
-function dominantEvidenceLabel(
-  evidence: Record<string, SubDimensionEvidence> | undefined,
-): string | null {
-  if (!evidence) return null;
-  const strengths = Object.values(evidence).map((e) => e.strength);
-  if (strengths.length === 0) return null;
-  if (strengths.every((s) => s === "direct_user_provided")) {
-    return "User-confirmed";
-  }
-  if (strengths.some((s) => s === "direct_user_provided")) {
-    return "Mixed: some user-confirmed";
-  }
-  if (strengths.every((s) => s === "inferred_from_customer_examples")) {
-    return "From exemplars";
-  }
-  if (strengths.every((s) => s === "inferred_from_public_data")) {
-    return "From public data";
-  }
-  if (strengths.every((s) => s === "weak_or_unknown")) {
-    return "Weak evidence";
-  }
-  return "Mixed evidence";
 }
 
 export function OrchestratorStatusPanel({
@@ -207,7 +181,9 @@ export function OrchestratorStatusPanel({
                     useStructuredDisplay && subDims !== null
                       ? `${subDims.length - missing.size}/${subDims.length}`
                       : `${(x.dim.confidence * 100).toFixed(0)}%`;
-                  const evidenceLabel = dominantEvidenceLabel(x.dim.evidence);
+                  const evidenceLabel = useStructuredDisplay
+                    ? dominantEvidenceLabel(x.key, x.dim.evidence)
+                    : null;
                   return (
                     <li key={x.key} className="text-xs">
                       <div className="flex items-center gap-1.5">

@@ -35,6 +35,14 @@ export type PromptChecklistMode =
   | "focused_interview"
   | "full_scoring";
 
+export type EvidenceLabel =
+  | "User-confirmed"
+  | "Mixed: some user-confirmed"
+  | "From exemplars"
+  | "From public data"
+  | "Weak evidence"
+  | "Mixed evidence";
+
 export function getCoreDimensionKeys(): CoreIcpDimensionKey[] {
   return ICP_DIMENSIONS.map((dimension) => dimension.key);
 }
@@ -170,6 +178,45 @@ export function hasMeaningfulDimensionValue(
   value: unknown,
 ): boolean {
   return calculateCompleteness(dimensionKey, value) > 0;
+}
+
+/**
+ * Dominant evidence-strength label for a dimension. Iterates the
+ * canonical sub-dim list so a partial evidence map (e.g. only
+ * `category` carries `direct_user_provided`, the rest are missing)
+ * doesn't silently read as "User-confirmed". Missing entries default
+ * to `weak_or_unknown` — the same semantic the renderer in
+ * orchestrator-status-panel.tsx and review-icp.tsx surface to the user.
+ */
+export function dominantEvidenceLabel(
+  dimensionKey: CoreIcpDimensionKey | string,
+  evidence?: unknown,
+): EvidenceLabel | null {
+  const config = ICP_DIMENSIONS.find(
+    (dimension) => dimension.key === dimensionKey,
+  );
+  if (!config) return null;
+  const dimensionEvidence = normalizeDimensionEvidence(config.key, evidence);
+  const strengths = config.subDimensions.map(
+    (field) => dimensionEvidence[field]?.strength ?? "weak_or_unknown",
+  );
+  if (strengths.length === 0) return null;
+  if (strengths.every((s) => s === "direct_user_provided")) {
+    return "User-confirmed";
+  }
+  if (strengths.some((s) => s === "direct_user_provided")) {
+    return "Mixed: some user-confirmed";
+  }
+  if (strengths.every((s) => s === "inferred_from_customer_examples")) {
+    return "From exemplars";
+  }
+  if (strengths.every((s) => s === "inferred_from_public_data")) {
+    return "From public data";
+  }
+  if (strengths.every((s) => s === "weak_or_unknown")) {
+    return "Weak evidence";
+  }
+  return "Mixed evidence";
 }
 
 export function renderDimensionValue(
