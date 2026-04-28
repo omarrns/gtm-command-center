@@ -1,30 +1,30 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { EditableField } from "@/components/ui/editable-field";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
+import {
+  IcpDashboardExemplars,
+  type ExemplarSummary,
+} from "./icp-dashboard-exemplars";
+import {
+  BUSINESS_MODEL_OPTIONS,
+  DATA_INFRASTRUCTURE_OPTIONS,
+  DELIVERY_MODEL_OPTIONS,
+  GEOGRAPHY_OPTIONS,
+  STAGE_OPTIONS,
+  TECH_MATURITY_OPTIONS,
+} from "./icp-dashboard-options";
 
-export interface ArtifactSummary {
-  id: string;
-  kind: string;
-  source_label: string | null;
-  source_url: string | null;
-  status: string;
-}
+// Re-export the public type so the parent IcpDashboardClient keeps its
+// existing import path. Implementation lives in icp-dashboard-exemplars.
+export type ArtifactSummary = ExemplarSummary;
 
 interface IcpDashboardFieldsProps {
   rubric: IcpRubric;
   onRubricChange: (next: IcpRubric) => void;
   artifacts: ArtifactSummary[];
 }
-
-const KIND_LABEL: Record<string, string> = {
-  positive_example: "Positive",
-  negative_example: "Negative",
-  buyer_persona: "Buyer persona",
-  company_context: "Context",
-};
 
 export function IcpDashboardFields({
   rubric,
@@ -159,9 +159,10 @@ export function IcpDashboardFields({
           />
           <EditableField
             label="Delivery model"
-            kind="text"
+            kind="enum"
             value={rubric.product.delivery_model}
             onCommit={updateProduct("delivery_model")}
+            options={DELIVERY_MODEL_OPTIONS}
           />
         </div>
       </ReviewFormSection>
@@ -205,17 +206,18 @@ export function IcpDashboardFields({
           />
           <EditableField
             label="Business model"
-            kind="text"
+            kind="enum"
             value={rubric.firmographics.business_model}
-            onCommit={(value) =>
+            onCommit={(business_model) =>
               persist({
                 ...rubric,
                 firmographics: {
                   ...rubric.firmographics,
-                  business_model: value,
+                  business_model,
                 },
               })
             }
+            options={BUSINESS_MODEL_OPTIONS}
           />
           <div className="grid grid-cols-2 gap-4">
             <EditableField
@@ -240,12 +242,14 @@ export function IcpDashboardFields({
             kind="list"
             value={rubric.firmographics.stages}
             onCommit={updateFirmographicsList("stages")}
+            options={STAGE_OPTIONS}
           />
           <EditableField
             label="Geographies"
             kind="list"
             value={rubric.firmographics.geographies}
             onCommit={updateFirmographicsList("geographies")}
+            options={GEOGRAPHY_OPTIONS}
           />
         </div>
       </ReviewFormSection>
@@ -266,15 +270,17 @@ export function IcpDashboardFields({
           />
           <EditableField
             label="Tech maturity"
-            kind="text"
+            kind="enum"
             value={rubric.technographics.tech_maturity}
             onCommit={updateTechnographicsText("tech_maturity")}
+            options={TECH_MATURITY_OPTIONS}
           />
           <EditableField
             label="Data infrastructure"
-            kind="text"
+            kind="enum"
             value={rubric.technographics.data_infrastructure}
             onCommit={updateTechnographicsText("data_infrastructure")}
+            options={DATA_INFRASTRUCTURE_OPTIONS}
           />
         </div>
       </ReviewFormSection>
@@ -327,6 +333,7 @@ export function IcpDashboardFields({
             kind="list"
             value={rubric.disqualifiers.stage_disqualifiers}
             onCommit={updateDisqualifierList("stage_disqualifiers")}
+            options={STAGE_OPTIONS}
           />
           <EditableField
             label="Behavioral disqualifiers"
@@ -360,36 +367,7 @@ export function IcpDashboardFields({
         </div>
       </ReviewFormSection>
 
-      {artifacts.length > 0 && (
-        <ReviewFormSection title={`Exemplars (${artifacts.length})`}>
-          <div className="space-y-3">
-            {artifacts.map((artifact) => {
-              const title =
-                artifact.source_label ?? artifact.source_url ?? "Untitled";
-              return (
-                <div key={artifact.id} className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm text-[var(--color-text)]">{title}</p>
-                    <Badge variant="muted">
-                      {KIND_LABEL[artifact.kind] ?? artifact.kind}
-                    </Badge>
-                  </div>
-                  {artifact.source_url && (
-                    <a
-                      href={artifact.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-[var(--color-blue)] hover:underline"
-                    >
-                      {artifact.source_url}
-                    </a>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </ReviewFormSection>
-      )}
+      <IcpDashboardExemplars artifacts={artifacts} />
     </>
   );
 }

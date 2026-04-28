@@ -26,7 +26,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { Plus } from "lucide-react";
 import { InlineListEditor } from "./inline-list-editor";
+
+interface EditableFieldOption {
+  value: string;
+  label: string;
+}
 
 interface EditableFieldTextProps {
   label: string;
@@ -42,9 +48,27 @@ interface EditableFieldListProps {
   value: string[];
   onCommit: (next: string[]) => void;
   placeholder?: string;
+  // Suggestion chips rendered below the bulleted display value. Click a
+  // chip to append it via onCommit. Used by the GTM dashboard for the
+  // enum_multi sub-dimensions (stages, geographies, stage_disqualifiers)
+  // so the canonical option set is one click away rather than typed
+  // from memory. Free-form entry via InlineListEditor is unchanged.
+  options?: ReadonlyArray<EditableFieldOption>;
 }
 
-type EditableFieldProps = EditableFieldTextProps | EditableFieldListProps;
+interface EditableFieldEnumProps {
+  label: string;
+  kind: "enum";
+  value: string;
+  onCommit: (next: string) => void;
+  options: ReadonlyArray<EditableFieldOption>;
+  placeholder?: string;
+}
+
+type EditableFieldProps =
+  | EditableFieldTextProps
+  | EditableFieldListProps
+  | EditableFieldEnumProps;
 
 export function EditableField(props: EditableFieldProps) {
   const [editing, setEditing] = useState(false);
@@ -80,8 +104,43 @@ export function EditableField(props: EditableFieldProps) {
   }
 
   const isEmpty =
-    props.kind === "text" ? !props.value : props.value.length === 0;
+    props.kind === "list" ? props.value.length === 0 : !props.value;
   const placeholder = props.placeholder ?? "Click to add";
+
+  // enum kind has its own render path — no editing mode toggle, the
+  // native <select> is always interactive (no save-on-blur dance to
+  // worry about), so the rest of the function stays untouched.
+  if (props.kind === "enum") {
+    const matched = props.options.find((o) => o.value === props.value);
+    return (
+      <div className="space-y-1">
+        <p className="text-xs text-[var(--color-text-muted)]">{props.label}</p>
+        <select
+          value={props.value}
+          onChange={(e) => props.onCommit(e.target.value)}
+          className="block w-full text-sm text-[var(--color-text)] bg-transparent border-0 p-0 -mx-0 cursor-pointer focus:outline-none"
+        >
+          <option value="">{placeholder}</option>
+          {props.options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        {matched === undefined && props.value && (
+          <p className="text-[10px] text-[var(--color-warning)]">
+            Stored as &quot;{props.value}&quot; — not in the canonical option
+            list.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const listOptions = props.kind === "list" ? props.options : undefined;
+  const unselectedListOptions = listOptions
+    ? listOptions.filter((opt) => !props.value.includes(opt.value))
+    : [];
 
   return (
     <div className="space-y-1">
@@ -124,6 +183,26 @@ export function EditableField(props: EditableFieldProps) {
           )}
         </div>
       )}
+      {props.kind === "list" &&
+        unselectedListOptions.length > 0 &&
+        !editing && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {unselectedListOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onCommit([...props.value, opt.value]);
+                }}
+                className="inline-flex items-center gap-0.5 text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] border border-[var(--color-border-strong)] rounded-full px-2 py-0.5 transition-colors"
+              >
+                <Plus size={10} />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
     </div>
   );
 }
