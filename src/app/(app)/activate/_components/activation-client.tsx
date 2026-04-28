@@ -40,6 +40,16 @@ const REASSURANCE_MESSAGES = [
 
 const REASSURANCE_INTERVALS = [0, 8_000, 25_000, 60_000, 90_000];
 
+// Past this point the scoring sweep is taking long enough that the user
+// should see a "this is unusually slow" banner and a Cancel button.
+// Tied to the route's `maxDuration: 300` ceiling — we want the user to
+// have a hand on the kill switch before the server-side timeout fires.
+const LONG_RUNNING_BANNER_MS = 180_000;
+// Hard client timeout on the fetch. Slightly under the route's 300s
+// budget so the user always sees a friendly abort, never a torn-down
+// connection.
+const FETCH_TIMEOUT_MS = 240_000;
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -67,36 +77,59 @@ export function ActivationClient({
     AccountActivationResult[]
   >([]);
   const [messageIndex, setMessageIndex] = useState(0);
+  const [longRunning, setLongRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fetchedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Timed reassurance messages
+  // Timed reassurance messages + long-running banner trigger
   useEffect(() => {
     if (phase !== "searching") return;
 
-    const timers = REASSURANCE_INTERVALS.slice(1).map((delay, i) =>
+    const reassurance = REASSURANCE_INTERVALS.slice(1).map((delay, i) =>
       setTimeout(() => setMessageIndex(i + 1), delay),
     );
+    const longTimer = setTimeout(
+      () => setLongRunning(true),
+      LONG_RUNNING_BANNER_MS,
+    );
 
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      reassurance.forEach(clearTimeout);
+      clearTimeout(longTimer);
+    };
   }, [phase]);
+
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const runSearch = useCallback(async () => {
     setPhase("searching");
     setMessageIndex(0);
+    setLongRunning(false);
     setError(null);
     setData(null);
     setResults([]);
     setAccountData(null);
     setAccountResults([]);
 
+    // Bind an AbortController so the user (or the timeout below) can
+    // cancel a stuck request without leaving the spinner up.
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
     const endpoint =
       userType === "gtm"
         ? "/api/activation/accounts"
         : "/api/activation/search";
     try {
-      const res = await fetch(endpoint, { method: "POST" });
+      const res = await fetch(endpoint, {
+        method: "POST",
+        signal: controller.signal,
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(
@@ -125,8 +158,22 @@ export function ActivationClient({
         setPhase(result.results.length > 0 ? "results" : "empty");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Activation search failed");
+      // AbortError fires both for the user-initiated Cancel and for the
+      // FETCH_TIMEOUT_MS guard. Treat them uniformly: friendly copy, no
+      // raw stack, retry CTA in the error state.
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Activation timed out — try narrowing the rubric and retry.");
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Activation search failed",
+        );
+      }
       setPhase("error");
+    } finally {
+      clearTimeout(timeoutId);
+      // Don't clear abortRef yet — handleRetry will overwrite it on the
+      // next runSearch, and clearing it here would race with the
+      // long-running banner's Cancel button if it fires concurrently.
     }
   }, [userType]);
 
@@ -207,6 +254,24 @@ export function ActivationClient({
           className="py-2"
         />
 
+        {longRunning ? (
+          <Card className="gap-3 p-4">
+            <p className="text-sm font-medium">
+              This is taking longer than usual.
+            </p>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              The scoring sweep runs each candidate sequentially against your
+              rubric. If you&apos;d rather not wait, cancel and retry — or come
+              back in a minute.
+            </p>
+            <div>
+              <Button variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+            </div>
+          </Card>
+        ) : null}
+
         {/* Structural scaffold for the cards that will land here. */}
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
@@ -260,6 +325,7 @@ export function ActivationClient({
       <ActivationScoringFailedState
         discovered={accountData?.stats.discovered ?? 0}
         errors={accountData?.stats.errors ?? 0}
+        firstError={accountData?.stats.firstError ?? null}
         isPending={isPending}
         onRetry={handleRetry}
         onGoToDashboard={handleGoToDashboard}
@@ -281,6 +347,15 @@ export function ActivationClient({
   const headerNoun = isGtm ? "accounts" : "roles";
   const headerFit = isGtm ? "best-fit accounts" : "best fits";
 
+  // Every shown row is a degraded fallback (model output couldn't
+  // validate). Surface a top banner so the AE sees these are
+  // best-effort placeholders, not real low-fit verdicts. Per-row
+  // badges still show on individual cards.
+  const allDegraded =
+    isGtm &&
+    (accountData?.stats.degraded ?? 0) > 0 &&
+    accountData?.stats.degraded === accountData?.stats.scored;
+
   return (
     <div className="mx-auto max-w-2xl py-6 space-y-6">
       {/* Header */}
@@ -291,6 +366,28 @@ export function ActivationClient({
           {headerCounts.scored} — here are your {headerFit}.
         </p>
       </div>
+
+      {allDegraded ? (
+        <Card className="gap-2 p-4 border-[var(--color-warning)]">
+          <p className="text-sm font-medium">
+            Scoring infrastructure had trouble.
+          </p>
+          <p className="text-sm text-[var(--color-text-muted)]">
+            Every account below is a best-effort placeholder — the model output
+            didn&apos;t match the expected shape. Retry once; persistent
+            failures point to a rubric or model issue.
+          </p>
+          <div>
+            <Button
+              variant="outline"
+              onClick={handleRetry}
+              disabled={isPending}
+            >
+              Retry
+            </Button>
+          </div>
+        </Card>
+      ) : null}
 
       {/* Result cards */}
       <div className="space-y-2">

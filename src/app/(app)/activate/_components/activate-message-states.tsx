@@ -99,6 +99,8 @@ export function ActivationEmptyState({
 interface ActivationScoringFailedStateProps {
   discovered: number;
   errors: number;
+  // Pre-cleaned by `mapAiError` upstream — never the raw SDK error string.
+  firstError: string | null;
   isPending: boolean;
   onRetry: () => void;
   onGoToDashboard: () => void;
@@ -111,6 +113,7 @@ interface ActivationScoringFailedStateProps {
 export function ActivationScoringFailedState({
   discovered,
   errors,
+  firstError,
   isPending,
   onRetry,
   onGoToDashboard,
@@ -126,6 +129,11 @@ export function ActivationScoringFailedState({
         of them ({errors} {errors === 1 ? "error" : "errors"}). This is usually
         a transient model issue — try again.
       </p>
+      {firstError ? (
+        <p className="text-xs text-[var(--color-text-subtle)] font-mono">
+          {firstError}
+        </p>
+      ) : null}
       <div className="flex items-center justify-center gap-3">
         <Button onClick={onRetry} disabled={isPending}>
           Try Again
