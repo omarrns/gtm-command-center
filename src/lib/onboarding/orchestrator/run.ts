@@ -266,7 +266,13 @@ export async function updateDimensionFromAnswer(
     system: template.orchestratorSystemPrompt({ isRefresh: false }),
     prompt,
     schema: singleDimensionResultSchema,
-    maxOutputTokens: 512,
+    // 2048 tokens covers one dimension's value + summary + per-sub-dim
+    // evidence (largest case is firmographics' 5 sub-dims with full
+    // {strength, proofPoints, sources[], notes} each). The pre-Phase-3
+    // cap of 512 was sized for the value-only schema and started
+    // truncating once Phase 3 added evidence — model hit max_tokens
+    // mid-JSON, AI SDK returned `{}`, Zod rejected for missing summary.
+    maxOutputTokens: 2048,
     scope: {
       scopeTable: "onboarding_interviews",
       scopeId: interviewId,
@@ -291,7 +297,12 @@ export async function updateDimensionFromAnswer(
       : [];
   const userEvidence =
     template.id === "icp_definition"
-      ? buildUserAnswerEvidence(dimensionKey, changedFields, messageId, userAnswer)
+      ? buildUserAnswerEvidence(
+          dimensionKey,
+          changedFields,
+          messageId,
+          userAnswer,
+        )
       : undefined;
   const evidence =
     template.id === "icp_definition"
