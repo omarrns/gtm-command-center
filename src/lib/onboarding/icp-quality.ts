@@ -1,5 +1,7 @@
 import {
   ICP_DIMENSIONS,
+  getSubDimensionEnumValues,
+  getSubDimensionType,
   type CoreIcpDimensionKey,
 } from "@/lib/onboarding/icp-dimension-config";
 import {
@@ -247,19 +249,39 @@ export function renderPromptChecklist(opts: {
     : ICP_DIMENSIONS;
   const detail =
     opts.mode === "compact_extraction"
-      ? "Return only these configured sub-fields."
+      ? "Return only these configured sub-fields. Use canonical enum values verbatim — never invent variants."
       : opts.mode === "focused_interview"
-        ? "Confirm or correct the weakest configured sub-field."
+        ? "Confirm or correct the weakest configured sub-field. Use canonical enum values verbatim."
         : "Score each account against every configured sub-field.";
 
   return dimensions
     .map(
       (dimension) =>
         `## ${dimension.label}\n${detail}\n${dimension.subDimensions
-          .map((field) => `- ${field}`)
+          .map((field) => formatSubDimensionLine(dimension.key, field))
           .join("\n")}`,
     )
     .join("\n\n");
+}
+
+// Each sub-dim line in the prompt carries its declared type (so the
+// model knows whether to emit a string, string[], or constrained enum)
+// and — for enum_single / enum_multi — the canonical value list. Without
+// this, the model invented free-text variants like "United States" /
+// "Series A" / "SaaS" instead of the stable snake_case keys the rubric
+// uses ("united_states" / "series_a" / "saas"). Phase 9 fix.
+function formatSubDimensionLine(
+  dimensionKey: string,
+  fieldKey: string,
+): string {
+  const type = getSubDimensionType(dimensionKey, fieldKey);
+  const values = getSubDimensionEnumValues(dimensionKey, fieldKey);
+  if (values && (type === "enum_single" || type === "enum_multi")) {
+    const sample = values.slice(0, 12).join(", ");
+    const overflow = values.length > 12 ? ` (+${values.length - 12} more)` : "";
+    return `- ${fieldKey} (${type}): ${sample}${overflow}`;
+  }
+  return `- ${fieldKey} (${type})`;
 }
 
 function normalizeDimensionValue(

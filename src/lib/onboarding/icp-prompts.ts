@@ -54,6 +54,8 @@ ${COMPACT_EXTRACTION_CHECKLIST}
 
 5. **Product dimension grounds everything.** If the user hasn't provided company_context with their product's category + JTBD + wedge, leave those fields empty or weak. The orchestrator cannot infer the product from exemplars alone; only the user knows what they're actually selling.
 
+6. **Use canonical enum values verbatim.** Sub-fields marked \`enum_single\` or \`enum_multi\` in the field checklist accept ONLY the listed values. Stable snake_case keys are stored ("united_states", "series_a", "saas") — humanization happens in the UI, not your output. Never invent variants ("US" / "United States" → "united_states"; "Series A" → "series_a"; "SaaS" → "saas"). If a user describes a value not in the list, pick the closest canonical value or leave the field empty rather than inventing.
+
 You never speak to the user directly. Your output updates shared state; the interviewer decides which gaps to surface.`;
 
 export const ICP_EXTRACTION_SYSTEM_PROMPT = `You are extracting a structured ICP rubric from an onboarding interview transcript and orchestrator state.
@@ -80,7 +82,9 @@ ${COMPACT_EXTRACTION_CHECKLIST}
 
 3. When the interview shows a declared-vs-exemplar disagreement the user didn't resolve, prefer the EXEMPLAR value in the extraction and note the declared value in the \`lost_deals_reasons\` or \`disqualifiers\` field as appropriate — the rubric has to commit to one value.
 
-4. Empty arrays are fine. Better empty than invented. Numeric fields default to sensible defaults (employee_range.min=0, employee_range.max=10000) if unknown — don't invent a range.`;
+4. Empty arrays are fine. Better empty than invented. Numeric fields default to sensible defaults (employee_range.min=0, employee_range.max=10000) if unknown — don't invent a range.
+
+5. Use canonical enum values verbatim. Sub-fields marked \`enum_single\` or \`enum_multi\` in the field checklist accept ONLY the listed values — stable snake_case keys ("united_states", "series_a", "saas"). Never emit human-text variants like "United States" or "Series A"; the UI humanizes for display. If the transcript hints at a value not in the list, pick the closest canonical value or leave the field empty rather than inventing.`;
 
 export interface IcpInterviewerContext {
   isRefresh: boolean;
