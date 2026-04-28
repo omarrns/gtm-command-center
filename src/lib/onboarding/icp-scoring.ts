@@ -37,8 +37,13 @@ export type SubDimensionWeightMap = Partial<{
   [K in CoreIcpDimensionKey]: Partial<Record<string, number>>;
 }>;
 
+// Score is loosened to z.number() (was int().min(1).max(5)). The 1-5
+// anchor is enforced in the prompt and normalized at consumption time
+// in computeAccountScoreFromBreakdown — Sonnet occasionally emits
+// decimals or out-of-range integers, and a hard schema reject on a
+// recoverable value breaks the whole 25-field structured output.
 const subDimensionScoringSchema = z.object({
-  score: z.number().int().min(1).max(5),
+  score: z.number(),
   reasoning: z.string(),
 }) satisfies z.ZodType<AccountScoringSubDimension>;
 
@@ -96,7 +101,9 @@ export function computeAccountScoreFromBreakdown(
       if (!entry) continue;
       const weight = dimensionWeights?.[subDimension] ?? 1;
       if (weight <= 0) continue;
-      const clamped = Math.min(5, Math.max(1, entry.score));
+      // Round before clamp: 3.7 → 4, 0.5 → 1, 5.9 → 5, 6 → 5. Pairs
+      // with the loosened schema (z.number() vs strict int 1-5).
+      const clamped = Math.min(5, Math.max(1, Math.round(entry.score)));
       weightedSum += (clamped - 1) * weight;
       totalWeight += 4 * weight;
     }

@@ -176,8 +176,33 @@ export async function runGenerateObject<S extends z.ZodType>(
       systemPrompt: args.system,
       userPrompt: args.prompt,
       latencyMs: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err),
+      error: enrichObjectGenError(err),
     });
     throw err;
   }
+}
+
+// AI SDK's NoObjectGeneratedError carries .text (the raw model output
+// that failed validation) and .cause (the underlying ZodError or
+// JSON-parse error). The default err.message just says "No object
+// generated: response did not match schema" — useless for debugging.
+// Persist the richer payload so future failures expose which sub-field
+// or score value broke the schema instead of forcing another live
+// repro to pin it down. Each piece is capped so a runaway response
+// can't bury the cause.
+function enrichObjectGenError(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const parts: string[] = [err.message];
+  const text = (err as { text?: unknown }).text;
+  if (typeof text === "string" && text.length > 0) {
+    parts.push(`\n[raw text]\n${text.slice(0, 4000)}`);
+  }
+  if (err.cause) {
+    const causeStr =
+      err.cause instanceof Error
+        ? `${err.cause.name}: ${err.cause.message}`
+        : String(err.cause);
+    parts.push(`\n[cause]\n${causeStr.slice(0, 4000)}`);
+  }
+  return parts.join("\n");
 }

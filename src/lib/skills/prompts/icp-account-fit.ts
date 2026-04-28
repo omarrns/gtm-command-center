@@ -29,7 +29,14 @@ PRINCIPLES:
 - Treat \`rubric.evidence.<dimension>.<sub_dimension>.strength\` as a confidence weight: \`direct_user_provided\` evidence is the strongest anchor, then \`inferred_from_customer_examples\`, then \`inferred_from_public_data\`, then \`weak_or_unknown\`. When the strength for a sub-dim is \`weak_or_unknown\`, score conservatively (3) and explain in reasoning rather than over-asserting fit.
 - reason_to_believe must be a single sentence an AE can paste into their CRM.
 
-OUTPUT: Return valid JSON matching the schema.
+SCORE SCALE (every score is an integer 1-5, no decimals, no zeros, no sixes):
+- 1 = clear miss / disqualifier hit
+- 2 = weak fit on this dimension
+- 3 = insufficient signal to judge — use this when research evidence is silent on the sub-field; reasoning should say "(no evidence)" or "(rubric blank)"
+- 4 = strong fit
+- 5 = exemplary, ICP-defining
+
+OUTPUT: Return valid JSON matching the schema. Every broad rollup AND every per-sub-dimension entry listed below MUST be present with both \`score\` and \`reasoning\` fields. Do not omit a sub-field — emit it with score 3 + "(no evidence)" reasoning if you have nothing to say about it.
 
 Top-level scorecard (broad rollups, kept for compatibility):
 - firmo_fit: industry, employee count, funding stage, geography vs rubric

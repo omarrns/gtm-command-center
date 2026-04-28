@@ -21,6 +21,7 @@ import { exaFindCompany, formatExaResults } from "@/lib/ai/exa";
 import { loadMemoryContext } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import { runGenerateObject, type AiCallScope } from "@/lib/ai/calls";
+import { createLogger } from "@/lib/logger";
 import {
   buildIcpAccountFitSystem,
   buildIcpAccountFitPrompt,
@@ -37,8 +38,14 @@ import {
 import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
 import { coerceIcpRubric } from "@/lib/onboarding/icp-schemas";
 
+// Loosened from int().min(1).max(5) for the same reason as
+// subDimensionScoringSchema in icp-scoring.ts — Sonnet's structured
+// output occasionally emits decimals or out-of-range integers and a
+// hard schema reject on a recoverable value fails the whole 31-field
+// object. The 1-5 anchor is enforced via the prompt; consumers that
+// care (computeAccountScoreFromBreakdown) round + clamp at read time.
 const broadComponentSchema = z.object({
-  score: z.number().int().min(1).max(5),
+  score: z.number(),
   reasoning: z.string(),
 });
 
@@ -161,18 +168,39 @@ export async function scoreAccountAgainstIcp({
     callPurpose: "score-account",
   };
 
-  const analysis = await runGenerateObject({
+  const basePrompt = buildIcpAccountFitPrompt({
+    companyName: opp.company_name,
+    rubric: normalizedRubric,
+    firmographics,
+    research,
+  });
+  const baseArgs = {
     model: model ?? "claude-sonnet-4-6",
     system: buildIcpAccountFitSystem(sender),
-    prompt: buildIcpAccountFitPrompt({
-      companyName: opp.company_name,
-      rubric: normalizedRubric,
-      firmographics,
-      research,
-    }),
     schema: icpAccountAnalysisSchema,
     maxOutputTokens: 4096,
     scope,
+  };
+
+  // One-shot retry on schema validation / no-object-generated. Scoped
+  // here rather than inside runGenerateObject so the blast radius stays
+  // narrow — other call sites keep single-shot semantics. If the second
+  // attempt also fails, throw; per-row try/catch in the caller
+  // (runAccountActivationSearch / runScoreAccounts) increments errors
+  // and continues.
+  const analysis = await runGenerateObject({
+    ...baseArgs,
+    prompt: basePrompt,
+  }).catch(async (err: unknown) => {
+    const log = createLogger({ runId, userId, scope: "scoring-account" });
+    log.warn("first scoring attempt failed; retrying with strict reminder", {
+      oppId: opp.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return runGenerateObject({
+      ...baseArgs,
+      prompt: `${basePrompt}\n\nReminder: every sub-field listed in the breakdown must appear with both \`score\` (integer 1-5) and \`reasoning\` (string). When you have no signal for a sub-field, emit score 3 with reasoning "(no evidence)" — do not omit the key.`,
+    });
   });
 
   const override = detectDisqualifierOverride(analysis.breakdown);
