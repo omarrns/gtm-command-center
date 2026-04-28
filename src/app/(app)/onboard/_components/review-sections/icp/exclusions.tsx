@@ -4,6 +4,7 @@ import { TagInput } from "@/components/tag-input";
 import { Input } from "@/components/ui/input";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
+import { DimensionMeta } from "./dimension-meta";
 
 // Section 5 of the ICP review. Disqualifiers — hard no's that exclude
 // an account even if firmographics + signals look right.
@@ -11,6 +12,7 @@ import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
 interface ExclusionsProps {
   disqualifiers: IcpEdits["icp"]["disqualifiers"];
   onDisqualifiersChange: (next: IcpEdits["icp"]["disqualifiers"]) => void;
+  evidence?: IcpEdits["evidence"];
 }
 
 function countDisqualifiers(
@@ -27,10 +29,18 @@ function countDisqualifiers(
 export function Exclusions({
   disqualifiers,
   onDisqualifiersChange,
+  evidence,
 }: ExclusionsProps) {
   return (
     <ReviewFormSection
       title={`Exclusions (${countDisqualifiers(disqualifiers)})`}
+      meta={
+        <DimensionMeta
+          dimensionKey="disqualifiers"
+          value={disqualifiers}
+          evidence={evidence}
+        />
+      }
     >
       <div className="space-y-4">
         <p className="text-xs text-[var(--color-text-muted)]">

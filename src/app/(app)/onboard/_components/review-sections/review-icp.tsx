@@ -164,6 +164,7 @@ export function ReviewIcp({
         onBuyerChange={(buyer) =>
           setEdits({ ...edits, icp: { ...edits.icp, buyer } })
         }
+        evidence={edits.evidence}
       />
 
       <InferredFromExemplars
@@ -184,6 +185,7 @@ export function ReviewIcp({
           setEdits({ ...edits, proof_points })
         }
         positiveExemplarCount={positiveExemplarCount}
+        evidence={edits.evidence}
       />
 
       {positiveExemplarCount >= 3 && (
@@ -203,6 +205,7 @@ export function ReviewIcp({
         onDisqualifiersChange={(disqualifiers) =>
           setEdits({ ...edits, icp: { ...edits.icp, disqualifiers } })
         }
+        evidence={edits.evidence}
       />
 
       <Disagreements disagreements={disagreements} />

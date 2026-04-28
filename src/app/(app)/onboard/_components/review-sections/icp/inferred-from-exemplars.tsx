@@ -4,6 +4,7 @@ import { TagInput } from "@/components/tag-input";
 import { Input } from "@/components/ui/input";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
+import { DimensionMeta } from "./dimension-meta";
 
 // Section 2 of the ICP review. Firmographics, technographics, signals,
 // and proof points. When positive_example artifacts exist the
@@ -22,6 +23,7 @@ interface InferredFromExemplarsProps {
   proofPoints: IcpEdits["proof_points"];
   onProofPointsChange: (next: IcpEdits["proof_points"]) => void;
   positiveExemplarCount: number;
+  evidence?: IcpEdits["evidence"];
 }
 
 export function InferredFromExemplars({
@@ -34,6 +36,7 @@ export function InferredFromExemplars({
   proofPoints,
   onProofPointsChange,
   positiveExemplarCount,
+  evidence,
 }: InferredFromExemplarsProps) {
   return (
     <>
@@ -45,7 +48,16 @@ export function InferredFromExemplars({
         </p>
       )}
 
-      <ReviewFormSection title="Firmographics">
+      <ReviewFormSection
+        title="Firmographics"
+        meta={
+          <DimensionMeta
+            dimensionKey="firmographics"
+            value={firmographics}
+            evidence={evidence}
+          />
+        }
+      >
         <div className="space-y-5">
           <TagInput
             values={firmographics.industries}
@@ -146,7 +158,16 @@ export function InferredFromExemplars({
         </div>
       </ReviewFormSection>
 
-      <ReviewFormSection title="Technographics">
+      <ReviewFormSection
+        title="Technographics"
+        meta={
+          <DimensionMeta
+            dimensionKey="technographics"
+            value={technographics}
+            evidence={evidence}
+          />
+        }
+      >
         <div className="space-y-5">
           <TagInput
             values={technographics.required_tools}
@@ -205,7 +226,16 @@ export function InferredFromExemplars({
         </div>
       </ReviewFormSection>
 
-      <ReviewFormSection title="Signals">
+      <ReviewFormSection
+        title="Signals"
+        meta={
+          <DimensionMeta
+            dimensionKey="signals"
+            value={signals}
+            evidence={evidence}
+          />
+        }
+      >
         <div className="space-y-5">
           <TagInput
             values={signals.hiring_roles}
