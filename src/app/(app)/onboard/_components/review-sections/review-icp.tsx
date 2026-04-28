@@ -24,6 +24,7 @@ import { Disagreements } from "./icp/disagreements";
 import { ScoringPreview } from "./icp/scoring-preview";
 import { PerExemplarBreakdown } from "./icp/per-exemplar-breakdown";
 import { ExemplarScarcityBanner } from "./icp/exemplar-scarcity-banner";
+import { ProofPointsCalibration } from "./icp/proof-points-calibration";
 
 // SPEC-3 Phase 5.a: ICP review UI. Replaces the Phase 1.e stub. Eight
 // synthesis + comparison sections, each in its own file under
@@ -180,10 +181,6 @@ export function ReviewIcp({
         onSignalsChange={(signals) =>
           setEdits({ ...edits, icp: { ...edits.icp, signals } })
         }
-        proofPoints={edits.proof_points}
-        onProofPointsChange={(proof_points) =>
-          setEdits({ ...edits, proof_points })
-        }
         positiveExemplarCount={positiveExemplarCount}
         evidence={edits.evidence}
       />
@@ -209,6 +206,13 @@ export function ReviewIcp({
       />
 
       <Disagreements disagreements={disagreements} />
+
+      <ProofPointsCalibration
+        proofPoints={edits.proof_points}
+        onProofPointsChange={(proof_points) =>
+          setEdits({ ...edits, proof_points })
+        }
+      />
 
       <ScoringPreview edits={edits} />
 
