@@ -8,8 +8,6 @@ import {
 } from "@/lib/onboarding/icp-dimensions";
 import type {
   CoreIcpRubric,
-  IcpEvidence,
-  IcpRubric,
   SubDimensionEvidence,
 } from "@/lib/onboarding/icp-types";
 
@@ -62,7 +60,9 @@ export function calculateDimensionQuality(
   value: unknown,
   evidence?: unknown,
 ): DimensionQuality {
-  const config = ICP_DIMENSIONS.find((dimension) => dimension.key === dimensionKey);
+  const config = ICP_DIMENSIONS.find(
+    (dimension) => dimension.key === dimensionKey,
+  );
   if (!config) {
     return {
       completeness: 0,
@@ -80,7 +80,11 @@ export function calculateDimensionQuality(
   let coveredEvidenceCount = 0;
 
   for (const field of config.subDimensions) {
-    const fieldValue = fieldValueForDimension(config.key, dimensionValue, field);
+    const fieldValue = fieldValueForDimension(
+      config.key,
+      dimensionValue,
+      field,
+    );
     const meaningful = hasMeaningfulFieldValue(fieldValue);
     if (meaningful) {
       completeCount++;
@@ -110,7 +114,9 @@ export function shouldSkipDimension(
   dimensionKey: CoreIcpDimensionKey | string,
   input: SkipDimensionInput,
 ): boolean {
-  const config = ICP_DIMENSIONS.find((dimension) => dimension.key === dimensionKey);
+  const config = ICP_DIMENSIONS.find(
+    (dimension) => dimension.key === dimensionKey,
+  );
   if (!config) return false;
 
   const quality = calculateDimensionQuality(config.key, input.value);
@@ -124,9 +130,12 @@ export function shouldSkipDimension(
 
   const completeness = quality.completeness;
   const evidenceCoverage =
-    input.evidenceCoverage ?? (weakFields.length === 0 ? quality.evidenceCoverage : 0);
+    input.evidenceCoverage ??
+    (weakFields.length === 0 ? quality.evidenceCoverage : 0);
   const confirmed = new Set(input.confirmedWeakFields ?? []);
-  const unconfirmedWeakFields = weakFields.filter((field) => !confirmed.has(field));
+  const unconfirmedWeakFields = weakFields.filter(
+    (field) => !confirmed.has(field),
+  );
   const weakFieldsSatisfied =
     unconfirmedWeakFields.length === 0 && weakFields.length > 0;
 
@@ -142,7 +151,9 @@ export function changedSubDimensionKeys(
   before: unknown,
   after: unknown,
 ): string[] {
-  const config = ICP_DIMENSIONS.find((dimension) => dimension.key === dimensionKey);
+  const config = ICP_DIMENSIONS.find(
+    (dimension) => dimension.key === dimensionKey,
+  );
   if (!config) return [];
 
   const beforeValue = normalizeDimensionValue(config.key, before);
@@ -165,7 +176,9 @@ export function renderDimensionValue(
   dimensionKey: CoreIcpDimensionKey | string,
   value: unknown,
 ): string | null {
-  const config = ICP_DIMENSIONS.find((dimension) => dimension.key === dimensionKey);
+  const config = ICP_DIMENSIONS.find(
+    (dimension) => dimension.key === dimensionKey,
+  );
   if (!config) return null;
   const dimensionValue = normalizeDimensionValue(config.key, value);
   return config.subDimensions
@@ -209,15 +222,39 @@ function normalizeDimensionValue(
   return coerceIcpRubric({ [dimensionKey]: value })[dimensionKey];
 }
 
+// Accepts either:
+//   • per-dim evidence keyed by sub-dim name (`{category: {strength,...}, ...}`)
+//   • the full top-level IcpEvidence keyed by dim name (the test fixture passes
+//     `reparsed.evidence`, which is the legacy shape).
+//
+// We detect "looks like top-level" by checking whether the input has a key
+// matching the requested dimensionKey. If yes, unwrap one level. Otherwise
+// treat the input as already per-dim. Bug surfaced in Phase 7: the
+// orchestrator passes `dim.evidence` (per-dim) but the previous code
+// always did `evidence[dimensionKey]` and got undefined → fell back to
+// defaults → every chip rendered as weak even when the model emitted
+// strong evidence.
 function normalizeDimensionEvidence(
   dimensionKey: CoreIcpDimensionKey,
   evidence: unknown,
 ): Record<string, SubDimensionEvidence> {
-  const source =
-    typeof evidence === "object" && evidence !== null && !Array.isArray(evidence)
-      ? (evidence as Partial<IcpEvidence>)[dimensionKey]
-      : undefined;
-  return (source ?? getDefaultEvidence()[dimensionKey]) as Record<
+  if (
+    typeof evidence === "object" &&
+    evidence !== null &&
+    !Array.isArray(evidence)
+  ) {
+    const record = evidence as Record<string, unknown>;
+    const wrapped = record[dimensionKey];
+    if (
+      typeof wrapped === "object" &&
+      wrapped !== null &&
+      !Array.isArray(wrapped)
+    ) {
+      return wrapped as Record<string, SubDimensionEvidence>;
+    }
+    return record as Record<string, SubDimensionEvidence>;
+  }
+  return getDefaultEvidence()[dimensionKey] as Record<
     string,
     SubDimensionEvidence
   >;
@@ -256,7 +293,8 @@ function renderFieldValue(value: unknown): string {
   if (typeof value === "string") return value.trim() || "(not set)";
   if (Array.isArray(value)) {
     const filtered = value.filter(
-      (entry): entry is string => typeof entry === "string" && entry.trim().length > 0,
+      (entry): entry is string =>
+        typeof entry === "string" && entry.trim().length > 0,
     );
     return filtered.length ? filtered.join(", ") : "(none)";
   }

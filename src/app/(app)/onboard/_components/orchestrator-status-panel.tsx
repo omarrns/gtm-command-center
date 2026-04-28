@@ -203,7 +203,6 @@ export function OrchestratorStatusPanel({
                   const useStructuredDisplay =
                     subDims !== null && x.dim.missingFields !== undefined;
                   const missing = new Set(x.dim.missingFields ?? []);
-                  const weak = new Set(x.dim.weakFields ?? []);
                   const filledLabel =
                     useStructuredDisplay && subDims !== null
                       ? `${subDims.length - missing.size}/${subDims.length}`
@@ -243,25 +242,22 @@ export function OrchestratorStatusPanel({
                         <div className="mt-1 pl-4 flex flex-wrap gap-x-1.5 gap-y-0.5 text-[10px]">
                           {subDims.map((field) => {
                             const isMissing = missing.has(field);
-                            const isWeak = weak.has(field);
+                            // Binary green/red signal — filled vs missing.
+                            // Evidence quality (weak / inferred / direct)
+                            // is conveyed by the strength caption below;
+                            // showing it on chips too just made everything
+                            // orange and obscured the actual gap.
                             const tone = isMissing
-                              ? "text-[var(--color-text-subtle)] line-through"
-                              : isWeak
-                                ? "text-[var(--color-warning)]"
-                                : "text-[var(--color-text-muted)]";
+                              ? "text-[var(--color-danger)]"
+                              : "text-[var(--color-success)]";
                             return (
                               <span
                                 key={field}
-                                className={`inline-flex items-center gap-0.5 ${tone}`}
-                                title={
-                                  isMissing
-                                    ? "Not filled"
-                                    : isWeak
-                                      ? "Weak evidence"
-                                      : "Filled"
-                                }
+                                className={`inline-flex items-center gap-1 ${tone}`}
+                                title={isMissing ? "Not filled" : "Filled"}
                               >
-                                {isMissing ? "○" : isWeak ? "◐" : "●"} {field}
+                                <span aria-hidden>{isMissing ? "✗" : "✓"}</span>
+                                {field}
                               </span>
                             );
                           })}
