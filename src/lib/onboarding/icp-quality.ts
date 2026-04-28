@@ -222,18 +222,11 @@ function normalizeDimensionValue(
   return coerceIcpRubric({ [dimensionKey]: value })[dimensionKey];
 }
 
-// Accepts either:
-//   • per-dim evidence keyed by sub-dim name (`{category: {strength,...}, ...}`)
-//   • the full top-level IcpEvidence keyed by dim name (the test fixture passes
-//     `reparsed.evidence`, which is the legacy shape).
-//
-// We detect "looks like top-level" by checking whether the input has a key
-// matching the requested dimensionKey. If yes, unwrap one level. Otherwise
-// treat the input as already per-dim. Bug surfaced in Phase 7: the
-// orchestrator passes `dim.evidence` (per-dim) but the previous code
-// always did `evidence[dimensionKey]` and got undefined → fell back to
-// defaults → every chip rendered as weak even when the model emitted
-// strong evidence.
+// Expects per-dim evidence keyed by sub-dim name
+// (`{category: {strength,...}, core_jtbd: {...}, ...}`). Callers that hold
+// the full top-level IcpEvidence must unwrap with `evidence[dimensionKey]`
+// before calling. Single explicit contract — no shape detection, no
+// collision risk if a future sub-dim name ever overlaps a dim key.
 function normalizeDimensionEvidence(
   dimensionKey: CoreIcpDimensionKey,
   evidence: unknown,
@@ -243,16 +236,7 @@ function normalizeDimensionEvidence(
     evidence !== null &&
     !Array.isArray(evidence)
   ) {
-    const record = evidence as Record<string, unknown>;
-    const wrapped = record[dimensionKey];
-    if (
-      typeof wrapped === "object" &&
-      wrapped !== null &&
-      !Array.isArray(wrapped)
-    ) {
-      return wrapped as Record<string, SubDimensionEvidence>;
-    }
-    return record as Record<string, SubDimensionEvidence>;
+    return evidence as Record<string, SubDimensionEvidence>;
   }
   return getDefaultEvidence()[dimensionKey] as Record<
     string,
