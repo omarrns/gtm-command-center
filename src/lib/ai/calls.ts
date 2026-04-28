@@ -108,7 +108,7 @@ function truncate(s: string | undefined | null): string | null {
 // Mirrors the @ai-sdk/anthropic v3.0.71 enum at
 // node_modules/@ai-sdk/anthropic/dist/index.d.ts:134-138. `outputFormat`
 // uses Anthropic's native `output_config.format.schema` (strictest;
-// good for closed Zod schemas like icpAccountAnalysisSchema).
+// useful for small closed Zod schemas).
 // `jsonTool` is the legacy tool-calling path (more permissive; required
 // for orchestrator/extraction schemas that use z.record / z.unknown).
 // `auto` lets the SDK pick. Default stays `jsonTool` for backward
@@ -122,9 +122,9 @@ interface RunGenerateObjectArgs<S extends z.ZodType> {
   schema: S;
   maxOutputTokens?: number;
   scope?: AiCallScope;
-  // Per-call override for Anthropic's structured-output strategy. Closed
-  // schemas should pass `"outputFormat"` for stricter validation. Most
-  // callers should leave this undefined and inherit `jsonTool`.
+  // Per-call override for Anthropic's structured-output strategy. Most
+  // callers should leave this undefined and inherit `jsonTool`; large
+  // closed schemas can exceed `outputFormat` grammar limits.
   structuredOutputMode?: StructuredOutputMode;
 }
 

@@ -88,14 +88,6 @@ export interface AccountScoringResult {
   normalizedScore: number;
   analysisResult: IcpAccountAnalysis;
   disqualifierOverride: DisqualifierOverride;
-  // True when the model boundary failed (schema mismatch, all retries
-  // exhausted) and we returned a deterministic Skip/C fallback rather
-  // than throwing. Callers SHOULD persist this signal explicitly:
-  // `runScoreAccounts` writes `last_error` so the cron path keeps a
-  // visible trail; activation surfaces it as a "Scoring degraded"
-  // badge. Distinct from `disqualifierOverride.triggered`, which is a
-  // valid model output that just hit a disqualifier.
-  degradedFallback: boolean;
 }
 
 const BROAD_COMPONENT_KEYS = [
@@ -199,55 +191,29 @@ export async function scoreAccountAgainstIcp({
     scope,
   };
 
-  // Three-layer model boundary. Each layer is the net for the one
-  // above it; only this caller has all three so other call sites keep
-  // their single-shot semantics.
+  // Two-attempt model boundary. The retry is local to this scorer so
+  // other generateObject call sites keep their single-shot semantics.
   //   1. First attempt with the standard prompt.
   //   2. One-shot retry with an explicit reminder about emitting every
   //      sub-field (added in d54e1a0 to absorb non-canonical model
   //      output from the closed schema).
-  //   3. Degraded fallback: deterministic Skip/C with every sub-dim
-  //      scored 1, reason_to_believe explaining the failure. Caller
-  //      never sees a thrown error from this seam — preserves per-row
-  //      throughput in batch scoring and lets activation render a
-  //      "Scoring degraded" placeholder instead of stranding the row.
-  // Telemetry note: `degradedFallback` rate measures retry-survived
-  // failures, not raw model output drift. PR 8's retro should adjust
-  // the threshold accordingly.
+  // If both attempts fail, throw. Batch callers isolate per-row errors;
+  // activation renders the dedicated scoring-failed state instead of
+  // synthesizing fake Skip/C scores.
   const log = createLogger({ runId, userId, scope: "scoring-account" });
-  let analysis: IcpAccountAnalysis;
-  let degradedFallback = false;
-  try {
-    analysis = await runGenerateObject({
-      ...baseArgs,
-      prompt: basePrompt,
-    }).catch(async (err: unknown) => {
-      log.warn("first scoring attempt failed; retrying with strict reminder", {
-        oppId: opp.id,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return runGenerateObject({
-        ...baseArgs,
-        prompt: `${basePrompt}\n\nReminder: every sub-field listed in the breakdown must appear with both \`score\` (integer 1-5) and \`reasoning\` (string). When you have no signal for a sub-field, emit score 3 with reasoning "(no evidence)" — do not omit the key.`,
-      });
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    log.error("scoring failed after retry — degraded fallback", err, {
+  const analysis = await runGenerateObject({
+    ...baseArgs,
+    prompt: basePrompt,
+  }).catch(async (err: unknown) => {
+    log.warn("first scoring attempt failed; retrying with strict reminder", {
       oppId: opp.id,
-      companyName: opp.company_name,
+      error: err instanceof Error ? err.message : String(err),
     });
-    return {
-      normalizedScore: 0,
-      analysisResult: buildFallbackAnalysis(opp.company_name, message),
-      // No real disqualifier hit — the model never produced a breakdown.
-      // Keeping triggered=false here means callers that rely on the
-      // override flag for analytics see scoring failures as a separate
-      // signal from genuine disqualifier hits.
-      disqualifierOverride: { triggered: false, triggers: [] },
-      degradedFallback: true,
-    };
-  }
+    return runGenerateObject({
+      ...baseArgs,
+      prompt: `${basePrompt}\n\nReminder: every sub-field listed in the breakdown must appear with both \`score\` (integer 1-5) and \`reasoning\` (string). When you have no signal for a sub-field, emit score 3 with reasoning "(no evidence)" — do not omit the key.`,
+    });
+  });
 
   const override = detectDisqualifierOverride(analysis.breakdown);
   const adjusted = applyDisqualifierOverride(analysis, override);
@@ -256,79 +222,6 @@ export async function scoreAccountAgainstIcp({
     normalizedScore: computeAccountScore(adjusted),
     analysisResult: adjusted,
     disqualifierOverride: override,
-    degradedFallback,
-  };
-}
-
-/**
- * Schema-valid stand-in for failed scoring. Skip/C with all sub-dim
- * scores at 1, broad rollups at 1, and `reason_to_believe` carrying the
- * underlying error message (truncated). Critical: the caller MUST NOT
- * route this through `applyDisqualifierOverride` — that function checks
- * for sub-dim score ≤ 1 under disqualifiers and would fabricate a
- * "Disqualifier match — …" string for what is actually an infrastructure
- * failure. The override is bypassed in the catch path above.
- *
- * Exported for the fixture test, which asserts both the schema-valid
- * shape and that the override-suppression rule holds (all-1 disqualifier
- * subdims would otherwise trigger the override).
- */
-export function buildFallbackAnalysis(
-  companyName: string,
-  errMessage: string,
-): IcpAccountAnalysis {
-  const stub = (reasoning: string) => ({ score: 1, reasoning });
-  const failureReason = "Scoring infrastructure failure";
-  return {
-    company_name: companyName,
-    firmo_fit: stub(failureReason),
-    techno_fit: stub(failureReason),
-    hiring_signal_fit: stub(failureReason),
-    buyer_fit: stub(failureReason),
-    proof_point_relevance: stub(failureReason),
-    disqualifier_risk: stub(failureReason),
-    breakdown: {
-      product: {
-        category: stub(failureReason),
-        core_jtbd: stub(failureReason),
-        wedge: stub(failureReason),
-        delivery_model: stub(failureReason),
-      },
-      buyer: {
-        economic_buyer: stub(failureReason),
-        champion: stub(failureReason),
-        end_user: stub(failureReason),
-        deal_blocker: stub(failureReason),
-      },
-      firmographics: {
-        industries: stub(failureReason),
-        business_model: stub(failureReason),
-        employee_range: stub(failureReason),
-        stages: stub(failureReason),
-        geographies: stub(failureReason),
-      },
-      technographics: {
-        required_tools: stub(failureReason),
-        excluded_tools: stub(failureReason),
-        tech_maturity: stub(failureReason),
-        data_infrastructure: stub(failureReason),
-      },
-      signals: {
-        hiring_roles: stub(failureReason),
-        jtbd_evidence: stub(failureReason),
-        trigger_events: stub(failureReason),
-        pain_language: stub(failureReason),
-      },
-      disqualifiers: {
-        tech_disqualifiers: stub(failureReason),
-        size_disqualifiers: stub(failureReason),
-        stage_disqualifiers: stub(failureReason),
-        behavioral_disqualifiers: stub(failureReason),
-      },
-    },
-    verdict: "Skip",
-    tier: "C",
-    reason_to_believe: `Scoring failed — degraded fallback (${errMessage.slice(0, 140)})`,
   };
 }
 

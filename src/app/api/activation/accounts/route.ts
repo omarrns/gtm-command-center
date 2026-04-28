@@ -13,14 +13,18 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { runAccountActivationSearch } from "@/lib/pipeline/activation-accounts";
+import {
+  runAccountActivationSearch,
+  runExistingAccountActivationSearch,
+} from "@/lib/pipeline/activation-accounts";
 import { safeParseIcpRubric } from "@/lib/onboarding/icp-schemas";
 
 export const maxDuration = 300;
 
-export async function POST() {
+export async function POST(request: Request) {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+  const source = new URL(request.url).searchParams.get("source");
 
   const { data: scoringProfile, error } = await svc
     .from("user_scoring_profiles")
@@ -52,7 +56,10 @@ export async function POST() {
   }
 
   try {
-    const result = await runAccountActivationSearch(svc, user.id, parsed.data);
+    const result =
+      source === "existing"
+        ? await runExistingAccountActivationSearch(svc, user.id, parsed.data)
+        : await runAccountActivationSearch(svc, user.id, parsed.data);
     return NextResponse.json(result);
   } catch (err) {
     console.error("[activation/accounts] Error:", err);

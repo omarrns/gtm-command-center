@@ -17,12 +17,14 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { searchJobs, type TheirStackJob } from "@/lib/integrations/theirstack";
+import type { OpportunityRow } from "@/lib/supabase/types";
 import {
   icpToTheirStackFilters,
   type IcpRubric,
 } from "@/lib/pipeline/icp-to-theirstack-filters";
 import {
   scoreAccountAgainstIcp,
+  computeAccountScore,
   type IcpAccountAnalysis,
   type ScoreAccountSubject,
 } from "@/lib/pipeline/scoring-account";
@@ -48,22 +50,12 @@ export interface AccountActivationResult {
   employeeCount: number | null;
   industry: string | null;
   analysis: IcpAccountAnalysis;
-  // True when scoreAccountAgainstIcp couldn't validate the model output
-  // and returned a deterministic Skip/C fallback. UI renders a "Scoring
-  // degraded" badge so the AE sees this is an infrastructure failure
-  // signal, not a real low-fit verdict.
-  degradedFallback: boolean;
 }
 
 export interface AccountActivationStats {
   discovered: number;
   scored: number;
   errors: number;
-  // PR 6 will increment `degraded` when scoreAccountAgainstIcp returns
-  // degradedFallback=true; PR 3 declares the field so the UI types lock
-  // in. Until then the field stays at 0 and the UI's "all degraded" path
-  // is unreachable.
-  degraded: number;
   // First per-row error message (truncated, mapped through mapAiError) so
   // the UI can show the user a friendly cause instead of a stuck spinner.
   firstError: string | null;
@@ -96,7 +88,6 @@ export async function runAccountActivationSearch(
         discovered: 0,
         scored: 0,
         errors: 0,
-        degraded: 0,
         firstError: null,
         rubricIncomplete: true,
       },
@@ -108,7 +99,6 @@ export async function runAccountActivationSearch(
 
   const scored: AccountActivationResult[] = [];
   let errors = 0;
-  let degraded = 0;
   let firstError: string | null = null;
 
   // Inline scoring loop. Per-row error isolation mirrors
@@ -130,17 +120,6 @@ export async function runAccountActivationSearch(
       });
       const { normalizedScore, analysisResult } = scoring;
 
-      // Degraded fallback rows still go into the result list — the AE
-      // sees a row with a "Scoring degraded" badge instead of nothing.
-      // They count toward `degraded`, NOT `errors`, because the request
-      // didn't error: scoring just couldn't validate the model output.
-      if (scoring.degradedFallback) {
-        degraded++;
-        if (firstError === null) {
-          firstError = mapAiError(analysisResult.reason_to_believe);
-        }
-      }
-
       const activationResult: AccountActivationResult = {
         id: subject.id,
         companyName: subject.company_name,
@@ -154,7 +133,6 @@ export async function runAccountActivationSearch(
         employeeCount: job.company_object?.employee_count ?? null,
         industry: job.company_object?.industry ?? null,
         analysis: analysisResult,
-        degradedFallback: scoring.degradedFallback,
       };
       scored.push(activationResult);
 
@@ -192,7 +170,63 @@ export async function runAccountActivationSearch(
       discovered: jobs.length,
       scored: scored.length,
       errors,
-      degraded,
+      firstError,
+      rubricIncomplete: false,
+    },
+  };
+}
+
+export async function runExistingAccountActivationSearch(
+  svc: SupabaseClient,
+  userId: string,
+  rubric: IcpRubric,
+  runId?: string,
+): Promise<AccountActivationSearchResult> {
+  const { data, error } = await svc
+    .from("opportunities")
+    .select("*")
+    .eq("user_id", userId)
+    .in("source", ["theirstack", "exa-dormant"])
+    .not("company_domain", "is", null)
+    .order("discovered_at", { ascending: false })
+    .limit(MAX_CANDIDATES);
+
+  if (error) throw error;
+
+  const opportunities = (data ?? []) as OpportunityRow[];
+  const scored: AccountActivationResult[] = [];
+  let errors = 0;
+  let firstError: string | null = null;
+
+  for (const opp of opportunities) {
+    try {
+      const scoring = await scoreAccountAgainstIcp({
+        opp,
+        rubric,
+        userId,
+        svc,
+        model: ACTIVATION_MODEL,
+        runId,
+      });
+      scored.push(toActivationResultFromOpportunity(opp, scoring.analysisResult));
+    } catch (err) {
+      errors++;
+      if (firstError === null) {
+        firstError = mapAiError(
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+
+  return {
+    results: scored.slice(0, MAX_RESULTS),
+    stats: {
+      discovered: opportunities.length,
+      scored: scored.length,
+      errors,
       firstError,
       rubricIncomplete: false,
     },
@@ -200,18 +234,8 @@ export async function runAccountActivationSearch(
 }
 
 // Strip SDK-internal prefixes from raw error messages before exposing to
-// the user. Two upstream sources land here:
-//   1. Raw thrown errors from the SDK (`AI_NoObjectGeneratedError: …`,
-//      `AI_RetryError: …`) when scoring throws above the degraded
-//      fallback. Today this only fires for non-scoring errors (Exa,
-//      memory load, etc.) since PR 6's fallback absorbs schema/SDK
-//      failures from the model boundary.
-//   2. Degraded-fallback `reason_to_believe` strings of the form
-//      "Scoring failed — degraded fallback (<cause>)". These already
-//      carry the inner cause; we still want a clean banner instead of
-//      the raw nested message.
-// Either way, return one user-meaningful sentence under 240 chars. No
-// stack traces, no nested prefixes.
+// the user. Return one meaningful sentence under 240 chars. No stack
+// traces, no nested prefixes.
 function mapAiError(raw: string): string {
   const trimmed = raw.replace(/^AI_[A-Za-z]+Error:\s*/, "").trim();
   if (
@@ -260,6 +284,28 @@ function toScoreSubject(job: TheirStackJob): ScoreAccountSubject | null {
         source: "theirstack",
       },
     ],
+  };
+}
+
+function toActivationResultFromOpportunity(
+  opp: OpportunityRow,
+  analysis: IcpAccountAnalysis,
+): AccountActivationResult {
+  const trigger = (opp.trigger_signals ?? [])[0] ?? {};
+  const t = trigger as Record<string, unknown>;
+  return {
+    id: opp.id,
+    companyName: opp.company_name,
+    companyDomain: opp.company_domain,
+    roleTitle: opp.role_title ?? "Existing account",
+    score: computeAccountScore(analysis),
+    tier: analysis.tier,
+    verdict: analysis.verdict,
+    reasonToBelieve: analysis.reason_to_believe,
+    fundingStage: typeof t.funding_stage === "string" ? t.funding_stage : null,
+    employeeCount: typeof t.employee_count === "number" ? t.employee_count : null,
+    industry: typeof t.industry === "string" ? t.industry : null,
+    analysis,
   };
 }
 

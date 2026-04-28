@@ -26,10 +26,6 @@ import {
   ActivationScoringFailedState,
 } from "./activate-message-states";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const REASSURANCE_MESSAGES = [
   "Searching job boards...",
   "Found some matches, scoring against your profile...",
@@ -40,19 +36,8 @@ const REASSURANCE_MESSAGES = [
 
 const REASSURANCE_INTERVALS = [0, 8_000, 25_000, 60_000, 90_000];
 
-// Past this point the scoring sweep is taking long enough that the user
-// should see a "this is unusually slow" banner and a Cancel button.
-// Tied to the route's `maxDuration: 300` ceiling — we want the user to
-// have a hand on the kill switch before the server-side timeout fires.
 const LONG_RUNNING_BANNER_MS = 180_000;
-// Hard client timeout on the fetch. Slightly under the route's 300s
-// budget so the user always sees a friendly abort, never a torn-down
-// connection.
 const FETCH_TIMEOUT_MS = 240_000;
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 type Phase = "searching" | "results" | "empty" | "error" | "scoring-failed";
 
@@ -60,12 +45,14 @@ interface ActivationClientProps {
   gmailConnected: boolean;
   scoreThreshold: number;
   userType: UserType;
+  activationSource?: "live" | "existing";
 }
 
 export function ActivationClient({
   gmailConnected,
   scoreThreshold,
   userType,
+  activationSource = "live",
 }: ActivationClientProps) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("searching");
@@ -83,7 +70,6 @@ export function ActivationClient({
   const fetchedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Timed reassurance messages + long-running banner trigger
   useEffect(() => {
     if (phase !== "searching") return;
 
@@ -115,15 +101,15 @@ export function ActivationClient({
     setAccountData(null);
     setAccountResults([]);
 
-    // Bind an AbortController so the user (or the timeout below) can
-    // cancel a stuck request without leaving the spinner up.
     const controller = new AbortController();
     abortRef.current = controller;
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
     const endpoint =
       userType === "gtm"
-        ? "/api/activation/accounts"
+        ? `/api/activation/accounts${
+            activationSource === "existing" ? "?source=existing" : ""
+          }`
         : "/api/activation/search";
     try {
       const res = await fetch(endpoint, {
@@ -142,10 +128,6 @@ export function ActivationClient({
         const result: AccountActivationSearchResult = await res.json();
         setAccountData(result);
         setAccountResults(result.results);
-        // Distinguish "no candidates returned" from "every candidate
-        // failed scoring" — the former is a rubric/sourcing problem, the
-        // latter is almost always a transient model issue with a
-        // different remediation (Retry, not Adjust Settings).
         if (result.results.length === 0 && result.stats.errors > 0) {
           setPhase("scoring-failed");
         } else {
@@ -158,9 +140,6 @@ export function ActivationClient({
         setPhase(result.results.length > 0 ? "results" : "empty");
       }
     } catch (err) {
-      // AbortError fires both for the user-initiated Cancel and for the
-      // FETCH_TIMEOUT_MS guard. Treat them uniformly: friendly copy, no
-      // raw stack, retry CTA in the error state.
       if (err instanceof DOMException && err.name === "AbortError") {
         setError("Activation timed out — try narrowing the rubric and retry.");
       } else {
@@ -171,20 +150,14 @@ export function ActivationClient({
       setPhase("error");
     } finally {
       clearTimeout(timeoutId);
-      // Don't clear abortRef yet — handleRetry will overwrite it on the
-      // next runSearch, and clearing it here would race with the
-      // long-running banner's Cancel button if it fires concurrently.
     }
-  }, [userType]);
+  }, [userType, activationSource]);
 
-  // Fire activation search on mount
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     runSearch();
   }, [runSearch]);
-
-  // ── Actions ──
 
   function handleDeeperSearch() {
     startTransition(async () => {
@@ -232,12 +205,10 @@ export function ActivationClient({
     runSearch();
   }
 
-  // ── Searching state ──
   if (phase === "searching") {
     const searchingNoun = userType === "gtm" ? "accounts" : "roles";
     return (
       <div className="mx-auto max-w-2xl py-6 space-y-8">
-        {/* Header mirrors the results phase so the transition is structural. */}
         <div>
           <h1 className="text-xl font-bold tracking-tight">
             Finding your top {searchingNoun}…
@@ -272,7 +243,6 @@ export function ActivationClient({
           </Card>
         ) : null}
 
-        {/* Structural scaffold for the cards that will land here. */}
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
             <ResultCardSkeleton key={i} />
@@ -282,7 +252,6 @@ export function ActivationClient({
     );
   }
 
-  // ── Error state ──
   if (phase === "error") {
     return (
       <div className="mx-auto max-w-lg py-16 text-center space-y-4">
@@ -304,7 +273,6 @@ export function ActivationClient({
     );
   }
 
-  // ── Empty state ──
   if (phase === "empty") {
     return (
       <ActivationEmptyState
@@ -317,9 +285,6 @@ export function ActivationClient({
     );
   }
 
-  // ── Scoring-failed state (GTM only — every candidate failed schema
-  // validation in the per-row scorer). Distinct from `error` because
-  // the request itself succeeded; the model output did not.
   if (phase === "scoring-failed") {
     return (
       <ActivationScoringFailedState
@@ -333,7 +298,6 @@ export function ActivationClient({
     );
   }
 
-  // ── Results state ──
   const isGtm = userType === "gtm";
   const headerCounts = isGtm
     ? {
@@ -347,18 +311,8 @@ export function ActivationClient({
   const headerNoun = isGtm ? "accounts" : "roles";
   const headerFit = isGtm ? "best-fit accounts" : "best fits";
 
-  // Every shown row is a degraded fallback (model output couldn't
-  // validate). Surface a top banner so the AE sees these are
-  // best-effort placeholders, not real low-fit verdicts. Per-row
-  // badges still show on individual cards.
-  const allDegraded =
-    isGtm &&
-    (accountData?.stats.degraded ?? 0) > 0 &&
-    accountData?.stats.degraded === accountData?.stats.scored;
-
   return (
     <div className="mx-auto max-w-2xl py-6 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold tracking-tight">Your top matches</h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
@@ -367,29 +321,6 @@ export function ActivationClient({
         </p>
       </div>
 
-      {allDegraded ? (
-        <Card className="gap-2 p-4 border-[var(--color-warning)]">
-          <p className="text-sm font-medium">
-            Scoring infrastructure had trouble.
-          </p>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Every account below is a best-effort placeholder — the model output
-            didn&apos;t match the expected shape. Retry once; persistent
-            failures point to a rubric or model issue.
-          </p>
-          <div>
-            <Button
-              variant="outline"
-              onClick={handleRetry}
-              disabled={isPending}
-            >
-              Retry
-            </Button>
-          </div>
-        </Card>
-      ) : null}
-
-      {/* Result cards */}
       <div className="space-y-2">
         {isGtm
           ? accountResults.map((r) => (
@@ -410,7 +341,6 @@ export function ActivationClient({
             ))}
       </div>
 
-      {/* Gmail prompt */}
       {!gmailConnected && (
         <Card className="gap-3 p-5">
           <div className="flex items-center gap-2">
@@ -429,7 +359,6 @@ export function ActivationClient({
               <ExternalLink size={13} />
               Connect Gmail
             </a>
-            {/* "Skip for now" is implicit — they can just proceed to dashboard */}
           </div>
           <p className="text-xs text-[var(--color-text-subtle)]">
             Gmail is optional. The pipeline can discover, score, and draft
@@ -438,7 +367,6 @@ export function ActivationClient({
         </Card>
       )}
 
-      {/* Bottom actions */}
       <div className="flex items-center justify-between">
         {!isGtm && (
           <Button

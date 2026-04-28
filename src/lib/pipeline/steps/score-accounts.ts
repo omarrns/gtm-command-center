@@ -103,23 +103,6 @@ export async function scoreOneAccount(
     );
   }
 
-  // Degraded fallback path: scoreAccountAgainstIcp couldn't validate the
-  // model output and returned a deterministic Skip/C. Stage advance
-  // succeeded (the row is now `filtered`), but cron/UI need a visible
-  // signal that this wasn't a real low score — it was a scoring
-  // infrastructure failure. `last_error` is the conventional surface
-  // for that, mirroring how thrown errors get persisted from the batch
-  // loop. Slice short to match the existing 240-char convention.
-  if (scoring.degradedFallback) {
-    await svc
-      .from("opportunities")
-      .update({
-        last_error: `Degraded fallback: ${scoring.analysisResult.reason_to_believe.slice(0, 200)}`,
-      })
-      .eq("id", opp.id)
-      .eq("user_id", userId);
-  }
-
   if (scoring.normalizedScore >= 80) {
     await addToWatchlist(svc, userId, opp.company_name, "auto");
   }
