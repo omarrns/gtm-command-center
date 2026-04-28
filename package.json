@@ -15,6 +15,7 @@
     "import:outreach": "tsx scripts/import-outreach.ts",
     "import:coaching": "tsx scripts/import-coaching.ts",
     "seed": "tsx scripts/seed-all.ts",
+    "normalize:icp-enums": "tsx scripts/normalize-icp-enum-values.ts",
     "onboard:reset": "tsx scripts/onboard-reset.ts",
     "onboard:fixture": "tsx scripts/onboard-fixture.ts",
     "onboard:to-review": "tsx scripts/onboard-to-review.ts",
