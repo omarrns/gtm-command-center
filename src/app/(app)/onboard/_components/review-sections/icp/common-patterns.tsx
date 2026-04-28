@@ -4,8 +4,8 @@ import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 
 // Section 3 of the ICP review. Read-only. Surfaces the orchestrator's
-// per-dimension summary for the four exemplar-derived dimensions
-// (firmographics / technographics / signals / proof_points). Each
+// per-dimension summary for the exemplar-derived core dimensions
+// (firmographics / technographics / signals). Each
 // summary is one sentence the orchestrator wrote when it consolidated
 // the pattern across positive_examples — the user reads it as
 // "here's what showed up across most of your customers."
@@ -17,7 +17,6 @@ const PATTERN_DIMENSIONS = [
   { key: "firmographics", label: "Firmographics" },
   { key: "technographics", label: "Technographics" },
   { key: "signals", label: "Signals" },
-  { key: "proof_points", label: "Proof points" },
 ];
 
 interface CommonPatternsProps {

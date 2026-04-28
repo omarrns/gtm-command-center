@@ -4,9 +4,9 @@ import { Info } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 
 // SPEC-3 Phase 5.c: shown above the ICP review when positive-exemplar
-// count is 0, 1, or 2. The orchestrator prompt + scarcity clamp
-// already constrained the rubric — this banner explains the resulting
-// caveat to the user. Does NOT block confirm; the user might
+// count is 0, 1, or 2. The orchestrator marks exemplar-derived
+// sub-dimensions as weak evidence until there are enough examples to
+// consolidate a pattern. Does NOT block confirm; the user might
 // reasonably ship a declarative-only rubric and add exemplars later.
 
 interface ExemplarScarcityBannerProps {
@@ -24,12 +24,12 @@ function copyForCount(count: number): { title: string; body: string } | null {
   if (count === 1) {
     return {
       title: "Only 1 positive exemplar",
-      body: "One example is evidence, not a pattern. The exemplar-derived dimensions are capped at 60% confidence — add 2+ more to lift the cap.",
+      body: "One example is evidence, not a pattern. Exemplar-derived sub-dimensions stay marked as weak evidence until 3+ positive exemplars consolidate the pattern.",
     };
   }
   return {
     title: "Only 2 positive exemplars",
-    body: "Two examples is thin signal. The exemplar-derived dimensions are capped at 60% confidence — add at least one more to consolidate the pattern.",
+    body: "Two examples are thin signal. Exemplar-derived sub-dimensions stay marked as weak evidence until one more positive exemplar consolidates the pattern.",
   };
 }
 

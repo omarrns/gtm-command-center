@@ -12,7 +12,7 @@ import {
 } from "../../interview-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
-import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
+import { icpEditsSchema, type IcpEdits } from "@/lib/onboarding/icp-schemas";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 import { detectIcpDisagreements } from "@/lib/onboarding/orchestrator/icp-disagreements";
 import { DeclaredIcp } from "./icp/declared-icp";
@@ -37,19 +37,34 @@ import { ExemplarScarcityBanner } from "./icp/exemplar-scarcity-banner";
 // <IcpDashboard> there).
 
 const EMPTY_EDITS: IcpEdits = {
-  product: { category: "", core_jtbd: "", wedge: "" },
+  product: { category: "", core_jtbd: "", wedge: "", delivery_model: "" },
   icp: {
-    buyer: { economic_buyer: "", champion: "", end_user: "" },
+    buyer: { economic_buyer: "", champion: "", end_user: "", deal_blocker: "" },
     firmographics: {
       industries: [],
-      employee_range_min: 0,
-      employee_range_max: 10000,
+      business_model: "",
+      employee_range: { min: 0, max: 10000 },
       stages: [],
       geographies: [],
     },
-    technographics: { required_tools: [], excluded_tools: [] },
-    signals: { hiring_roles: [], jtbd_evidence: [], trigger_events: [] },
-    disqualifiers: [],
+    technographics: {
+      required_tools: [],
+      excluded_tools: [],
+      tech_maturity: "",
+      data_infrastructure: "",
+    },
+    signals: {
+      hiring_roles: [],
+      jtbd_evidence: [],
+      trigger_events: [],
+      pain_language: [],
+    },
+    disqualifiers: {
+      tech_disqualifiers: [],
+      size_disqualifiers: "",
+      stage_disqualifiers: [],
+      behavioral_disqualifiers: [],
+    },
   },
   proof_points: {
     existing_customers: [],
@@ -85,7 +100,10 @@ export function ReviewIcp({
     (interview.orchestrator_state as OrchestratorState | null) ?? null;
   const positiveExemplarCount = countSucceededPositives(orchestratorState);
 
-  const initialEdits = (interview.extracted as IcpEdits | null) ?? EMPTY_EDITS;
+  const parsedInitialEdits = icpEditsSchema.safeParse(interview.extracted);
+  const initialEdits = parsedInitialEdits.success
+    ? parsedInitialEdits.data
+    : EMPTY_EDITS;
   const [edits, setEdits] = useState<IcpEdits>(initialEdits);
 
   const disagreements = useMemo(

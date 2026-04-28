@@ -4,19 +4,16 @@ import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 
 // Section 4 of the ICP review. Display-only — never written to the
-// rubric. Surfaces dimensions where the orchestrator's confidence
-// stayed below threshold even after consolidation. With 3+ positive
-// exemplars, low confidence means "the exemplars disagreed" — a real
-// variation signal. With 1-2 positives the exemplar-scarcity clamp
-// deliberately holds confidence at 0.6, so below-threshold is just
-// scarcity, not variation. The parent hides this section when
-// positiveExemplarCount < 3 to avoid false warnings.
+// rubric. Surfaces dimensions whose computed completeness stayed below
+// threshold even after consolidation. With 3+ positive exemplars, low
+// completeness means the pattern is incomplete or varied enough to
+// revisit. The parent hides this section when positiveExemplarCount < 3
+// because evidence scarcity is already explained by the banner.
 
 const VARIATION_DIMENSIONS = [
   { key: "firmographics", label: "Firmographics" },
   { key: "technographics", label: "Technographics" },
   { key: "signals", label: "Signals" },
-  { key: "proof_points", label: "Proof points" },
 ];
 
 interface MeaningfulVariationsProps {

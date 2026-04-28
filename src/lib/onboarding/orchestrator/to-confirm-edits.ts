@@ -1,8 +1,6 @@
 import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
-import {
-  coerceIcpRubric,
-  type IcpEdits,
-} from "@/lib/onboarding/icp-schemas";
+import { coerceIcpRubric, type IcpEdits } from "@/lib/onboarding/icp-schemas";
+import { getDefaultEvidence } from "@/lib/onboarding/icp-dimensions";
 import type { InterviewTemplate } from "@/lib/onboarding/templates/types";
 import type { OrchestratorReviewEdit, OrchestratorState } from "./types";
 
@@ -212,6 +210,27 @@ export function toJobSearchConfirmEdits(
 // ── ICP adapter ────────────────────────────────────────────────────────────
 
 function orchestratorIcpEdits(state: OrchestratorState): IcpEdits {
+  const evidence = getDefaultEvidence();
+  for (const dimension of [
+    "product",
+    "buyer",
+    "firmographics",
+    "technographics",
+    "signals",
+    "disqualifiers",
+  ] as const) {
+    if (state.dimensions[dimension]?.evidence) {
+      const writableEvidence = evidence as Record<
+        string,
+        Record<string, unknown>
+      >;
+      writableEvidence[dimension] = {
+        ...evidence[dimension],
+        ...state.dimensions[dimension].evidence,
+      };
+    }
+  }
+
   const rubric = coerceIcpRubric({
     product: unwrapEvidenceWrappedValue(state.dimensions.product?.value),
     buyer: unwrapEvidenceWrappedValue(state.dimensions.buyer?.value),
@@ -228,45 +247,20 @@ function orchestratorIcpEdits(state: OrchestratorState): IcpEdits {
     proof_points: unwrapEvidenceWrappedValue(
       state.dimensions.proof_points?.value,
     ),
+    evidence,
   });
-  const disqualifiers = [
-    ...rubric.disqualifiers.tech_disqualifiers,
-    rubric.disqualifiers.size_disqualifiers,
-    ...rubric.disqualifiers.stage_disqualifiers,
-    ...rubric.disqualifiers.behavioral_disqualifiers,
-  ].filter((entry) => entry.trim().length > 0);
 
   return {
-    product: {
-      category: rubric.product.category,
-      core_jtbd: rubric.product.core_jtbd,
-      wedge: rubric.product.wedge,
-    },
+    product: rubric.product,
     icp: {
-      buyer: {
-        economic_buyer: rubric.buyer.economic_buyer,
-        champion: rubric.buyer.champion,
-        end_user: rubric.buyer.end_user,
-      },
-      firmographics: {
-        industries: rubric.firmographics.industries,
-        employee_range_min: rubric.firmographics.employee_range.min,
-        employee_range_max: rubric.firmographics.employee_range.max ?? 10000,
-        stages: rubric.firmographics.stages,
-        geographies: rubric.firmographics.geographies,
-      },
-      technographics: {
-        required_tools: rubric.technographics.required_tools,
-        excluded_tools: rubric.technographics.excluded_tools,
-      },
-      signals: {
-        hiring_roles: rubric.signals.hiring_roles,
-        jtbd_evidence: rubric.signals.jtbd_evidence,
-        trigger_events: rubric.signals.trigger_events,
-      },
-      disqualifiers,
+      buyer: rubric.buyer,
+      firmographics: rubric.firmographics,
+      technographics: rubric.technographics,
+      signals: rubric.signals,
+      disqualifiers: rubric.disqualifiers,
     },
     proof_points: rubric.proof_points,
+    evidence: rubric.evidence,
   };
 }
 

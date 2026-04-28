@@ -59,6 +59,22 @@ export function InferredFromExemplars({
             itemNoun="industry"
             itemNounPlural="industries"
           />
+          <div className="space-y-1.5">
+            <label className="text-xs text-[var(--color-text-muted)]">
+              Business model
+            </label>
+            <Input
+              type="text"
+              value={firmographics.business_model}
+              onChange={(e) =>
+                onFirmographicsChange({
+                  ...firmographics,
+                  business_model: e.target.value,
+                })
+              }
+              className="border-transparent"
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs text-[var(--color-text-muted)]">
@@ -67,14 +83,14 @@ export function InferredFromExemplars({
               <Input
                 type="number"
                 min={0}
-                value={firmographics.employee_range_min}
+                value={firmographics.employee_range.min}
                 onChange={(e) =>
                   onFirmographicsChange({
                     ...firmographics,
-                    employee_range_min: Math.max(
-                      0,
-                      parseInt(e.target.value) || 0,
-                    ),
+                    employee_range: {
+                      ...firmographics.employee_range,
+                      min: Math.max(0, parseInt(e.target.value) || 0),
+                    },
                   })
                 }
                 className="border-transparent"
@@ -87,14 +103,17 @@ export function InferredFromExemplars({
               <Input
                 type="number"
                 min={0}
-                value={firmographics.employee_range_max}
+                value={firmographics.employee_range.max ?? ""}
                 onChange={(e) =>
                   onFirmographicsChange({
                     ...firmographics,
-                    employee_range_max: Math.max(
-                      0,
-                      parseInt(e.target.value) || 0,
-                    ),
+                    employee_range: {
+                      ...firmographics.employee_range,
+                      max:
+                        e.target.value.trim() === ""
+                          ? null
+                          : Math.max(0, parseInt(e.target.value) || 0),
+                    },
                   })
                 }
                 className="border-transparent"
@@ -151,6 +170,38 @@ export function InferredFromExemplars({
             placeholder="Add an excluded tool..."
             itemNoun="tool"
           />
+          <div className="space-y-1.5">
+            <label className="text-xs text-[var(--color-text-muted)]">
+              Tech maturity
+            </label>
+            <Input
+              type="text"
+              value={technographics.tech_maturity}
+              onChange={(e) =>
+                onTechnographicsChange({
+                  ...technographics,
+                  tech_maturity: e.target.value,
+                })
+              }
+              className="border-transparent"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-[var(--color-text-muted)]">
+              Data infrastructure
+            </label>
+            <Input
+              type="text"
+              value={technographics.data_infrastructure}
+              onChange={(e) =>
+                onTechnographicsChange({
+                  ...technographics,
+                  data_infrastructure: e.target.value,
+                })
+              }
+              className="border-transparent"
+            />
+          </div>
         </div>
       </ReviewFormSection>
 
@@ -188,6 +239,17 @@ export function InferredFromExemplars({
             description="Events that put an account into-buying-mode"
             placeholder="Add a trigger event..."
             itemNoun="event"
+          />
+          <TagInput
+            values={signals.pain_language}
+            onChange={(pain_language) =>
+              onSignalsChange({ ...signals, pain_language })
+            }
+            inputId="icp-pain-language"
+            label="Pain language"
+            description="Words buyers use to describe the problem"
+            placeholder="Add pain language..."
+            itemNoun="phrase"
           />
         </div>
       </ReviewFormSection>

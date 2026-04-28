@@ -67,6 +67,22 @@ export function DeclaredIcp({
               className="border-transparent"
             />
           </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-[var(--color-text-muted)]">
+              Delivery model
+            </label>
+            <Input
+              type="text"
+              value={product.delivery_model}
+              onChange={(e) =>
+                onProductChange({
+                  ...product,
+                  delivery_model: e.target.value,
+                })
+              }
+              className="border-transparent"
+            />
+          </div>
         </div>
       </ReviewFormSection>
 
@@ -107,6 +123,19 @@ export function DeclaredIcp({
               value={buyer.end_user}
               onChange={(e) =>
                 onBuyerChange({ ...buyer, end_user: e.target.value })
+              }
+              className="border-transparent"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-[var(--color-text-muted)]">
+              Deal blocker
+            </label>
+            <Input
+              type="text"
+              value={buyer.deal_blocker}
+              onChange={(e) =>
+                onBuyerChange({ ...buyer, deal_blocker: e.target.value })
               }
               className="border-transparent"
             />

@@ -109,11 +109,11 @@ function bulletList(items: string[]): string {
 
 function renderCompanyIcp(edits: IcpEdits): string {
   return joinSections([
-    `## Product\n\n- **Category**: ${edits.product.category || "(not set)"}\n- **Core JTBD**: ${edits.product.core_jtbd || "(not set)"}\n- **Wedge**: ${edits.product.wedge || "(not set)"}`,
-    `## Buyer\n\n- **Economic buyer**: ${edits.icp.buyer.economic_buyer || "(not set)"}\n- **Champion**: ${edits.icp.buyer.champion || "(not set)"}\n- **End user**: ${edits.icp.buyer.end_user || "(not set)"}`,
-    `## Firmographics\n\n- **Industries**: ${edits.icp.firmographics.industries.join(", ") || "(none)"}\n- **Employee range**: ${edits.icp.firmographics.employee_range_min}–${edits.icp.firmographics.employee_range_max}\n- **Stages**: ${edits.icp.firmographics.stages.join(", ") || "(none)"}\n- **Geographies**: ${edits.icp.firmographics.geographies.join(", ") || "(none)"}`,
-    `## Technographics\n\n### Required\n\n${bulletList(edits.icp.technographics.required_tools)}\n\n### Excluded\n\n${bulletList(edits.icp.technographics.excluded_tools)}`,
-    `## Signals\n\n### Hiring roles\n\n${bulletList(edits.icp.signals.hiring_roles)}\n\n### JTBD evidence\n\n${bulletList(edits.icp.signals.jtbd_evidence)}\n\n### Trigger events\n\n${bulletList(edits.icp.signals.trigger_events)}`,
+    `## Product\n\n- **Category**: ${edits.product.category || "(not set)"}\n- **Core JTBD**: ${edits.product.core_jtbd || "(not set)"}\n- **Wedge**: ${edits.product.wedge || "(not set)"}\n- **Delivery model**: ${edits.product.delivery_model || "(not set)"}`,
+    `## Buyer\n\n- **Economic buyer**: ${edits.icp.buyer.economic_buyer || "(not set)"}\n- **Champion**: ${edits.icp.buyer.champion || "(not set)"}\n- **End user**: ${edits.icp.buyer.end_user || "(not set)"}\n- **Deal blocker**: ${edits.icp.buyer.deal_blocker || "(not set)"}`,
+    `## Firmographics\n\n- **Industries**: ${edits.icp.firmographics.industries.join(", ") || "(none)"}\n- **Business model**: ${edits.icp.firmographics.business_model || "(not set)"}\n- **Employee range**: ${edits.icp.firmographics.employee_range.min}–${edits.icp.firmographics.employee_range.max ?? "unbounded"}\n- **Stages**: ${edits.icp.firmographics.stages.join(", ") || "(none)"}\n- **Geographies**: ${edits.icp.firmographics.geographies.join(", ") || "(none)"}`,
+    `## Technographics\n\n- **Tech maturity**: ${edits.icp.technographics.tech_maturity || "(not set)"}\n- **Data infrastructure**: ${edits.icp.technographics.data_infrastructure || "(not set)"}\n\n### Required\n\n${bulletList(edits.icp.technographics.required_tools)}\n\n### Excluded\n\n${bulletList(edits.icp.technographics.excluded_tools)}`,
+    `## Signals\n\n### Hiring roles\n\n${bulletList(edits.icp.signals.hiring_roles)}\n\n### JTBD evidence\n\n${bulletList(edits.icp.signals.jtbd_evidence)}\n\n### Trigger events\n\n${bulletList(edits.icp.signals.trigger_events)}\n\n### Pain language\n\n${bulletList(edits.icp.signals.pain_language)}`,
   ]);
 }
 
@@ -126,7 +126,12 @@ function renderProofPoints(edits: IcpEdits): string {
 }
 
 function renderDisqualifiers(edits: IcpEdits): string {
-  return `## Disqualifiers\n\n${bulletList(edits.icp.disqualifiers)}`;
+  return joinSections([
+    `## Tech disqualifiers\n\n${bulletList(edits.icp.disqualifiers.tech_disqualifiers)}`,
+    `## Size disqualifiers\n\n${edits.icp.disqualifiers.size_disqualifiers || "(none)"}`,
+    `## Stage disqualifiers\n\n${bulletList(edits.icp.disqualifiers.stage_disqualifiers)}`,
+    `## Behavioral disqualifiers\n\n${bulletList(edits.icp.disqualifiers.behavioral_disqualifiers)}`,
+  ]);
 }
 
 const outputs: readonly OutputMapping<IcpEdits, IcpExtraction>[] = [
@@ -251,6 +256,7 @@ async function normalizeScoringProfile(
     signals: extracted.icp.signals,
     disqualifiers: extracted.icp.disqualifiers,
     proof_points: extracted.proof_points,
+    evidence: extracted.evidence,
   });
 
   const { error } = await svc.from("user_scoring_profiles").upsert(
