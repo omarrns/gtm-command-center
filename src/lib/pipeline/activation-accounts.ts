@@ -17,14 +17,12 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { searchJobs, type TheirStackJob } from "@/lib/integrations/theirstack";
-import type { OpportunityRow } from "@/lib/supabase/types";
 import {
   icpToTheirStackFilters,
   type IcpRubric,
 } from "@/lib/pipeline/icp-to-theirstack-filters";
 import {
   scoreAccountAgainstIcp,
-  computeAccountScore,
   type IcpAccountAnalysis,
   type ScoreAccountSubject,
 } from "@/lib/pipeline/scoring-account";
@@ -176,67 +174,10 @@ export async function runAccountActivationSearch(
   };
 }
 
-export async function runExistingAccountActivationSearch(
-  svc: SupabaseClient,
-  userId: string,
-  rubric: IcpRubric,
-  runId?: string,
-): Promise<AccountActivationSearchResult> {
-  const { data, error } = await svc
-    .from("opportunities")
-    .select("*")
-    .eq("user_id", userId)
-    .in("source", ["theirstack", "exa-dormant"])
-    .not("company_domain", "is", null)
-    .order("discovered_at", { ascending: false })
-    .limit(MAX_CANDIDATES);
-
-  if (error) throw error;
-
-  const opportunities = (data ?? []) as OpportunityRow[];
-  const scored: AccountActivationResult[] = [];
-  let errors = 0;
-  let firstError: string | null = null;
-
-  for (const opp of opportunities) {
-    try {
-      const scoring = await scoreAccountAgainstIcp({
-        opp,
-        rubric,
-        userId,
-        svc,
-        model: ACTIVATION_MODEL,
-        runId,
-      });
-      scored.push(toActivationResultFromOpportunity(opp, scoring.analysisResult));
-    } catch (err) {
-      errors++;
-      if (firstError === null) {
-        firstError = mapAiError(
-          err instanceof Error ? err.message : String(err),
-        );
-      }
-    }
-  }
-
-  scored.sort((a, b) => b.score - a.score);
-
-  return {
-    results: scored.slice(0, MAX_RESULTS),
-    stats: {
-      discovered: opportunities.length,
-      scored: scored.length,
-      errors,
-      firstError,
-      rubricIncomplete: false,
-    },
-  };
-}
-
 // Strip SDK-internal prefixes from raw error messages before exposing to
 // the user. Return one meaningful sentence under 240 chars. No stack
 // traces, no nested prefixes.
-function mapAiError(raw: string): string {
+export function mapAiError(raw: string): string {
   const trimmed = raw.replace(/^AI_[A-Za-z]+Error:\s*/, "").trim();
   if (
     trimmed.startsWith("No object generated") ||
@@ -284,28 +225,6 @@ function toScoreSubject(job: TheirStackJob): ScoreAccountSubject | null {
         source: "theirstack",
       },
     ],
-  };
-}
-
-function toActivationResultFromOpportunity(
-  opp: OpportunityRow,
-  analysis: IcpAccountAnalysis,
-): AccountActivationResult {
-  const trigger = (opp.trigger_signals ?? [])[0] ?? {};
-  const t = trigger as Record<string, unknown>;
-  return {
-    id: opp.id,
-    companyName: opp.company_name,
-    companyDomain: opp.company_domain,
-    roleTitle: opp.role_title ?? "Existing account",
-    score: computeAccountScore(analysis),
-    tier: analysis.tier,
-    verdict: analysis.verdict,
-    reasonToBelieve: analysis.reason_to_believe,
-    fundingStage: typeof t.funding_stage === "string" ? t.funding_stage : null,
-    employeeCount: typeof t.employee_count === "number" ? t.employee_count : null,
-    industry: typeof t.industry === "string" ? t.industry : null,
-    analysis,
   };
 }
 
