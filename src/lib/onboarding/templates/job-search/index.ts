@@ -311,8 +311,8 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
   agenticMode: true,
   dimensions,
   rubricSchema,
-  orchestratorModel: MODELS.opus,
-  orchestratorMaxOutputTokens: 4096,
+  orchestratorModel: MODELS.sonnet,
+  orchestratorMaxOutputTokens: 8192,
   orchestratorSystemPrompt: () => ORCHESTRATOR_SYSTEM_PROMPT,
   interviewerSystemPrompt: buildInterviewerSystemPrompt,
 
