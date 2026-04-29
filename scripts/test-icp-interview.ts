@@ -20,6 +20,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
+import { resolveDestructiveUserTarget } from "./lib/user-target";
 import {
   applyIcpExemplarScarcityClamp,
   nextDimensionToAsk,
@@ -1204,15 +1205,6 @@ function unitTestHasMeaningfulHypothesisValue() {
   );
 }
 
-async function resolveUserId(email: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("email", email)
-    .single();
-  return data?.user_id ?? null;
-}
-
 async function resetUser(userId: string) {
   await supabase
     .from("memory_documents")
@@ -1519,13 +1511,8 @@ async function main() {
   unitTestIcpPromptHasNoExampleSentences();
   unitTestHasMeaningfulHypothesisValue();
 
-  const userId =
-    process.env.SEED_USER_ID ?? (await resolveUserId("omarns059@gmail.com"));
-  if (!userId) {
-    console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
-    process.exit(1);
-  }
-  console.log(`\nTesting with user ${userId}`);
+  const { userId, email } = await resolveDestructiveUserTarget(supabase);
+  console.log(`\nTesting with user ${email} (${userId})`);
 
   const interviewId = await integrationTestEditDivergence(userId);
   await integrationTestIdempotency(userId, interviewId);

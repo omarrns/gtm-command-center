@@ -24,6 +24,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
+import { resolveDestructiveUserTarget } from "./lib/user-target";
 import { claimOrphanedArtifacts } from "../src/lib/onboarding/artifacts/reassign";
 import { performPersonaSwitch } from "../src/app/(app)/onboard/switch-persona";
 
@@ -39,15 +40,6 @@ if (!url || !key) {
 const supabase = createClient(url, key, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-
-async function resolveUserId(email: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("email", email)
-    .single();
-  return data?.user_id ?? null;
-}
 
 let failures = 0;
 function assert(condition: boolean, label: string) {
@@ -430,13 +422,8 @@ async function testPerformPersonaSwitchSameTemplate(userId: string) {
 }
 
 async function main() {
-  const userId =
-    process.env.SEED_USER_ID ?? (await resolveUserId("omarns059@gmail.com"));
-  if (!userId) {
-    console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
-    process.exit(1);
-  }
-  console.log(`Testing with user ${userId}`);
+  const { userId, email } = await resolveDestructiveUserTarget(supabase);
+  console.log(`Testing with user ${email} (${userId})`);
 
   await resetUser(userId);
   console.log(

@@ -16,6 +16,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
+import { resolveDestructiveUserTarget } from "./lib/user-target";
 import { isOnboardingComplete } from "../src/lib/pipeline/onboarding";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -30,15 +31,6 @@ if (!url || !key) {
 const supabase = createClient(url, key, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-
-async function resolveUserId(email: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("email", email)
-    .single();
-  return data?.user_id ?? null;
-}
 
 let failures = 0;
 
@@ -105,15 +97,9 @@ async function seedConfig(userId: string) {
 }
 
 async function main() {
-  const userId =
-    process.env.SEED_USER_ID ?? (await resolveUserId("omarns059@gmail.com"));
+  const { userId, email } = await resolveDestructiveUserTarget(supabase);
 
-  if (!userId) {
-    console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
-    process.exit(1);
-  }
-
-  console.log(`Testing with user ${userId}`);
+  console.log(`Testing with user ${email} (${userId})`);
 
   // ── Empty state ────────────────────────────────────────────────────────
   console.log("\n--- Empty state (no seeded rows) ---\n");

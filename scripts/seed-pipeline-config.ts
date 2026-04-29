@@ -1,10 +1,11 @@
 /**
- * Seed default pipeline_config row for the primary user.
+ * Seed default pipeline_config row for the resettable test user.
  *
  * Usage: npx tsx scripts/seed-pipeline-config.ts
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { resolveSeedUserTarget } from "./lib/user-target";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const key =
@@ -20,13 +21,7 @@ const supabase = createClient(url, key, {
 });
 
 async function main() {
-  const userId =
-    process.env.SEED_USER_ID ?? (await resolveUserId("omarns059@gmail.com"));
-
-  if (!userId) {
-    console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
-    process.exit(1);
-  }
+  const { userId, email } = await resolveSeedUserTarget(supabase);
 
   const { data, error } = await supabase
     .from("pipeline_config")
@@ -48,19 +43,10 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("✓ Pipeline config seeded:", data.id);
+  console.log(`✓ Pipeline config seeded for ${email}:`, data.id);
   console.log(
     `  threshold=${data.score_threshold}, queries=${JSON.stringify(data.search_queries)}, cap=${data.daily_send_cap}`,
   );
-}
-
-async function resolveUserId(email: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("email", email)
-    .single();
-  return data?.user_id ?? null;
 }
 
 main();

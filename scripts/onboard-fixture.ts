@@ -11,6 +11,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
+import { resolveDestructiveUserTarget } from "./lib/user-target";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const key =
@@ -24,15 +25,6 @@ if (!url || !key) {
 const supabase = createClient(url, key, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-
-async function resolveUserId(email: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("email", email)
-    .single();
-  return data?.user_id ?? null;
-}
 
 // Parse --state=<value> from argv
 function parseState(): "partial" | "complete" | "empty" {
@@ -245,13 +237,8 @@ async function resetUser(userId: string) {
 
 async function main() {
   const state = parseState();
-  const userId =
-    process.env.SEED_USER_ID ?? (await resolveUserId("omarns059@gmail.com"));
-
-  if (!userId) {
-    console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
-    process.exit(1);
-  }
+  const { userId, email } = await resolveDestructiveUserTarget(supabase);
+  console.log(`Using resettable user ${email} (${userId})`);
 
   // Always reset first
   await resetUser(userId);

@@ -11,6 +11,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
+import { resolveDestructiveUserTarget } from "./lib/user-target";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const key =
@@ -25,23 +26,8 @@ const supabase = createClient(url, key, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-async function resolveUserId(email: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("email", email)
-    .single();
-  return data?.user_id ?? null;
-}
-
 async function main() {
-  const email = process.env.SEED_USER_EMAIL ?? "omarns059@gmail.com";
-  const userId = process.env.SEED_USER_ID ?? (await resolveUserId(email));
-
-  if (!userId) {
-    console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
-    process.exit(1);
-  }
+  const { userId, email } = await resolveDestructiveUserTarget(supabase);
 
   // Delete onboarding_artifacts first (SPEC-2). interview_id cascades when
   // the interview row is deleted, but artifacts with no interview_id
@@ -114,7 +100,7 @@ async function main() {
   }
 
   console.log(
-    `Reset complete: ${artifactCount ?? 0} artifacts, ${interviewCount ?? 0} interviews, ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted, user_type cleared`,
+    `Reset complete for ${email}: ${artifactCount ?? 0} artifacts, ${interviewCount ?? 0} interviews, ${memCount ?? 0} memory docs, ${configCount ?? 0} config rows, ${spCount ?? 0} scoring profiles deleted, user_type cleared`,
   );
 }
 

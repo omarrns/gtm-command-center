@@ -1,5 +1,5 @@
 /**
- * Master seed script: resolves Omar's user ID from Supabase, then runs
+ * Master seed script: resolves the resettable test user's ID from Supabase, then runs
  * all import scripts in order to populate every section of the app.
  *
  * Usage:
@@ -13,6 +13,7 @@ import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { createClient } from "@supabase/supabase-js";
+import { resolveSeedUserTarget } from "./lib/user-target";
 
 // Load .env.local if present
 const envPath = path.resolve(__dirname, "..", ".env.local");
@@ -40,8 +41,6 @@ if (!url || !key) {
   process.exit(1);
 }
 
-const EMAIL = "omarns059@gmail.com";
-
 async function main() {
   console.log("=== GTM Command Center — Seed All ===\n");
 
@@ -50,22 +49,16 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: profile, error: profileErr } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("email", EMAIL)
-    .single();
-
-  if (profileErr || !profile) {
-    console.error(
-      `No profile found for ${EMAIL}. Sign up at the app first, then re-run.`,
-    );
-    console.error(profileErr?.message ?? "");
+  let target;
+  try {
+    target = await resolveSeedUserTarget(supabase);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 
-  const userId = profile.user_id;
-  console.log(`Resolved ${EMAIL} → ${userId}\n`);
+  const { userId, email } = target;
+  console.log(`Resolved ${email} -> ${userId}\n`);
 
   // 2. Build shared env for child scripts
   const env = {
@@ -73,6 +66,7 @@ async function main() {
     SUPABASE_URL: url,
     SUPABASE_SERVICE_ROLE_KEY: key,
     SEED_USER_ID: userId,
+    SEED_USER_EMAIL: email,
   };
 
   const scripts = [

@@ -13,6 +13,7 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 import { createClient } from "@supabase/supabase-js";
+import { resolveDestructiveUserTarget } from "./lib/user-target";
 import {
   addToWatchlist,
   processWatchlistAlerts,
@@ -20,7 +21,6 @@ import {
 } from "../src/lib/pipeline/watchlist";
 
 const TEST_COMPANY = "Vercel";
-const TEST_USER_ID = "3583ae5c-f2db-4eae-a79f-bd7c5ec2fce8";
 
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -39,12 +39,14 @@ async function main() {
   const svc = createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const { userId, email } = await resolveDestructiveUserTarget(svc);
+  console.log(`Testing with user ${email} (${userId})`);
 
   // Clean up any prior test data
   await svc
     .from("watchlist")
     .delete()
-    .eq("user_id", TEST_USER_ID)
+    .eq("user_id", userId)
     .eq("company_name", TEST_COMPANY);
 
   // -----------------------------------------------------------------------
@@ -53,7 +55,7 @@ async function main() {
   console.log("\n--- Test 1: addToWatchlist ---");
   const addResult = await addToWatchlist(
     svc,
-    TEST_USER_ID,
+    userId,
     TEST_COMPANY,
     "manual",
   );
@@ -97,7 +99,7 @@ async function main() {
   console.log("--- Test 2: duplicate add ---");
   const dupResult = await addToWatchlist(
     svc,
-    TEST_USER_ID,
+    userId,
     TEST_COMPANY,
     "manual",
   );
@@ -115,14 +117,14 @@ async function main() {
   console.log("Waiting 15s for Exa webset to populate...");
   await sleep(15_000);
 
-  const alertResult1 = await processWatchlistAlerts(svc, TEST_USER_ID);
+  const alertResult1 = await processWatchlistAlerts(svc, userId);
   console.log("Run 1:", alertResult1);
 
   // -----------------------------------------------------------------------
   // Test 4: Re-run alerts — dedup should prevent new inserts
   // -----------------------------------------------------------------------
   console.log("\n--- Test 4: alert dedup ---");
-  const alertResult2 = await processWatchlistAlerts(svc, TEST_USER_ID);
+  const alertResult2 = await processWatchlistAlerts(svc, userId);
   console.log("Run 2:", alertResult2);
   if (alertResult2.newAlerts > 0) {
     console.warn("WARN: re-run inserted alerts — dedup may not be working");
@@ -134,7 +136,7 @@ async function main() {
   // Test 5: removeFromWatchlist — should clean up webset + row
   // -----------------------------------------------------------------------
   console.log("--- Test 5: removeFromWatchlist ---");
-  const removed = await removeFromWatchlist(svc, TEST_USER_ID, row.id);
+  const removed = await removeFromWatchlist(svc, userId, row.id);
   console.log("Removed:", removed);
   if (!removed) {
     console.error("FAIL: removeFromWatchlist returned false");

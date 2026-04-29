@@ -16,6 +16,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
+import { resolveSeedUserTarget } from "./lib/user-target";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const key =
@@ -30,23 +31,8 @@ const supabase = createClient(url, key, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-async function resolveUserId(email: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("email", email)
-    .single();
-  return data?.user_id ?? null;
-}
-
 async function main() {
-  const email = process.env.SEED_USER_EMAIL ?? "omarns059@gmail.com";
-  const userId = process.env.SEED_USER_ID ?? (await resolveUserId(email));
-
-  if (!userId) {
-    console.error("Could not resolve user ID. Set SEED_USER_ID in env.");
-    process.exit(1);
-  }
+  const { userId, email } = await resolveSeedUserTarget(supabase);
 
   // Find the most recent job_search interview, any status.
   const { data: interview, error: fetchErr } = await supabase
