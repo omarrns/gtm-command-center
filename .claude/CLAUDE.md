@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Omar's browser-based autonomous job-search agent. It discovers roles, scores them, researches contacts, enriches emails, drafts outreach, queues opportunities for approval, sends approved emails through Gmail, and tracks replies. Single-user tool, not a product for others.
+A browser-based autonomous job-search agent. It discovers roles, scores them, researches contacts, enriches emails, drafts outreach, queues opportunities for approval, sends approved emails through Gmail, and tracks replies. Single-user tool, not a product for others.
 
 ## Tech Stack
 
@@ -28,13 +28,14 @@ src/
 │       ├── dev-actions.ts      # Dev-only helpers (persona toggle, etc.)
 │       ├── _actions/           # Cross-route server actions (e.g. update-icp-rubric)
 │       ├── _components/        # OpportunityCard, AccountCard, TodayClient, IcpDashboard
-│       ├── _loaders/           # Shared data loaders (today-queue, today-metrics, analytics-data)
+│       ├── _loaders/           # Shared data loaders (today-queue, today-metrics). Per-route loaders live under `<route>/_loaders/` (e.g. `analytics/_loaders/analytics-data.ts`).
 │       ├── accounts/           # GTM persona: pipeline-promoted accounts. See feedback_accounts_never_auto_remove.md.
 │       ├── activate/           # First-run JSearch activation
 │       ├── analysis/           # JD/company analyses (detail + intake)
 │       ├── analytics/          # Pipeline + content analytics
 │       ├── calls/              # Sales-call browse/inspect
 │       ├── coaching/           # Career-coach skill UI
+│       ├── dev/                # Dev/admin debug page (profiles, pipeline_config, onboarding_interviews)
 │       ├── history/            # Sent/skipped opportunities
 │       ├── icp/                # ICP rubric editor (GTM persona)
 │       ├── memory/             # memory_documents browse/edit
@@ -103,7 +104,7 @@ src/
     │   ├── extraction.ts               # runExtractionFromTranscript<X>(messages, template) — template-generic
     │   ├── icp-prompts.ts, icp-schemas.ts, insights-schema.ts
     │   ├── markdown.ts, transcript.ts
-    │   ├── templates/                  # InterviewTemplate registry — types.ts, index.ts, job-search.ts, icp-definition.ts, artifact-kind.ts
+    │   ├── templates/                  # InterviewTemplate registry — types.ts, index.ts, artifact-kind.ts, job-search/ (dir), icp-definition.ts (+ icp-definition/ helpers)
     │   ├── orchestrator/               # Agentic-mode state, Opus dimension inference (run.ts), to-confirm-edits adapter, types
     │   └── artifacts/                  # ingest.ts (URL/file → normalized markdown), reassign.ts (persona-switch retention)
     ├── skills/
@@ -235,7 +236,14 @@ Migrations live in `supabase/migrations/`. TypeScript row types in `src/lib/supa
 
 Real-time (not cron): `POST /api/webhooks/theirstack?user=<uuid>` — HMAC-SHA256 signed `job.new` deliveries from a TheirStack saved search. Runs `scoreOneAccount` inline so a hot match shows up in `/accounts` within seconds.
 
-All use `maxDuration = 300`.
+`maxDuration` is set per route based on whether the route does the work itself or dispatches it:
+
+| Route                        | `maxDuration` | Why                                                                                                                                                                                                                                     |
+| ---------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/cron/pipeline`         | `60`          | Fire-and-forget — dispatches one Vercel Workflow per user (`workflow/api`'s `start()`) and returns. Each user's workflow has its own durability/retry, so the cron handler only needs to live long enough to insert N workflow records. |
+| `/api/cron/replies`          | `120`         | Inline — iterates sent opportunities, reads Gmail thread metadata. Bounded by the number of in-flight threads.                                                                                                                          |
+| `/api/cron/watchlist`        | `120`         | Inline — iterates active watchlists, polls Exa Websets.                                                                                                                                                                                 |
+| `/api/cron/dormant-discover` | `300`         | Inline — Exa search + per-account scoring across the user's full ICP rubric; needs the long ceiling.                                                                                                                                    |
 
 ### Send Flow (Safety-Critical)
 
@@ -258,7 +266,7 @@ All use `maxDuration = 300`.
 
 ### Interview Template Abstraction
 
-- `src/lib/onboarding/templates/` holds the `InterviewTemplate` registry. `types.ts` defines the interface; `job-search.ts` is the current template; `index.ts` exposes `getTemplate(id)`, `getDefaultTemplate()`, and `toClientTemplate(template)`.
+- `src/lib/onboarding/templates/` holds the `InterviewTemplate` registry. `types.ts` defines the interface; `job-search/index.ts` and `icp-definition.ts` are the current templates; `index.ts` exposes `getTemplate(id)`, `getDefaultTemplate()`, and `toClientTemplate(template)`.
 - An `InterviewTemplate` co-locates everything template-specific: topics, `systemPrompt(ctx)`, `tools`, opening messages, `maxAssistantMessages` / `wrapUpThreshold` / `completionMarker` / `completionTopicThreshold`, chat + extraction models, `extractionSchema` (zod), `editsSchema` (zod), and an ordered `outputs[]` array with per-output `transform({ edits, extraction })`.
 - `onboarding_interviews.template_id` + `template_version` stamp every row. `getOrCreateInterviewAction` scopes its active-interview SELECT by `(user_id, template_id)` so future templates can have concurrent active interviews.
 - **Client boundary:** raw `InterviewTemplate` is not serializable (zod schemas, tool definitions, function fields). RSC pages pass `ClientInterviewTemplate` — a plain-data projection of `{ id, topics, topicLabels, openingMessage, refreshOpeningMessage }` — to `InterviewClient` / `ReviewClient`. Use `toClientTemplate()` to produce it.
@@ -269,12 +277,11 @@ All use `maxDuration = 300`.
   - `normalizeScoringProfile()` — template-aware dispatcher → `template.normalizeScoringProfile`. `src/lib/pipeline/scoring-profile.ts`.
   - `ReviewClient` — switches on `clientTemplate.id`, renders `ReviewIcp` or `ReviewJobSearch`. `src/app/(app)/onboard/_components/review-client.tsx:43`.
   - `runExtractionFromTranscript<X>(messages, template)` — template-generic. `src/lib/onboarding/extraction.ts`.
-  - Reference: `docs/build-spec-gtm-command-center-pivot.md` for the original spec; `docs/onboarding-architecture.md` for the narrative walkthrough (predates the orchestrator/artifacts subsystem — see Agentic Onboarding section below).
 - **Phase 3 (`positioning_rubric`)** is not yet started — adding it should still follow the "Adding a template" recipe above.
 
 ### Agentic Onboarding (Orchestrator + Artifacts)
 
-A template opts into agentic mode by setting `agenticMode: true` and declaring `dimensions`. Currently `icp_definition` uses this; `job_search` does not. Two subsystems back it, neither covered by `docs/onboarding-architecture.md`.
+A template opts into agentic mode by setting `agenticMode: true` and declaring `dimensions`. Currently `icp_definition` uses this; `job_search` does not. Two subsystems back it — both are documented inline below rather than in a separate architecture doc.
 
 **Artifacts (`src/lib/onboarding/artifacts/`)** — user-uploaded URLs, files, or pasted text. `ingest.ts` normalizes each one to markdown (Firecrawl for URLs, `unpdf` for PDFs) and writes a row to `onboarding_artifacts`. `reassign.ts` provides two primitives: `reassignArtifacts(svc, userId, fromInterviewId, toInterviewId)` for the persona-switch UI flow, and `claimOrphanedArtifacts(svc, userId, toInterviewId)` as the safety-net for artifacts whose interview was already deleted. The FK is `ON DELETE SET NULL` so user-uploaded content survives interview churn.
 
