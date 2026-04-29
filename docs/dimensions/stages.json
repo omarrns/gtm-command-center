@@ -1,0 +1,51 @@
+{
+  "icpRubric": {
+    "dimension": "firmographics.stages",
+    "type": "enum_multi",
+    "architectureDoc": "../icp-rubric-architecture.md",
+    "notes": "Canonical labels for target company financing / lifecycle buckets. Reused by `disqualifiers.stage_disqualifiers` (same `value` keys). Entries mix private-company round stages with financing modalities (venture debt, nontraditional investors) per the sourced definitions below; `public_ipo` is additive for listed companies."
+  },
+  "description": "VC and financing stage definitions (private rounds, venture debt, nontraditional investor context, and public listing).",
+  "values": [
+    {
+      "value": "pre_seed",
+      "label": "Pre-seed",
+      "definition": "The pre-seed stage encompasses a collection of emergent startups receiving the first check from at least one institutional investor to fuel their development growth. For global startups, we reclassify angel deals depending on institutional investors' prior deal participation. Deals that have been tagged as \"angel\" due to the company's investor base consisting solely of individual investors are categorized into the early-stage or late-stage VC deal category based on stage methodologies in place. For startups headquartered in the US and Europe, we define pre-seed as a round of financing for a company founded less than two years ago that has not yet received institutional investor support."
+    },
+    {
+      "value": "seed",
+      "label": "Seed",
+      "definition": "We classify a deal as seed if it is explicitly labeled so per a reliable source. Using Form D as a source, we will also classify a deal as seed when a company does not have prior VC rounds, does not have VC board members, and the round amount is between 1 million and 10 million USD or EUR. Pre-seed and pre-Series A deals are built as seed rounds when the company does not have prior VC backing. Otherwise, these deals will be built as early-stage or late-stage rounds."
+    },
+    {
+      "value": "early_stage",
+      "label": "Early stage",
+      "definition": "For a deal to be classified as early-stage VC, the company must be founded fewer than five years by the time of the deal, and if a series is specified, it should be a Series A or B."
+    },
+    {
+      "value": "late_stage",
+      "label": "Late stage",
+      "definition": "For a deal to be classified as late-stage VC, the company must be five years old or older regardless of series. Alternatively, if a series is specified, it should be a Series C or later regardless of time since founded."
+    },
+    {
+      "value": "venture_growth",
+      "label": "Venture growth",
+      "definition": "Rounds are generally classified as Series E or later (which we typically aggregate together as venture growth) either by the series of stock issued in the financing or, if that information is unavailable, by a series of factors, including the age of the company, number of VC rounds, company status and participating investors."
+    },
+    {
+      "value": "venture_debt",
+      "label": "Venture debt",
+      "definition": "The venture debt dataset is inclusive of most debt products raised by VC-backed companies, regardless of the stage of the company. We exclude bridge and convertible notes. In mixed equity and debt transactions, equity is excluded when the amount is of known value. Financings that are solely debt are included in this dataset, though not incorporated into the deal activity dataset used throughout the report. Mixed equity and debt transactions will be included in both datasets."
+    },
+    {
+      "value": "nontraditional_investors",
+      "label": "Nontraditional investors",
+      "definition": "We define nontraditional investors as any investor that is not classified primarily as a traditional VC firm. \"CVC\" includes rounds executed by established CVC arms as well as direct equity investments by corporations into VC-backed companies. \"PE\" includes VC deals by investors whose primary classification is PE/buyout, growth, mezzanine or other PE. \"Crossover\" investors are a subset of nontraditional investors—specifically asset managers, hedge funds, mutual funds, family offices and sovereign wealth funds—that have been active in VC investment across any stage. They are referred to as crossover investors because they are likely to be participating at the late stages directly prior to an exit."
+    },
+    {
+      "value": "public_ipo",
+      "label": "Public (IPO)",
+      "definition": "Company is a publicly listed issuer: completed an initial public offering, direct listing, or comparable transaction (e.g. de-SPAC) and trades on a public exchange. Use this bucket for post-IPO operating companies rather than private-round stages (pre-seed through venture growth)."
+    }
+  ]
+}

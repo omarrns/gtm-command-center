@@ -20,6 +20,7 @@ import {
 } from "@/lib/pipeline/opportunities";
 import { addToWatchlist } from "@/lib/pipeline/watchlist";
 import { MODELS } from "@/lib/ai/anthropic";
+import { createLogger } from "@/lib/logger";
 
 const MAX_SCORES_PER_RUN = 10;
 const PIPELINE_MODEL = MODELS.sonnet;
@@ -110,6 +111,7 @@ export async function scoreOneOpportunity(
         strategic_fit: scoring.strategicFit,
       },
       analysis_id: analysis.id,
+      last_error: null,
     },
   );
 
@@ -146,6 +148,11 @@ export async function runScore(
     errors: 0,
     scoredOpportunityIds: [],
   };
+  const log = createLogger({
+    runId,
+    userId,
+    scope: "pipeline.score",
+  });
 
   for (const opp of opportunities) {
     try {
@@ -153,6 +160,13 @@ export async function runScore(
       if (!claimed) continue;
 
       result.processed++;
+      log.info("scoring opportunity", {
+        opportunityId: opp.id,
+        companyName: opp.company_name,
+        roleTitle: opp.role_title,
+        firstModel: PIPELINE_MODEL,
+        retryModel: MODELS.opus,
+      });
       const { newStage } = await scoreOneOpportunity(svc, userId, opp, config, {
         source: "pipeline",
         model: PIPELINE_MODEL,
@@ -166,9 +180,18 @@ export async function runScore(
         result.filtered++;
       }
 
+      log.info("scored opportunity", {
+        opportunityId: opp.id,
+        companyName: opp.company_name,
+        newStage,
+      });
       await releaseOpportunity(svc, opp.id, userId);
     } catch (err) {
       result.errors++;
+      log.error("scoring opportunity failed", err, {
+        opportunityId: opp.id,
+        companyName: opp.company_name,
+      });
       await svc
         .from("opportunities")
         .update({

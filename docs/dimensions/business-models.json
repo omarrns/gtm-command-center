@@ -1,0 +1,183 @@
+{
+  "icpRubric": {
+    "dimension": "firmographics.business_model",
+    "type": "enum_single",
+    "architectureDoc": "../icp-rubric-architecture.md",
+    "notes": "How the **target company** makes money (revenue / commercial motion). Distinct from `product.delivery_model`. Implement `icp-dimensions.ts` from `values` below."
+  },
+  "dimension": "firmographics.business_model",
+  "type": "enum_single",
+  "description": "How the target company makes money — revenue model and commercial motion.",
+  "sourceNote": "Content derived from the prior markdown brief on common startup business models.",
+  "values": [
+    {
+      "value": "saas",
+      "label": "SaaS (Software as a Service)",
+      "tagline": "Cloud-based subscription software",
+      "definition": "Cloud-based subscription software sold to businesses, typically measured on MRR/ARR, NRR, and CAC.",
+      "examples": ["Adobe", "Slack", "Zoom"],
+      "primary_metrics": [
+        "Monthly Recurring Revenue (MRR) or Annual Recurring Revenue (ARR)",
+        "Growth rate (weekly or monthly)",
+        "Net Revenue Retention: % of recurring revenue retained from a prior period",
+        "CAC: costs to acquire a new customer"
+      ],
+      "takeaways": [
+        "Recurring revenue profile",
+        "Non-recurring revenue may exist but is usually excluded from ARR/MRR",
+        "Usually B2B; annual contracts are common",
+        "Growth via direct sales, self-serve, or both"
+      ]
+    },
+    {
+      "value": "transactional",
+      "label": "Transactional",
+      "tagline": "Facilitate transactions and take a cut",
+      "definition": "Facilitates transactions and earns fees (often a small percentage of volume); common in fintech and payments.",
+      "examples": ["Wise", "Stripe"],
+      "primary_metrics": [
+        "Gross Transaction Value (GTV): total payment volume transacted",
+        "Net revenue: fees charged for transactions (often a %)",
+        "User retention: % of month-1 customers who purchase again in month 2, etc.",
+        "CAC"
+      ],
+      "takeaways": [
+        "Often fintech and payments",
+        "Transaction-oriented rather than classic subscription",
+        "High volume, low take rate (e.g. 1–3%) is common",
+        "Best operators show consistent revenue from repeat usage"
+      ]
+    },
+    {
+      "value": "marketplace",
+      "label": "Marketplaces",
+      "tagline": "Facilitate transactions between buyers and sellers",
+      "definition": "Connects buyers and sellers; revenue usually from GMV-based fees or take rate.",
+      "examples": ["Airbnb", "Doordash"],
+      "primary_metrics": [
+        "Gross Merchandise Value (GMV): total sales volume transacted",
+        "Net revenue: fees (often a % take rate)",
+        "Growth rate",
+        "User retention: % of month-1 customers who purchase again in month 2, etc."
+      ],
+      "takeaways": [
+        "Cold start / chicken-and-egg",
+        "Supply and demand must scale together",
+        "Network effects can drive winner-take-most outcomes"
+      ]
+    },
+    {
+      "value": "subscription",
+      "label": "Subscription",
+      "tagline": "Recurring product or service, often consumer",
+      "definition": "Product or service sold on a recurring basis, usually to consumers at lower price points and higher volume.",
+      "examples": ["Netflix", "Amazon Prime"],
+      "primary_metrics": [
+        "MRR or ARR",
+        "Growth rate (weekly or monthly)",
+        "User retention: % of month-1 customers who purchase again in month 2, etc.",
+        "CAC"
+      ],
+      "takeaways": [
+        "Recurring revenue is highly valued",
+        "Often consumer, monthly billing",
+        "Lower price points, higher customer counts",
+        "Growth often via scalable self-serve acquisition"
+      ]
+    },
+    {
+      "value": "enterprise",
+      "label": "Enterprise",
+      "tagline": "Large fixed-term contracts to big companies",
+      "definition": "Large contracts to enterprises (e.g. 5k+ employees cited in source material); bookings, ACV, and pipeline-heavy.",
+      "examples": ["Workday", "Rippling", "SAP"],
+      "primary_metrics": [
+        "Bookings: total signed contract value (recurring + non-recurring)",
+        "Revenue: recognized when delivering on the contract",
+        "Annual Contract Value (ACV): total contract value / number of years",
+        "Pipeline: top of funnel → demo → close"
+      ],
+      "takeaways": [
+        "Few customers, large deals (e.g. $100k+/year)",
+        "Direct sales–driven",
+        "Paid pilots or LOIs are common entry paths",
+        "Long cycles, many stakeholders; buyer may differ from end user",
+        "Growth can be lumpy vs smooth MRR SaaS"
+      ]
+    },
+    {
+      "value": "usage_based",
+      "label": "Usage based",
+      "tagline": "Pay-as-you-go by consumption",
+      "definition": "Revenue scales with consumption (API calls, records, data, etc.) in a period; not the same as subscription MRR.",
+      "examples": ["AWS", "Twilio"],
+      "primary_metrics": [
+        "Monthly revenue (not classic recurring)",
+        "Growth rate",
+        "Revenue retention: % of revenue from last month’s customers in this month",
+        "Gross margin: revenue minus COGS"
+      ],
+      "takeaways": [
+        "Do not conflate with subscription recurring revenue",
+        "Pricing tied to usage units",
+        "Revenue grows as customers grow",
+        "Product and pricing span small startups to large enterprises"
+      ]
+    },
+    {
+      "value": "e_commerce",
+      "label": "E-commerce",
+      "tagline": "Sell products online",
+      "definition": "Sells goods online (including D2C and branded stores); keeps full sale margin vs marketplace model.",
+      "examples": ["Amazon", "Warby Parker", "Home Depot"],
+      "primary_metrics": [
+        "Monthly revenue: total sales",
+        "Growth rate (weekly or monthly)",
+        "Gross margin / unit economics: revenue minus COGS",
+        "CAC"
+      ],
+      "takeaways": [
+        "Includes D2C and Shopify-style stores",
+        "Not a marketplace: typically 100% of each sale to the merchant",
+        "Higher COGS implies lower margins",
+        "Often commoditized categories; strength in acquisition and operations"
+      ]
+    },
+    {
+      "value": "advertising",
+      "label": "Advertising",
+      "tagline": "Monetize free users with ads",
+      "definition": "Ad-supported model; advertisers pay for reach; scale and engagement metrics dominate.",
+      "examples": ["Facebook", "Instagram", "Reddit"],
+      "primary_metrics": [
+        "Daily Active Users (DAU): unique users in a 24-hour period",
+        "Monthly Active Users (MAU): unique users in a 28-day period",
+        "User retention: % of active users on D1/7/30/etc.",
+        "CPM (cost per thousand) or CPC (cost per click)"
+      ],
+      "takeaways": [
+        "Often large-scale consumer surfaces",
+        "Customer is the advertiser; users are the audience",
+        "Requires very large impression volume",
+        "Registered users alone can be a vanity metric"
+      ]
+    },
+    {
+      "value": "hardtech_bio_moonshots",
+      "label": "Hardtech / bio / moonshots",
+      "tagline": "High technical risk, long horizons",
+      "definition": "Heavy technical and/or regulatory path; revenue may be far out; milestones, contracts, and LOIs matter early.",
+      "examples": ["Pfizer", "Moderna", "Abcellera"],
+      "primary_metrics": [
+        "Milestones: progress toward long-term vision",
+        "Signed contracts",
+        "Letters of Intent (LOIs): non-binding interest to purchase"
+      ],
+      "takeaways": [
+        "Years to live product due to technical and/or regulatory risk",
+        "Technical or clinical milestones can de-risk",
+        "Revenue often distant; LOIs can signal demand"
+      ]
+    }
+  ]
+}

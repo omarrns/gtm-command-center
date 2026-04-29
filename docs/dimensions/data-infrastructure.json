@@ -1,0 +1,100 @@
+{
+  "icpRubric": {
+    "dimension": "technographics.data_infrastructure",
+    "type": "enum_multi",
+    "selectionMode": "multi_tag",
+    "architectureDoc": "../icp-rubric-architecture.md",
+    "notes": "Each `value` is an independent tag: store and score as a **set** (unordered, dedupe). A single account may match many tags (e.g. public cloud + warehouse + streaming). Pattern-based—orthogonal to `firmographics.business_model`. Sparse stacks may use only `minimal_or_outsourced`."
+  },
+  "dimension": "technographics.data_infrastructure",
+  "type": "enum_multi",
+  "selectionMode": "multi_tag",
+  "description": "Multi-tag set of observable data and infrastructure patterns (deployment, analytics, integration, systems of record, scale, ML, edge, compliance). Pick all that apply; order does not matter. Describes stack posture, not revenue model.",
+  "values": [
+    {
+      "value": "public_cloud_primary",
+      "label": "Public cloud primary",
+      "definition": "Core workloads run on public cloud (e.g. AWS, GCP, Azure) with standard shared-responsibility operations."
+    },
+    {
+      "value": "hybrid_or_private_cloud",
+      "label": "Hybrid / private cloud",
+      "definition": "Significant split between on-premises and cloud, or reliance on private cloud / dedicated estates rather than default public multi-tenant SaaS only."
+    },
+    {
+      "value": "on_prem_self_hosted_core",
+      "label": "On-prem / self-hosted core",
+      "definition": "Primary systems run in owned data centers or fully customer-operated environments; cloud may be peripheral."
+    },
+    {
+      "value": "isolated_sovereign_or_air_gap",
+      "label": "Isolated, sovereign, or air-gapped",
+      "definition": "Strong network isolation, sovereignty, classified, or air-gap constraints driving where data and services may run."
+    },
+    {
+      "value": "analytics_warehouse_bi",
+      "label": "Analytics warehouse + BI",
+      "definition": "Central cloud or on-prem warehouse/large-scale SQL analytics plus BI layer (dashboards, semantic models, governed metrics)."
+    },
+    {
+      "value": "lakehouse_or_data_lake",
+      "label": "Data lake / lakehouse",
+      "definition": "Lake or lakehouse pattern with raw and curated zones, often unified query across object storage and structured layers."
+    },
+    {
+      "value": "oltp_operational_primary",
+      "label": "OLTP / operational systems primary",
+      "definition": "Transactional databases and operational apps dominate; no mature enterprise analytics platform (or analytics is ad hoc)."
+    },
+    {
+      "value": "streaming_events_realtime",
+      "label": "Event streaming & real-time",
+      "definition": "Message buses, stream processing, or low-latency pipelines are first-class (not only nightly batch)."
+    },
+    {
+      "value": "etl_elt_ipaas",
+      "label": "ETL/ELT & integration hub",
+      "definition": "Batch or micro-batch pipelines, managed ELT, or iPaaS as the main way systems stay in sync."
+    },
+    {
+      "value": "crm_centered_hub",
+      "label": "CRM-centered hub",
+      "definition": "CRM is the primary commercial customer object system; much reporting and workflow orbit sales/marketing data."
+    },
+    {
+      "value": "erp_finance_core",
+      "label": "ERP / finance core",
+      "definition": "ERP or finance suite is the backbone for entities, orders, inventory, manufacturing, or financial truth."
+    },
+    {
+      "value": "high_volume_digital_telemetry",
+      "label": "High-volume digital telemetry",
+      "definition": "Very large-scale product, web, app, ad, or device event ingestion and processing (common in ads, consumer, high-traffic marketplaces)."
+    },
+    {
+      "value": "ml_platform_feature_ops",
+      "label": "ML platform / feature ops",
+      "definition": "Operational ML: feature stores, training/serving split, model registries, or sustained batch/inference pipelines beyond one-off experiments."
+    },
+    {
+      "value": "vector_embeddings_rag",
+      "label": "Vector / embeddings (RAG, semantic search)",
+      "definition": "Embedding generation, vector databases, or retrieval-augmented patterns are part of production architecture."
+    },
+    {
+      "value": "edge_iot_ot",
+      "label": "Edge, IoT, OT",
+      "definition": "Field devices, plants, vehicles, or OT systems integrate into data flows; compute or buffering at the edge matters."
+    },
+    {
+      "value": "regulated_compliance_bound",
+      "label": "Regulated / compliance-bound data",
+      "definition": "Data systems explicitly shaped by regimes such as HIPAA, PCI, GDPR-class controls, or validated life-sciences IT practices."
+    },
+    {
+      "value": "minimal_or_outsourced",
+      "label": "Minimal stack / outsourced IT",
+      "definition": "Light internal data platform; heavy reliance on MSPs, default SaaS sprawl, spreadsheets, or no dedicated data engineering."
+    }
+  ]
+}

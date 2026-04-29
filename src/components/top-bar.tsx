@@ -13,6 +13,7 @@ const THEME_SWAP = { duration: 0.2, ease: "easeOut" } as const;
 
 const TITLES: Record<string, string> = {
   "/": "Today",
+  "/profile": "Profile",
   "/history": "History",
   "/watchlist": "Watchlist",
   "/settings": "Settings",

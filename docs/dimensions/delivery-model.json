@@ -1,0 +1,52 @@
+{
+  "dimension": "product.delivery_model",
+  "type": "enum_single",
+  "description": "How the product is delivered, operated, and primarily consumed by the customer. Chooses the dominant surface when multiple apply.",
+  "values": [
+    {
+      "value": "multi_tenant_saas",
+      "label": "Multi-tenant cloud SaaS",
+      "definition": "Vendor-hosted application shared across customers; access via web and/or mobile apps; vendor runs infra, patching, and scale. Typical PLG or inside-sales motion."
+    },
+    {
+      "value": "dedicated_or_customer_vpc",
+      "label": "Dedicated instance / customer VPC",
+      "definition": "Single-tenant deployment logically isolated for one customer—often in the customer’s cloud account (e.g. AWS/Azure/GCP) or a vendor-managed dedicated stack. Strong enterprise procurement and security-review path, weaker PLG."
+    },
+    {
+      "value": "self_hosted_on_prem",
+      "label": "Self-hosted / on-prem",
+      "definition": "Customer installs and operates the software in their data center, private cloud, or air-gapped environment; vendor ships binaries, containers, or appliances to run on customer-controlled infra."
+    },
+    {
+      "value": "api_sdk_cli_first",
+      "label": "API / SDK / CLI–first platform",
+      "definition": "Primary consumption is programmatic—REST/GraphQL/gRPC, SDKs, CLI, webhooks—often with a thin admin UI. Buyer is typically engineering; land via docs, sandboxes, and integration work."
+    },
+    {
+      "value": "embedded_oem",
+      "label": "Embedded / OEM in customer product",
+      "definition": "Product is built into the customer’s own offering—SDK, UI components, white-label workflows, or data layer—so end-users may not see the vendor brand. Partner and ISV-led GTM."
+    },
+    {
+      "value": "desktop_native",
+      "label": "Desktop / thick client",
+      "definition": "Installed application on macOS, Windows, or Linux with meaningful local execution (offline, GPU, file system, IDE). Common in design, engineering, security, and media tooling."
+    },
+    {
+      "value": "mobile_primary",
+      "label": "Mobile-primary",
+      "definition": "Core workflows live on iOS/Android; web or API are secondary. Less common in enterprise back-office ICPs but material for field, frontline, or prosumer adjacency."
+    },
+    {
+      "value": "hardware_appliance_or_device",
+      "label": "Hardware-bound / appliance / device",
+      "definition": "Value requires physical hardware—appliance, sensor, robot, medical device, network gear—with bundled or tightly coupled software. Logistics, certifications, and field ops shape the GTM."
+    },
+    {
+      "value": "managed_service_with_product",
+      "label": "Managed service with software",
+      "definition": "Ongoing human-operated delivery (monitoring, fulfillment, annotations, implementation pods) paired with a product; customer buys outcomes or retained capacity as much as seats."
+    }
+  ]
+}

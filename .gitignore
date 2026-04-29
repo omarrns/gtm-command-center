@@ -34,8 +34,6 @@ supabase/db.sqlite3
 # scratch outputs
 output/
 audits/
-docs/
-scripts/
 
 # misc
 .DS_Store

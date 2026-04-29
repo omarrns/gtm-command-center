@@ -1,0 +1,321 @@
+{
+  "icpRubric": {
+    "dimension": "firmographics.industries",
+    "type": "enum_multi",
+    "canonicalListKey": "jumpToIndex",
+    "definitionsKey": "industryVerticals",
+    "architectureDoc": "../icp-rubric-architecture.md",
+    "notes": "Valid enum labels are the strings in jumpToIndex (PitchBook industry verticals). industryVerticals[].name matches those labels; industryVerticals[].definition is the on-page glossary blurb for prompts, review UI, and account scoring context."
+  },
+  "sourceUrl": "https://pitchbook.com/what-are-industry-verticals",
+  "scrapedAt": "2026-04-27T21:53:58.449Z",
+  "scraper": {
+    "tool": "firecrawl",
+    "cliVersion": "1.15.0",
+    "format": "markdown",
+    "onlyMainContent": true
+  },
+  "pageTitle": "What are industry verticals?",
+  "introduction": null,
+  "industryVsVerticals": "To illustrate the difference between the two, take [fintech](https://pitchbook.com/blog/what-is-fintech)—an industry vertical. Fintech companies utilize various technologies to facilitate financial services traditionally offered by banks. Fintech startup\n[SoFi](https://pitchbook.com/profiles/company/53833-15), an online banking platform, operates primarily in the consumer finance industry, while online insurance platform\n[Kin](https://pitchbook.com/profiles/company/179564-32), also a fintech startup, is in the property and casualty insurance industry.\n\nPitchBook empowers investors and other financial services professionals to find the best opportunities for their firms with [unparalleled data](https://pitchbook.com/platform-data/companies) and insight. To that aim, we categorize the three million private and public companies in our platform by industry and by 50+ industry verticals. Learn the ins and outs of those industry verticals below.",
+  "emergingSpaces": "Another relevant term is [emerging spaces](https://pitchbook.com/blog/what-are-emerging-spaces)—a unique classifier PitchBook developed to describe [nascent but growing areas](https://pitchbook.com/blog/how-pitchbook-defines-an-emerging-space) that could eventually become full-fledged verticals. Examples of the 85+ emerging spaces we track to help our customers identify new trends include [ghost kitchens](https://pitchbook.com/blog/emerging-space-ghost-kitchens) and [clean meat](https://pitchbook.com/blog/emerging-space-clean-meat).",
+  "jumpToIndex": [
+    "Adtech",
+    "Advanced manufacturing",
+    "Agtech",
+    "Artificial intelligence and machine learning (AI/ML)",
+    "Audiotech",
+    "Augmented reality (AR)",
+    "Autonomous cars",
+    "B2B payments",
+    "Beauty",
+    "Big Data",
+    "Cannabis",
+    "Carsharing",
+    "Cleantech",
+    "Climate tech",
+    "Cloudtech and DevOps",
+    "Construction technology",
+    "Cryptocurrency and blockchain",
+    "Cybersecurity",
+    "Digital health",
+    "Ecommerce",
+    "Edtech",
+    "Ephemeral content",
+    "eSports",
+    "Femtech",
+    "Fintech",
+    "Foodtech",
+    "Gaming",
+    "Healthtech",
+    "HRtech",
+    "Impact investing",
+    "Industrials",
+    "Infrastructure",
+    "Insurtech",
+    "Internet of Things (IoT)",
+    "Legal tech",
+    "Life sciences",
+    "Lifestyles of Health and Sustainability (LOHAS) and wellness",
+    "Manufacturing",
+    "Marketing tech",
+    "Micro-mobility",
+    "Mobile",
+    "Mobile commerce",
+    "Mobility tech",
+    "Mortgage tech",
+    "Nanotechnology",
+    "Oil and gas",
+    "Oncology",
+    "Pet tech",
+    "Real estate tech",
+    "Restaurant tech",
+    "Ridesharing",
+    "Robotics and drones",
+    "Software as a service (SaaS)",
+    "Space tech",
+    "Supply chain technology",
+    "Technology, media and telecommunications (TMT)",
+    "Virtual reality (VR)",
+    "Wearables and quantified self",
+    "3D printing"
+  ],
+  "industryVerticals": [
+    {
+      "name": "Adtech",
+      "definition": "Advertising technology (adtech) startups offer software and services that deliver, control and target online advertising. For example, Paris-based [Qwarry](https://pitchbook.com/profiles/company/432490-60) uses semantic data and its proprietary technologies—not internet cookies—to create targeted advertisements based on users’ interests and behaviors."
+    },
+    {
+      "name": "Advanced manufacturing",
+      "definition": "Advanced manufacturing companies utilize innovative and novel technologies to improve manufacturing products and processes. These technologies can encompass 3D printing, sensors, Internet of Things (IoT) platforms, automation, robotics, artificial intelligence (AI), machine learning (ML), Big Data applications, wearable devices, exoskeletons, augmented and virtual reality applications, enterprise resource planning software, warehouse management and inventory management. [Spark Cognition](https://pitchbook.com/profiles/company/98209-63), for example, creates AI/ML software that optimizes operations and finds new solutions to old problems related to analyzing complex data in the fields of defense tech, IoT and finance."
+    },
+    {
+      "name": "Agtech",
+      "definition": "Agriculture technology (agtech) companies develop software and hardware systems that automate, manage and promote environmentally conscious farming. Businesses in agtech work on things like wireless sensors to monitor soil, air and animal health, hydroponic and aquaponic systems, remote-controlled irrigation systems, aerial photo technology to analyze field conditions, biotech platforms for crop yields, data-analysis software to augment planting, herd, poultry and livestock management, automation software to manage tasks and accounting software to manage expenses. VC-backed company [Terramera](https://pitchbook.com/profiles/company/124664-23) fuses AI, science and nature to manufacture biopesticides meant to reduce the use of chemicals in agriculture."
+    },
+    {
+      "name": "Artificial intelligence and machine learning (AI/ML)",
+      "definition": "Artificial intelligence (AI) focuses on creating intelligent computers that can perceive their environment and make decisions to maximize the chances of reaching their goals. Machine learning (ML) is a subfield of AI that gives computers the ability to learn iteratively, improve predictive models and find insights from data without being explicitly programmed to do so. AI/ML applications include speech recognition, computer vision, robotic control and accelerating processes in the empirical sciences. Silicon Valley startup [SambaNova Systems](https://pitchbook.com/profiles/company/226766-53) developed an advanced systems platform and hardware to power machine learning and data analytics via a system architecture that is flexible, scalable and optimized for dataflow."
+    },
+    {
+      "name": "Audiotech",
+      "definition": "Audio technology (audiotech) companies develop software and hardware related to the music industry, including headphones, transmitters, and sound systems for cars, homes, and music studios. Audiotech companies also include audio streaming service providers like [SoundCloud](https://pitchbook.com/profiles/company/52923-70) and [TuneIn](https://pitchbook.com/profiles/company/54678-07). Online audio streaming platform [Ximalaya](https://pitchbook.com/profiles/company/60984-82), one of the world’s most valuable VC-backed audiotech companies, allows media companies, musicians and hobbyists to upload files for streaming or downloading."
+    },
+    {
+      "name": "Augmented reality (AR)",
+      "definition": "Augmented reality (AR) technologies superimpose computer-generated images over a users’ view of the real world to alter or enhance their perception of reality. Companies in this vertical develop hardware and software, create content and/or distribute AR-related products. AR products can include headsets, eye-tracking technology, smart glasses, video games, mobile applications, training programs, advertising, and commercial and retail applications that utilize AR technology. For example, [Unity](https://pitchbook.com/profiles/company/51156-64) developed a platform that provides tools to create rich, interactive, 2D, 3D, VR and AR experiences to help in the creation of games and apps."
+    },
+    {
+      "name": "Autonomous cars",
+      "definition": "Autonomous car technologies are hardware and software solutions that enable self-driving or driver-assistance capabilities for cars, trucks and other vehicles on the road. This vertical includes self-driving cars themselves or platforms used to retrofit, software tools including teleoperation, localization and mapping and simulation technologies, and sensors and other hardware like LiDAR radars and cameras. [Zoox](https://pitchbook.com/profiles/company/160140-70), a VC-backed startup in this vertical, developed an autonomous mobility ecosystem that includes self-driving cards, control systems, AI and a ridesharing service, all designed to improve urban mobility."
+    },
+    {
+      "name": "B2B payments",
+      "definition": "Business-to-business (B2B) payment companies develop software to facilitate quick, secure, affordable transactions between businesses, including those working in accounts receivable and accounts payable software, electronic invoicing, international payments networks, blockchain B2B solutions, payments analytics, virtual payment cards, and supply chain and procurement software. [WePay](https://pitchbook.com/profiles/company/50844-52)’s online payment platform delivers payments-as-a-service APIs for simple onboarding and activation of payments."
+    },
+    {
+      "name": "Beauty",
+      "definition": "Companies in the beauty vertical are increasingly incorporating digital technologies into their products and services, providing bespoke products that target a niche group or are manufacturing and marketing their products as [natural, clean and/or organic](https://pitchbook.com/blog/10-vc-backed-clean-beauty-brands-creating-buzz). For example, [Juice Beauty](https://pitchbook.com/profiles/company/66006-64) offers award-winning organic skincare and makeup products made with ingredients purchased directly from local farmers."
+    },
+    {
+      "name": "Big Data",
+      "definition": "Big Data companies provide products or services that handle datasets too large for traditional database systems because of data volume, data velocity or data variety. [Peel-Works](https://pitchbook.com/profiles/company/60885-73), a Mumbai-based Big Data company, developed a platform that generates insights to help grocery stores buy inventory, sell products and deploy capital to reduce operating costs and drive shoppers’ loyalty."
+    },
+    {
+      "name": "Cannabis",
+      "definition": "This vertical includes companies involved in production, retail distribution, digital media, therapeutics, business solutions, or the development of consumer products related to cannabis. This includes marijuana dispensaries, laboratory testing equipment and services, medical marijuana, cannabinoid-based pharmaceuticals, vaporizers and accessories, cannabis cultivation, and online content and networking related to cannabis. [PAX Labs](https://pitchbook.com/profiles/company/55085-68), for example, created a premium app-controlled cannabis vaporizer to deliver a customizable smoking experience."
+    },
+    {
+      "name": "Carsharing",
+      "definition": "Carsharing platforms allow users to rent cars for short periods of time—often by the hour—typically through a mobile app. Companies in this vertical, like [Zipcar](https://pitchbook.com/profiles/company/13332-07) and [Turo](https://pitchbook.com/profiles/company/51391-00), are providing drivers with an alternative to car ownership and longer-term rentals. Startups in this space typically provide a marketplace that matches drivers to cars, provides mobile network infrastructure, supplies driver insurance and facilitates payment processing."
+    },
+    {
+      "name": "Cleantech",
+      "definition": "Clean technology (cleantech) companies develop technologies that reduce the environmental impact of human activities or reduce the amount of natural resources consumed through such activities. [Orbital Systems](https://pitchbook.com/profiles/company/93998-26)' technology, for example, is designed [to reduce the quantity of water used](https://pitchbook.com/news/articles/the-next-big-thing-solving-global-water-scarcity) when taking a shower via recycling and reuse. The Swedish startup’s products, a collaboration with NASA, save up to 90% more water compared to conventional showers."
+    },
+    {
+      "name": "Climate tech",
+      "definition": "Climate tech companies develop technologies to help mitigate or adapt to the effects of climate change. Most climate tech startups are focused on mitigating rising emissions through decarbonization technologies and processes. Applications within this vertical include renewable energy generation, long-duration energy storage, the electrification of transportation, agricultural innovations, industrial process improvements and mining technologies. Berlin-based climate tech company [ZOLAR](https://pitchbook.com/profiles/company/185162-95), for example, is the developer of a solar system discovery platform that helps homeowners become energy independent. The VC-backed startup offers solar and battery storage systems including installation for residential homes, empowering homeowners to produce their own green electricity."
+    },
+    {
+      "name": "Cloudtech and DevOps",
+      "definition": "The cloudtech and DevOps vertical encompasses companies that help organizations develop, operationalize and monitor software and applications at scale. The expansion of hybrid cloud computing technologies and the need among organizations to create digital intellectual property (IP) is driving demand for tools and services that can improve software development and operations capabilities. Segments within this vertical include collaboration and communication tools, building and testing tools, and deployment and runtime tools. [BlueJeans](https://pitchbook.com/profiles/company/52331-23) falls within this vertical—the San Jose-based startup developed an inter-operable conferencing platform to make video conferencing easy and pervasive."
+    },
+    {
+      "name": "Construction technology",
+      "definition": "Companies in this space develop hardware and software solutions that increase the efficiency and productivity of construction, building, and infrastructure operations. This includes project management software, construction robots, job site survey drones, building information modeling, augmented and virtual reality applications for construction, modular and pre-fabrication solutions, equipment marketplaces and risk management tools. [PlanGrid](https://pitchbook.com/profiles/company/54163-00)’s software gives real-time updates, blueprints, field reports and project documents enabling construction companies to simply and easily manage their projects."
+    },
+    {
+      "name": "Cryptocurrency and blockchain",
+      "definition": "Cryptocurrencies are virtual mediums of exchange, created and stored electronically in the blockchain, distinguishable from other currencies in that it uses cryptographic technology to decentralize the creation of monetary units and securely verify transactions. This space includes companies like [Bitmain](https://pitchbook.com/profiles/company/153289-81) and [Coinbase](https://pitchbook.com/profiles/company/55815-22) that provide services and develop technologies related to the exchange or storage of cryptocurrency, the facilitation of cryptocurrency payments or the securing cryptocurrency ledgers via mining activities."
+    },
+    {
+      "name": "Cybersecurity",
+      "definition": "Cybersecurity companies provide information technology solutions oriented toward user and network security. For example, San Francisco-based [Lookout](https://pitchbook.com/profiles/company/51420-07) developed a cloud-based security software designed to detect mobile threats and improve scrutiny. The company’s platform protects mobile phones from viruses, malware, spyware and can backup and restore data and tools to help locate lost and stolen phones using machine intelligence."
+    },
+    {
+      "name": "Digital health",
+      "definition": "Digital health companies are engaged in building hardware and software solutions to help people track their health and give healthcare providers better tools to communicate with and treat patients. This space includes mobile applications designed to track fitness activity, sleep, nutrition, weight, and medication intake, telemedicine programs that make it easier to connect with health professionals, electronic health record and clinical workflow software, digital wearable devices, remote monitoring and diagnostics software, AI platforms, and genomics testing technology. Digital health startup [Headspace](https://pitchbook.com/profiles/company/90512-11) is an app that teaches meditation and mindfulness to effectively manage stress."
+    },
+    {
+      "name": "Ecommerce",
+      "definition": "Ecommerce companies’ primary purpose is to sell products or facilitate the selling of products online. This includes online retailers and marketplaces, social commerce and logistics and shipping for online retailers, and software providers and hosting services for online retailers. [Brooklinen](https://pitchbook.com/profiles/company/120928-96), for example, is a luxury bedding ecommerce platform that offers a curated collection of stylish, quality linens at an accessible price point."
+    },
+    {
+      "name": "Edtech",
+      "definition": "Education technology (edtech) companies develop software and hardware that enhance teaching practices and improve learning outcomes. Recent [trends](https://pitchbook.com/blog/top-edtech-trends-deals-and-companies) in edtech include the widespread adoption of app-based edtech services and personalization with a high degree of specificity through AI/ML. Edtech company [VIPKid](https://pitchbook.com/profiles/company/156477-16) operates an online English language learning platform that provides an international learning experience to elementary-aged Chinese children by matching each student with a North American teacher."
+    },
+    {
+      "name": "Ephemeral content",
+      "definition": "Ephemeral content providers offer online platforms that allow users to temporarily share and display photos, videos, messages, documents and other content. The key aspect is that content published on these platforms vanishes after a certain time—typically minutes or hours. Camera company [Snap](https://pitchbook.com/profiles/company/55765-18) developed Snapchat, a popular social networking app that deletes pictures and messages shortly after they are shared."
+    },
+    {
+      "name": "eSports",
+      "definition": "eSports refers to competitive online gaming at a professional level, often organized as tournaments or leagues and with a specific goal like winning a championship and/or receiving prize money. This vertical includes eSports teams, streaming and broadcasting platforms, communication and social apps used for gaming, marketing tools, analytics and training services for eSports athletes, fantasy and virtual gambling, gaming hardware manufacturers, tournament and event hosts, and developers and publishers of eSports titles. [Twitch Interactive](https://pitchbook.com/profiles/company/53594-74), for example, designed and developed a live video platform and community for gamers that offers users the ability to broadcast, chat and watch video games played in real-time."
+    },
+    {
+      "name": "Femtech",
+      "definition": "Female technology (femtech) is a vertical that refers to the development and application of technologies, products and services intended to improve women’s health outcomes. Companies in this space are often [female-founded](https://pitchbook.com/blog/9-female-focused-health-startups-founded-by-women) and provide products and services related to period care, aging and menopause, sexual health, pregnancy and childbirth, pre- and post-natal solutions, fertility management and pelvic health. Femtech startup [Cora](https://pitchbook.com/profiles/company/163102-60) offers a monthly subscription service for its safe, effective and organic tampons and pads, as well as period management programs."
+    },
+    {
+      "name": "Fintech",
+      "definition": "Financial technology (fintech) companies use internet, blockchain and software technologies, as well as algorithms, to offer or facilitate financial services traditional offered by banks. These services include loans, payments, investments and wealth management. Fintech also includes software that automates financial processes or addresses financial firms’ core business needs. [Paytm](https://pitchbook.com/profiles/company/39605-77), for example, is a mobile payment and ecommerce platform that provides bill payment services."
+    },
+    {
+      "name": "Foodtech",
+      "definition": "Food technology (foodtech) companies develop products and services intended to improve consumers’ food selection, purchasing and consumption experiences. This space includes all companies in the restaurant technology vertical in addition to food ordering and delivery apps, food waste recyclers, meal kits and recipe boxes, cooking and chef communities, novel foods and online grocery retail. Boston’s [Dexai Robotics](https://pitchbook.com/profiles/company/267638-05) is a foodtech company that developed a robotic arm that helps prepare meals in commercial kitchens."
+    },
+    {
+      "name": "Gaming",
+      "definition": "This vertical includes all companies that exist within the video game ecosystem—those developing and publishing titles, those building tools and services for videogame studios and players, and companies providing accessories and peripherals intended for gaming. Online poker and casino games are excluded from this space, however gambling related to eSports is included. [Electronic Arts](https://pitchbook.com/profiles/company/10787-41), for example, is the world’s largest third-party video game publisher and has transitioned from a console-based video game publisher to one of the largest publishers on consoles, PC and mobile."
+    },
+    {
+      "name": "Healthtech",
+      "definition": "Health technology (healthtech) companies provide mobility and other information technologies to improve healthcare delivery while decreasing costs. This vertical includes the use of technology services—like cloud computing, internet services and social mobility—to optimize patient-centric healthcare. Chicago’s [Outcome Health](https://pitchbook.com/profiles/company/124585-12) is a healthtech company whose platform offers exam room technologies that engage patients and caregivers as they wait to see their provider."
+    },
+    {
+      "name": "HRtech",
+      "definition": "Companies in human resource (HR) technology develop software to improve HR management operations and hiring processes, including job applications, applicant tracking and screening, performance management, benefits administration, employee engagement and employee analytics. Houston’s [Metamor Worldwide](https://pitchbook.com/profiles/company/12273-85) provides employment and information technology services to companies across the US."
+    },
+    {
+      "name": "Impact investing",
+      "definition": "This vertical includes companies that have received investment from funds and/or investors who seek impact investment opportunities. The term [impact investing](https://pitchbook.com/blog/frequently-asked-questions-about-impact-investing) was coined in 2008, but [socially responsible investing](https://pitchbook.com/blog/impact-investing-glossary) (SRI) goes back thousands of years. Today, impact investing is a strategy that targets investment opportunities intended to create both financial returns and a positive social and/or environmental impact. Additionally, this vertical includes companies that have received investment from not-for-profit VC investors. VC-backed [CleanFund](https://pitchbook.com/profiles/company/98632-00), for example, provides financing services intended to make it easy and affordable to finance energy, water and other vital improvements."
+    },
+    {
+      "name": "Industrials",
+      "definition": "The industrial vertical is an aggregate that captures companies that provide industrial and commercial supplies and services, diversified trading, distribution operations and transportation services. Industrials is the infrastructure vertical combined with aerospace and defense, building products, construction and engineering, electrical equipment, machinery, distribution and wholesale, B2B and B2C transportation, as well as printing, environmental, office, security, and consulting services. [Burlington Northern Santa Fe](https://pitchbook.com/profiles/company/41098-96) is a freight railroad network in North America that tracks through 28 states and is wholly owned by Berkshire Hathaway."
+    },
+    {
+      "name": "Infrastructure",
+      "definition": "Infrastructure companies develop the physical assets needed to transport goods, multimodal commerce and power generation. Massachusetts’ [GreatPoint Energy](https://pitchbook.com/profiles/company/10612-36) created a catalytic hydromethanation process that converts coal, petroleum coke and biomass into natural gas."
+    },
+    {
+      "name": "Insurtech",
+      "definition": "Insurance technology (insurtech) companies utilize technology to increase the speed, efficiency, accuracy and convenience of processes across the insurance value chain. This includes quote comparison websites, insurance telematics, insurance domotics (home automation), peer-to-peer insurance, corporate platforms, online brokers, cyber insurance, underwriting software, claims software and digital sales enabling. For example, [Corvus](https://pitchbook.com/profiles/company/185914-72) offers a commercial insurance data platform that improves risk selection and management using Big Data, Internet of Things (IoT), artificial intelligence (AI) and customer-specific data."
+    },
+    {
+      "name": "Internet of Things (IoT)",
+      "definition": "Internet of Things (IoT) companies provide products enabled with sensors and actuators embedded in physical objects and/or software that uses this sensor data to improve the user-experience or allows for sharing this data with a network of other devices. [C3 IoT](https://pitchbook.com/profiles/company/55633-60)’s cloud-based software, for example, uses machine learning to expedite the integration and analysis of disparate enterprise data into a unified cloud-based data image that enables organizations to improve operational efficiencies, enhance customer engagement and differentiate products and services."
+    },
+    {
+      "name": "Legal tech",
+      "definition": "Legal technology (legal tech) companies develop technologies for the purpose of automating, simplifying or expanding legal workflows. Though many legal tech firms specifically address solutions for lawyers and law firms, the broader ecosystem includes solutions that target legal workflows in a range of industries. Solutions in this vertical include legal marketplaces, contract automation, eDiscovery platforms, legal research and operations software, litigation financing, document review and notarization, legal analytics and more. Vancouver legal tech startup [Clio](https://pitchbook.com/profiles/company/53743-87) developed a cloud-based practice management platform to provide legal client management solutions."
+    },
+    {
+      "name": "Life sciences",
+      "definition": "Life sciences companies work with living organisms and life processes, including biology, pharmaceuticals, biomedical technology and nutraceuticals. San Diego’s [Samumed](https://pitchbook.com/profiles/company/93537-46) developed tissue-level therapeutic drugs intended to cure degenerative diseases in patients."
+    },
+    {
+      "name": "Lifestyles of Health and Sustainability (LOHAS) and wellness",
+      "definition": "Life of Health and Sustainability (LOHAS) and wellness companies provide consumer products or services focused on health, the environment, green technology, social justice, personal development or sustainable living. [Sweetgreen](https://pitchbook.com/profiles/company/58973-50), a startup in this vertical, operates a chain of farm-to-table restaurants that offers healthy, nutritious, seasonal salad and grain bowls made in-house using whole produce."
+    },
+    {
+      "name": "Manufacturing",
+      "definition": "Manufacturing companies produce products that require a significant amount of equipment and raw materials to create. [View](https://pitchbook.com/profiles/company/51389-56) is a PE-backed company that manufactures dynamic, tint-adjusting architectural glass that lets in natural light and enhances mental and physical wellbeing while improving buildings’ energy efficiency by up to 20%."
+    },
+    {
+      "name": "Marketing tech",
+      "definition": "Marketing technology (marketing tech) companies use digital technologies to automate and simplify marketing processes. This vertical can include tools that connect brands and consumers via search engine optimization (SEO), customer analytics, customer relationship management (CRM), loyalty programs and apps that leverage social media. Marketing tech company [Sprinklr](https://pitchbook.com/profiles/company/54020-62) developed a social media management platform that helps enterprise businesses collaborate across teams, deliver memorable customer experiences and hone aspects of sales, research, and commerce."
+    },
+    {
+      "name": "Micro-mobility",
+      "definition": "Micro-mobility companies offer transportation solutions that target the \"last mile\" problem—when people experience difficulties getting from their starting destination to a major transportation hub like a bus stop or railway station. Distances covered by these solutions typically average less than six miles, with bicycles and scooters being the most prevalent form of transportation. Santa Monica-based [Bird Rides](https://pitchbook.com/profiles/company/225830-98) coordinates with cities to provide citizens access to shared personal electric vehicles that can be picked up and dropped off anywhere through their platform."
+    },
+    {
+      "name": "Mobile",
+      "definition": "Mobile companies provide services for mobile devices and/or enable mobile communication. For example, [DoorDash](https://pitchbook.com/profiles/company/58167-28) developed a food delivery application that provides on-demand food ordering and delivery services via users’ computers, tablets and mobile devices. The company’s app features the option to schedule delivery, as well as real-time order tracking."
+    },
+    {
+      "name": "Mobile commerce",
+      "definition": "Mobile commerce companies build mobile applications to assist in the buying and selling of goods and services through internet-connected devices. This includes bill payments, mobile retail, mobile banking services, peer-to-peer payment transferring applications and mobile point-of-sale applications. [Yoco Technologies](https://pitchbook.com/profiles/company/104516-02), based in Cape Town, offers a mobile point-of-sale app that empowers entrepreneurship across Africa."
+    },
+    {
+      "name": "Mobility tech",
+      "definition": "Companies in mobility tech provide technologies and services that are disrupting the transportation, automotive and shipping industries. New business opportunities to provide transportation solutions that are more cost-efficient and convenient to consumers are being driven by the digital economy, mobile connectivity, electric vehicles and autonomous driving technologies. Singapore’s [Grab](https://pitchbook.com/profiles/company/62283-07) is a VC-backed mobility tech startup offering on-demand ride-hailing services for taxis, private cars and motorbikes across Southeast Asia."
+    },
+    {
+      "name": "Mortgage tech",
+      "definition": "Mortgage technology companies use digital technologies to improve the efficiency and speed of the mortgage lifecycle, including mortgage origination, underwriting, servicing and closing. This vertical also includes mortgage processing and workflow software providers, tech-based mortgage lenders, mortgage data and analytics and digital mortgage brokers. Mortgage technology company [LendingHome](https://pitchbook.com/profiles/company/97863-85) operates an online mortgage marketplace that offers short-term hard money loans and home mortgage loans with a streamlined application process."
+    },
+    {
+      "name": "Nanotechnology",
+      "definition": "Companies in the nanotechnology vertical create products by manipulating materials at an atomic level. Nanotechnology startup [Nantero](https://pitchbook.com/profiles/company/51232-24) developed a memory technology designed to offer ultra-high density non-volatile memory."
+    },
+    {
+      "name": "Oil and gas",
+      "definition": "Oil and gas companies extract, produce, refine, transport and/or process oil and natural gas resources, as well as related products. This vertical encompasses all sectors of the oil and gas industry, including the upstream (exploration, extraction, operation of wells), midstream (transportation of refined and unrefined goods via pipeline, oil tanker, rail, or truck), and downstream (refining and processing of crude oil, as well as purifying of raw natural gas). [Texaco](https://pitchbook.com/profiles/company/42819-67), for example, distributes petroleum and gasoline products through gas stations."
+    },
+    {
+      "name": "Oncology",
+      "definition": "Oncology companies are involved in the diagnosis or treatment of cancer through the production of pharmaceuticals, devices or serviced-based models. Based in Massachusetts, oncology startup [Xilio Therapeutics](https://pitchbook.com/profiles/company/161268-13) develops tumor-selective immunotherapies to improve patient outcomes. More specifically, the company created a new class of ultra-potent immune-oncology (IO) therapies that are activated selectively within tumors and are designed to overcome the toxicities associated with validated IO therapies."
+    },
+    {
+      "name": "Pet tech",
+      "definition": "[Pet technology](https://pitchbook.com/blog/vc-firms-investing-in-pet-technology) companies enhance pet ownership and pets’ quality of life through the creation of digital devices, novel services, and pet-related applications. This includes pet health and monitoring devices, pet genetics services, social media applications designed for pets, pet care and dog walking applications, pet food delivery services, and assorted digital devices intended for pet care. Seattle’s [Rover](https://pitchbook.com/profiles/company/53467-39) is a pet-sitting network connecting pet owners and dog walkers, for example."
+    },
+    {
+      "name": "Real estate tech",
+      "definition": "Real estate technology companies develop and leverage technologies to facilitate the purchase, management, maintenance, and investment into both residential and commercial real estate. This includes sub-sectors like property management software, Internet of Things (IoT) home devices, property listing and rental services, mortgage and lending applications, data analysis tools, virtual reality modeling software, augmented reality design applications, marketplaces, mortgage technology and crowdfunding websites. Popular short-term rental marketplace [Airbnb](https://pitchbook.com/profiles/company/51261-67) is a real estate technology company, allowing users to list, discover and book travel accommodations around the world."
+    },
+    {
+      "name": "Restaurant tech",
+      "definition": "Restaurant technology companies develop hardware and software to help restaurants increase profitability, efficiency and customer engagement. This includes provision of guest Wi-Fi and phone charging stations, customer acquisition and retention programs, order kiosks, point-of-sale systems, tabletop devices, restaurant management software, 3D food printing, and mobile applications related to online ordering, booking and reservations, payment, and restaurant reviews and discovery. Dubai’s [Eat App](https://pitchbook.com/profiles/company/113380-66) helps restaurants operators manage table reservations and a publish targeted promotions and discounts, as well as allows diners discover restaurants and book reservations."
+    },
+    {
+      "name": "Ridesharing",
+      "definition": "Ridesharing has taken on a variety of meanings, but we adopt the definition that [Uber](https://pitchbook.com/profiles/company/51136-75) tends to use most frequently, which considers ridesharing to be the hailing of a ride via app or platform, usually met by a private vehicle and sometimes a taxi. Though \"sharing\" is in the name, this definition is not restricted to pool rides or lines where passengers from different parties ride together. The term also encompasses private rides, which consist of a driver and one-trip party only."
+    },
+    {
+      "name": "Robotics and drones",
+      "definition": "Companies in this vertical develop mechanical devices that are automated or remote controlled, including machinery that performs repetitive tasks for manufacturing, machinery that performs precise tasks for surgery or semiconductor production and unmanned vehicles. [Anki](https://pitchbook.com/profiles/company/57388-24)’s robots perform under a wide variety of real-world conditions and enable users to operate robots to help with their daily tasks."
+    },
+    {
+      "name": "Software as a service (SaaS)",
+      "definition": "Software as a Service (SaaS) companies offer software that is hosted in a central location that users can access with a subscription. [Zoom Video Communications](https://pitchbook.com/profiles/company/56017-63), whose cloud-native platform connections people through video, voice, chat and content sharing, is an example of a SaaS company."
+    },
+    {
+      "name": "Space tech",
+      "definition": "Space technology companies provide services, engage in scientific research, and/or develop technology related to spaceflight, satellites, or space exploration. This includes micro-satellites, nano-satellites, ground station networks, rocket technology, payload systems, spacecraft development, satellite imagery, satellite telecommunications, space-based data, space materials, space tourism and asteroid mining. VC-backed [SpaceX](https://pitchbook.com/profiles/company/46488-07) designs and manufactures aerospace and space transport services intended to reduce space transportation costs and enable the colonization of Mars."
+    },
+    {
+      "name": "Supply chain technology",
+      "definition": "Supply chain technology companies provide technologies and services changing how domestic and global supply chains are managed and operated. The emerging digital economy is stressing the traditional global supply chain, driving demand for better visibility across supply channels, quicker shipping capabilities and the ability to source products on-demand. Segments within this vertical include enterprise supply chain management software, freight technology, warehousing technology and last-mile delivery services. Bangalore’s [BigBasket](https://pitchbook.com/profiles/company/53989-84), a supply chain technology startup, operates a delivery platform that offers food and grocery products."
+    },
+    {
+      "name": "Technology, media and telecommunications (TMT)",
+      "definition": "The technology, media and telecommunications (TMT) vertical includes companies that provide network infrastructure, develop technologies utilizing those networks and leveraging those technologies to distribute digital content. TMT is comprised of all tech-related verticals combined with industries that include B2C electronics, healthcare technology systems, and the entire information technology sector. [Verizon Wireless](https://pitchbook.com/profiles/company/106687-99), for example, provides a wireless and data network, as well as basic phones, smart phone tablets and other devices and accessories."
+    },
+    {
+      "name": "Virtual reality (VR)",
+      "definition": "Virtual reality (VR) companies develop software and hardware that immerse users in a three-dimensional, virtual world. Virtual worlds are created using wearable devices, such as head-mounted stereoptical displays or gloves with embedded sensors. Virtual reality also includes environments where users can interact with each other through computer-generated avatars. [Magic Leap](https://pitchbook.com/profiles/company/61371-46), a VC-backed VR startup, developed human computing interfaces and software technology designed to superimpose 3D computer-generated imagery over real-world objects."
+    },
+    {
+      "name": "Wearables and quantified self",
+      "definition": "Companies in the wearables and quantified self vertical offer consumer products that track aspects of a user’s life, including mood, nutrition and activity. Data from these products can help users better understand their health, fitness, stress, sleep and more. [Proteus Digital Health](https://pitchbook.com/profiles/company/40463-74) developed a digital medicine technology intended to help doctors and health systems, including ingestible sensors and a small, wearable sensor patch."
+    },
+    {
+      "name": "3D printing",
+      "definition": "3D printing companies facilitate the printing of three-dimensional objects with 3D printers and software that uses data points to create cross-sectional patterns of the object being printed. One of the world’s [most valuable 3D printing startups](https://pitchbook.com/newsletter/3d-printing-startup-carbon-now-worth-24b-dDN) is [Carbon](https://pitchbook.com/profiles/company/107002-72), which sells 3D printers and related software and hardware that work together to create solid polymer objects from liquid resin pools."
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FadeIn } from "@/components/ui/fade-in";
-import { ExternalLink, UserPen } from "lucide-react";
+import { ExternalLink, UserPen, UserRound } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { UserScoringProfileRow, UserType } from "@/lib/supabase/types";
@@ -65,13 +65,24 @@ export function SettingsClient({
         <p className="text-sm text-[var(--color-text-muted)]">
           {profileDescription}
         </p>
-        <Link
-          href={profileHref}
-          className={buttonVariants({ variant: "ghost" })}
-        >
-          <ExternalLink size={13} />
-          {profileLinkLabel}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={profileHref}
+            className={buttonVariants({ variant: "ghost" })}
+          >
+            <ExternalLink size={13} />
+            {profileLinkLabel}
+          </Link>
+          {!isGtm && (
+            <Link
+              href="/profile"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <UserRound size={13} />
+              View Profile
+            </Link>
+          )}
+        </div>
       </Card>
 
       {!isGtm && (

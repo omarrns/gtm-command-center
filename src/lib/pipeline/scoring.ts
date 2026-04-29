@@ -12,6 +12,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UserScoringProfileRow } from "@/lib/supabase/types";
+import { JSONParseError, NoObjectGeneratedError, TypeValidationError } from "ai";
 import { z } from "zod";
 import { exaFindCompany, formatExaResults } from "@/lib/ai/exa";
 import {
@@ -21,6 +22,8 @@ import {
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import { runGenerateObject, type AiCallScope } from "@/lib/ai/calls";
+import { MODELS } from "@/lib/ai/anthropic";
+import { createLogger } from "@/lib/logger";
 
 const dimensionScoreSchema = z.object({
   score: z.number().min(0).max(5),
@@ -155,21 +158,24 @@ export async function scoreOpportunity(
     ? `${memory}\n\n## Structured Scoring Preferences\n\n${structuredPreferences}`
     : memory;
 
-  const result = await runGenerateObject({
-    model: options?.model ?? "claude-opus-4-6",
-    system: buildFullAnalysisSystem(sender),
-    prompt: buildFullAnalysisPrompt({
-      companyName,
-      roleTitle,
-      jobDescription: wrappedJd,
-      research,
-      memory: fullMemory,
-    }),
-    schema: analysisSchema,
-    maxOutputTokens: 8192,
-    scope: options?.scope
-      ? { ...options.scope, callPurpose: options.scope.callPurpose ?? "score" }
-      : { userId, callPurpose: "score" },
+  const model = options?.model ?? MODELS.opus;
+  const system = buildFullAnalysisSystem(sender);
+  const prompt = buildFullAnalysisPrompt({
+    companyName,
+    roleTitle,
+    jobDescription: wrappedJd,
+    research,
+    memory: fullMemory,
+  });
+  const scope = options?.scope
+    ? { ...options.scope, callPurpose: options.scope.callPurpose ?? "score" }
+    : { userId, callPurpose: "score" };
+
+  const result = await runJobSeekerScoringObject({
+    model,
+    system,
+    prompt,
+    scope,
   });
 
   const jdFit = dimensionScores(result.jd_fit.scorecard);
@@ -184,6 +190,66 @@ export async function scoreOpportunity(
     normalizedScore,
     analysisResult: result,
   };
+}
+
+async function runJobSeekerScoringObject({
+  model,
+  system,
+  prompt,
+  scope,
+}: {
+  model: string;
+  system: string;
+  prompt: string;
+  scope: AiCallScope;
+}): Promise<AnalysisResult> {
+  const args = {
+    model,
+    system,
+    prompt,
+    schema: analysisSchema,
+    maxOutputTokens: 8192,
+    scope,
+  };
+
+  try {
+    return await runGenerateObject(args);
+  } catch (err) {
+    if (model === MODELS.opus || !isStructuredObjectGenerationFailure(err)) {
+      throw err;
+    }
+
+    const log = createLogger({
+      runId: scope.runId,
+      userId: scope.userId,
+      opportunityId: scope.scopeId,
+      scope: "scoring",
+    });
+    log.warn("job-seeker scoring object failed; retrying with Opus", {
+      firstModel: model,
+      retryModel: MODELS.opus,
+      error: err instanceof Error ? err.message : String(err),
+    });
+
+    return runGenerateObject({
+      ...args,
+      model: MODELS.opus,
+    });
+  }
+}
+
+function isStructuredObjectGenerationFailure(err: unknown): boolean {
+  if (NoObjectGeneratedError.isInstance(err)) return true;
+  if (JSONParseError.isInstance(err)) return true;
+  if (TypeValidationError.isInstance(err)) return true;
+
+  const cause = (err as { cause?: unknown } | null)?.cause;
+  if (!cause) return false;
+  return (
+    NoObjectGeneratedError.isInstance(cause) ||
+    JSONParseError.isInstance(cause) ||
+    TypeValidationError.isInstance(cause)
+  );
 }
 
 function dimensionScores(
