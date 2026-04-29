@@ -23,7 +23,9 @@ export const maxDuration = 300;
 export async function POST(request: Request) {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
-  const source = new URL(request.url).searchParams.get("source");
+  const searchParams = new URL(request.url).searchParams;
+  const source = searchParams.get("source");
+  const limit = parseLimit(searchParams.get("limit"));
   const log = createLogger({
     userId: user.id,
     scope: "api.activation.accounts",
@@ -64,7 +66,13 @@ export async function POST(request: Request) {
   try {
     const result =
       source === "existing"
-        ? await runExistingAccountActivationSearch(svc, user.id, parsed.data)
+        ? await runExistingAccountActivationSearch(
+            svc,
+            user.id,
+            parsed.data,
+            undefined,
+            limit,
+          )
         : await runAccountActivationSearch(svc, user.id, parsed.data);
     log.info("activation accounts request complete", {
       source: source === "existing" ? "existing" : "live",
@@ -83,4 +91,10 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+function parseLimit(raw: string | null): number | undefined {
+  if (raw === null) return undefined;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }

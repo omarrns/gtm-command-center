@@ -26,16 +26,8 @@ import {
   ActivationScoringFailedState,
 } from "./activate-message-states";
 
-const REASSURANCE_MESSAGES = [
-  "Searching job boards...",
-  "Found some matches, scoring against your profile...",
-  "Running full analysis on each role — this takes a minute or two...",
-  "Still scoring — each role gets a detailed fit analysis...",
-  "Almost done — comparing your best matches...",
-];
-
+const REASSURANCE_MESSAGES = ["Searching job boards...", "Found some matches, scoring against your profile...", "Running full analysis on each role — this takes a minute or two...", "Still scoring — each role gets a detailed fit analysis...", "Almost done — comparing your best matches..."];
 const REASSURANCE_INTERVALS = [0, 8_000, 25_000, 60_000, 90_000];
-
 const LONG_RUNNING_BANNER_MS = 180_000;
 const FETCH_TIMEOUT_MS = 240_000;
 
@@ -46,6 +38,7 @@ interface ActivationClientProps {
   scoreThreshold: number;
   userType: UserType;
   activationSource?: "live" | "existing";
+  activationLimit?: string | null;
 }
 
 export function ActivationClient({
@@ -53,6 +46,7 @@ export function ActivationClient({
   scoreThreshold,
   userType,
   activationSource = "live",
+  activationLimit = null,
 }: ActivationClientProps) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("searching");
@@ -107,9 +101,7 @@ export function ActivationClient({
 
     const endpoint =
       userType === "gtm"
-        ? `/api/activation/accounts${
-            activationSource === "existing" ? "?source=existing" : ""
-          }`
+        ? buildAccountActivationEndpoint(activationSource, activationLimit)
         : "/api/activation/search";
     try {
       const res = await fetch(endpoint, {
@@ -151,7 +143,7 @@ export function ActivationClient({
     } finally {
       clearTimeout(timeoutId);
     }
-  }, [userType, activationSource]);
+  }, [userType, activationSource, activationLimit]);
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -388,4 +380,15 @@ export function ActivationClient({
       </div>
     </div>
   );
+}
+
+function buildAccountActivationEndpoint(
+  source: "live" | "existing",
+  limit: string | null,
+): string {
+  const params = new URLSearchParams();
+  if (source === "existing") params.set("source", "existing");
+  if (source === "existing" && limit) params.set("limit", limit);
+  const query = params.toString();
+  return `/api/activation/accounts${query ? `?${query}` : ""}`;
 }

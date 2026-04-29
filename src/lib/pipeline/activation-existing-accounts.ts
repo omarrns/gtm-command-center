@@ -22,6 +22,7 @@ import {
 import { createLogger } from "@/lib/logger";
 
 const MAX_CANDIDATES = 15;
+const DEFAULT_CANDIDATES = 5;
 const MAX_RESULTS = 5;
 const ACTIVATION_MODEL = "claude-sonnet-4-6";
 
@@ -30,7 +31,9 @@ export async function runExistingAccountActivationSearch(
   userId: string,
   rubric: IcpRubric,
   runId?: string,
+  candidateLimit = DEFAULT_CANDIDATES,
 ): Promise<AccountActivationSearchResult> {
+  const limit = Math.min(Math.max(candidateLimit, 1), MAX_CANDIDATES);
   const log = createLogger({
     runId,
     userId,
@@ -39,7 +42,7 @@ export async function runExistingAccountActivationSearch(
 
   log.info("loading saved GTM opportunities for activation scoring", {
     source: "existing",
-    limit: MAX_CANDIDATES,
+    limit,
   });
 
   const { data, error } = await svc
@@ -49,7 +52,7 @@ export async function runExistingAccountActivationSearch(
     .in("source", ["theirstack", "exa-dormant"])
     .not("company_domain", "is", null)
     .order("discovered_at", { ascending: false })
-    .limit(MAX_CANDIDATES);
+    .limit(limit);
 
   if (error) {
     log.error("failed to load saved GTM opportunities", error);
