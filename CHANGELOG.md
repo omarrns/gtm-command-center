@@ -420,3 +420,7 @@ Replaced hand-rolled `runClaudeJson` + per-field defaulting with AI SDK v6 `gene
 - AI SDK pattern: `generateObject({ model: anthropic("claude-opus-4-6"), schema, system, prompt, maxOutputTokens })`. Model slug format (hyphens, e.g. `claude-opus-4-6`) matches the rest of the codebase.
 
 - Not migrated (yet): `src/lib/pipeline/steps/draft.ts`, `src/lib/pipeline/people-search.ts`, `src/lib/pipeline/pursuit/planner.ts`, `src/lib/jobs/handlers/career-coach.ts`, `src/lib/jobs/handlers/company-fit-analyzer.ts`, `src/app/(app)/actions.ts`, `src/app/(app)/outreach/actions.ts`, `src/app/(app)/workspace-tools/actions.ts`, `src/app/(app)/analysis/actions.ts`. These still use `runClaudeJson`. `runClaudeJson` itself remains in `src/lib/ai/anthropic.ts` for those call sites.
+
+## Repo — `.gitignore`
+
+- Removed blanket `docs/` and `scripts/` ignore rules so `docs/` (SPECS, dimensions, architecture notes) and `scripts/` (imports, seeds, tests) can be tracked. Scratch output dirs `output/` and `audits/` remain ignored.

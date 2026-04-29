@@ -1,0 +1,204 @@
+{
+  "icpRubric": {
+    "dimension": "firmographics.geographies",
+    "type": "enum_multi",
+    "structure": "Nested: US, EMEA, APAC are region buckets; each key under them is a sub-region label; values are jurisdiction strings (states or countries). restOfWorld is a string fallback description.",
+    "architectureDoc": "../icp-rubric-architecture.md",
+    "notes": "Implement icp-dimensions.ts enum labels to match these sub-region keys (or a flattened list derived from them). Scoring and discovery filters should use the same normalization."
+  },
+  "title": "Geographical groupings in research coverage",
+  "US": {
+    "West Coast": ["Alaska", "California", "Hawaii", "Oregon", "Washington"],
+    "Mountain": [
+      "Arizona",
+      "Colorado",
+      "Idaho",
+      "Montana",
+      "Nevada",
+      "New Mexico",
+      "Utah",
+      "Wyoming"
+    ],
+    "Midwest": [
+      "Iowa",
+      "Kansas",
+      "Missouri",
+      "Nebraska",
+      "North Dakota",
+      "South Dakota"
+    ],
+    "Great Lakes": [
+      "Illinois",
+      "Indiana",
+      "Michigan",
+      "Minnesota",
+      "Ohio",
+      "Wisconsin"
+    ],
+    "New England": [
+      "Connecticut",
+      "Maine",
+      "Massachusetts",
+      "New Hampshire",
+      "Rhode Island",
+      "Vermont"
+    ],
+    "Mid-Atlantic": [
+      "Delaware",
+      "DC",
+      "Maryland",
+      "New Jersey",
+      "New York",
+      "Pennsylvania",
+      "Virginia",
+      "West Virginia"
+    ],
+    "South": [
+      "Arkansas",
+      "Kentucky",
+      "Louisiana",
+      "Oklahoma",
+      "Tennessee",
+      "Texas"
+    ],
+    "Southeast": [
+      "Alabama",
+      "Florida",
+      "Georgia",
+      "Mississippi",
+      "North Carolina",
+      "Puerto Rico",
+      "South Carolina"
+    ]
+  },
+  "EMEA": {
+    "UK & Ireland": ["United Kingdom", "Ireland", "Channel Islands"],
+    "Southern Europe": [
+      "Andorra",
+      "Cyprus",
+      "Gibraltar",
+      "Greece",
+      "Italy",
+      "Malta",
+      "Monaco",
+      "Portugal",
+      "San Marino",
+      "Spain"
+    ],
+    "Nordics": [
+      "Denmark",
+      "Faroe Islands",
+      "Finland",
+      "Greenland",
+      "Iceland",
+      "Norway",
+      "Sweden"
+    ],
+    "Israel": ["Israel"],
+    "France/Benelux": ["France", "Belgium", "Netherlands", "Luxembourg"],
+    "DACH": ["Germany", "Switzerland", "Austria"],
+    "Central & Eastern Europe": [
+      "Albania",
+      "Belarus",
+      "Bosnia-Herzegovina",
+      "Bulgaria",
+      "Croatia",
+      "Czech Republic",
+      "Estonia",
+      "Hungary",
+      "Kosovo",
+      "Latvia",
+      "Lithuania",
+      "Macedonia",
+      "Moldova",
+      "Montenegro",
+      "Poland",
+      "Romania",
+      "Russia",
+      "Serbia",
+      "Slovakia",
+      "Slovenia",
+      "Ukraine"
+    ],
+    "MENA": [
+      "Bahrain",
+      "Egypt",
+      "Iran",
+      "Jordan",
+      "Kuwait",
+      "Lebanon",
+      "Morocco",
+      "Oman",
+      "Saudi Arabia",
+      "Tunisia",
+      "Turkey",
+      "United Arab Emirates"
+    ]
+  },
+  "APAC": {
+    "Caucasus": ["Armenia", "Azerbaijan", "Georgia"],
+    "Central Asia": [
+      "Kazakhstan",
+      "Kyrgyzstan",
+      "Tajikistan",
+      "Turkmenistan",
+      "Uzbekistan"
+    ],
+    "East Asia": {
+      "Greater China": ["China", "Hong Kong", "Taiwan", "Macau"],
+      "other": ["Japan", "Mongolia", "North Korea", "South Korea"]
+    },
+    "South Asia": [
+      "Afghanistan",
+      "Bangladesh",
+      "Bhutan",
+      "British Indian Ocean Territory",
+      "India",
+      "Maldives",
+      "Nepal",
+      "Pakistan",
+      "Sri Lanka"
+    ],
+    "Southeast Asia": [
+      "Brunei",
+      "Cambodia",
+      "East Timor",
+      "Indonesia",
+      "Laos",
+      "Malaysia",
+      "Myanmar",
+      "Philippines",
+      "Singapore",
+      "Thailand",
+      "Vietnam"
+    ],
+    "Oceania": [
+      "American Samoa",
+      "Australia",
+      "Cook Islands",
+      "Fiji",
+      "French Polynesia",
+      "Kiribati",
+      "Marshall Islands",
+      "Melanesia",
+      "Micronesia",
+      "Nauru",
+      "New Caledonia",
+      "New Zealand",
+      "Niue",
+      "Northern Mariana Islands",
+      "Palau",
+      "Papua New Guinea",
+      "Pitcairn Islands",
+      "Polynesia",
+      "Samoa",
+      "Solomon Islands",
+      "Tokelau",
+      "Tonga",
+      "Tuvalu",
+      "Vanuatu",
+      "Wallis and Futuna"
+    ]
+  },
+  "restOfWorld": "Any region not demarcated in a given analysis or chart."
+}

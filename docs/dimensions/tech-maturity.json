@@ -1,0 +1,43 @@
+{
+  "icpRubric": {
+    "dimension": "technographics.tech_maturity",
+    "type": "enum_single",
+    "architectureDoc": "../icp-rubric-architecture.md",
+    "notes": "Score adoption behavior toward emerging technology, not overall company sophistication. Use definition + assign_when when prompting models or reviewers."
+  },
+  "dimension": "technographics.tech_maturity",
+  "type": "enum_single",
+  "description": "Adoption posture toward emerging technology. Score adoption behavior, not company sophistication.",
+  "values": [
+    {
+      "value": "early_adopter",
+      "label": "Early adopter",
+      "definition": "Actively tests, buys, or builds with emerging technology before it is widely proven.",
+      "assign_when": "Evidence shows pilots, experimentation, AI agents, new tooling, custom workflows, innovation teams, or rapid trials."
+    },
+    {
+      "value": "fast_follower",
+      "label": "Fast follower",
+      "definition": "Adopts proven technology quickly once market validation or competitive pressure exists.",
+      "assign_when": "Evidence shows use of modern tools, references to competitors or benchmarks, or adoption after clear ROI/category momentum."
+    },
+    {
+      "value": "mainstream_adopter",
+      "label": "Mainstream adopter",
+      "definition": "Uses established, widely accepted technology as part of normal operations.",
+      "assign_when": "Evidence shows a current but not cutting-edge tech stack, pragmatic adoption, stable operations, or standard tooling."
+    },
+    {
+      "value": "late_adopter",
+      "label": "Late adopter",
+      "definition": "Adopts technology only after it becomes unavoidable, expected, or industry-standard.",
+      "assign_when": "Evidence shows legacy workflows, slow procurement, cautious rollouts, older systems, or low experimentation."
+    },
+    {
+      "value": "technology_resistant",
+      "label": "Technology resistant",
+      "definition": "Avoids, distrusts, or minimizes new technology despite availability.",
+      "assign_when": "Evidence shows explicit skepticism, manual-first culture, compliance/security blockers, or an anti-automation stance."
+    }
+  ]
+}
