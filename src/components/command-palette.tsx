@@ -10,6 +10,7 @@ import {
   Eye,
   Search,
   Settings,
+  UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,7 @@ type PaletteItem = {
 // are persona-agnostic in v1.
 function buildItems(userType: UserType | null): PaletteItem[] {
   const homeLabel = userType === "gtm" ? "Go to ICP" : "Go to Today";
-  return [
+  const baseItems: PaletteItem[] = [
     { id: "today", label: homeLabel, href: "/", icon: CalendarCheck },
     { id: "history", label: "Go to History", href: "/history", icon: Clock },
     {
@@ -42,6 +43,19 @@ function buildItems(userType: UserType | null): PaletteItem[] {
       href: "/settings",
       icon: Settings,
     },
+  ];
+
+  if (userType === "gtm") return baseItems;
+
+  return [
+    baseItems[0],
+    {
+      id: "profile",
+      label: "Go to Profile",
+      href: "/profile",
+      icon: UserRound,
+    },
+    ...baseItems.slice(1),
   ];
 }
 

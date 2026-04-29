@@ -14,6 +14,7 @@ import {
   Phone,
   TrendingUp,
   Inbox,
+  UserRound,
 } from "lucide-react";
 import {
   AnimatePresence,
@@ -49,6 +50,7 @@ function buildNav(userType: UserType | null): NavItem[] {
   }
   return [
     { href: "/", label: "Today", icon: CalendarCheck },
+    { href: "/profile", label: "Profile", icon: UserRound },
     { href: "/history", label: "History", icon: Clock },
     { href: "/watchlist", label: "Watchlist", icon: Eye },
     { href: "/analytics", label: "Analytics", icon: BarChart2 },
