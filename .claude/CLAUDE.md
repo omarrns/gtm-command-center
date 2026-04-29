@@ -29,7 +29,7 @@ src/
 │       ├── _actions/           # Cross-route server actions (e.g. update-icp-rubric)
 │       ├── _components/        # OpportunityCard, AccountCard, TodayClient, IcpDashboard
 │       ├── _loaders/           # Shared data loaders (today-queue, today-metrics). Per-route loaders live under `<route>/_loaders/` (e.g. `analytics/_loaders/analytics-data.ts`).
-│       ├── accounts/           # GTM persona: pipeline-promoted accounts. See feedback_accounts_never_auto_remove.md.
+│       ├── accounts/           # GTM persona: pipeline-promoted accounts
 │       ├── activate/           # First-run JSearch activation
 │       ├── analysis/           # JD/company analyses (detail + intake)
 │       ├── analytics/          # Pipeline + content analytics
@@ -148,6 +148,8 @@ discovered → scored → researched → enriched → drafted → queued → sen
 | Surface UI          | Today (`/`), History, Watchlist            | `/accounts` (never-auto-remove rule), `/icp` (rubric editor)                                        |
 
 `gtm-runner.ts` is the GTM lane's entry point but is currently only called by the legacy `runner.ts`. `pipelineWorkflow` does not branch on `user_type` — the GTM persona's recurring/realtime entry points are the dormant-discover cron and the TheirStack webhook, not `/api/cron/pipeline`.
+
+GTM account retention rule: `/accounts` shows every pipeline-promoted account except `discovered`, `filtered`, and explicit user dismissals (`skipped`). Downstream stages such as `researched`, `needs_contact`, `enriched`, `queued`, `sent`, and `replied` must not auto-remove an account from `/accounts`; only user actions like skip/flag remove it.
 
 ### Onboarding Interview State Machine
 
@@ -473,7 +475,7 @@ These are not guidelines. They are constraints. Violating any rule is a bug.
 ### Environment and Secrets
 
 - Never hardcode secrets or API keys. Use environment variables.
-- Every new env var gets added to `.env.local.example` with a comment.
+- Every new env var gets added to `.env.example` with a comment.
 - Never log secrets, tokens, or API keys, even in error messages.
 
 ### Database
@@ -485,7 +487,7 @@ These are not guidelines. They are constraints. Violating any rule is a bug.
 ### Prompts
 
 - Prompts are business logic. Version and review them like code.
-- All prompts live in `src/lib/skills/prompts/`, exported as typed constants with model + temperature.
+- All prompt builders live in `src/lib/skills/prompts/`. Prompt builders accept `SenderIdentity`; call sites derive it via `extractSenderIdentity(ctx, displayName)` instead of hardcoding sender names, companies, or brands.
 - Never inline a multi-line prompt string in a route handler or pipeline function.
 - When a prompt changes, the commit message explains what behavior the change targets.
 
