@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ToolSet } from "ai";
+import { MODELS } from "@/lib/ai/anthropic";
 import {
   ICP_EXTRACTION_SYSTEM_PROMPT,
   ICP_ORCHESTRATOR_SYSTEM_PROMPT,
@@ -301,7 +302,7 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   agenticMode: true,
   dimensions,
   rubricSchema: icpRubricSchema,
-  orchestratorModel: "claude-opus-4-6",
+  orchestratorModel: MODELS.opus,
   orchestratorMaxOutputTokens: 8192,
   orchestratorSystemPrompt: () => ICP_ORCHESTRATOR_SYSTEM_PROMPT,
   // positiveExemplarCount comes from the call sites (chat/route +
@@ -338,7 +339,7 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   wrapUpThreshold: 12,
   completionMarker: "[INTERVIEW_COMPLETE]",
   completionTopicThreshold: 4,
-  chatModel: "claude-sonnet-4-6",
+  chatModel: MODELS.sonnet,
   chatMaxOutputTokens: 1024,
 
   topics: CORE_ICP_DIMENSION_KEYS,
@@ -346,7 +347,7 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
 
   extractionSchema: icpExtractionSchema,
   extractionSystemPrompt: ICP_EXTRACTION_SYSTEM_PROMPT,
-  extractionModel: "claude-opus-4-6",
+  extractionModel: MODELS.opus,
   extractionMaxOutputTokens: 4096,
 
   editsSchema: icpEditsSchema,

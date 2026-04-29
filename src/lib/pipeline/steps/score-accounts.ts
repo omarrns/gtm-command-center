@@ -23,9 +23,10 @@ import {
   type IcpAccountAnalysis,
 } from "@/lib/pipeline/scoring-account";
 import { createLogger } from "@/lib/logger";
+import { MODELS } from "@/lib/ai/anthropic";
 
 const MAX_SCORES_PER_RUN = 10;
-const PIPELINE_MODEL = "claude-sonnet-4-6";
+const PIPELINE_MODEL = MODELS.sonnet;
 
 export interface ScoreOneAccountResult {
   newStage: "scored" | "filtered";

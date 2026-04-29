@@ -20,11 +20,12 @@ import {
   type AccountActivationSearchResult,
 } from "@/lib/pipeline/activation-accounts";
 import { createLogger } from "@/lib/logger";
+import { MODELS } from "@/lib/ai/anthropic";
 
 const MAX_CANDIDATES = 15;
 const DEFAULT_CANDIDATES = 5;
 const MAX_RESULTS = 5;
-const ACTIVATION_MODEL = "claude-sonnet-4-6";
+const ACTIVATION_MODEL = MODELS.sonnet;
 
 export async function runExistingAccountActivationSearch(
   svc: SupabaseClient,
@@ -87,7 +88,9 @@ export async function runExistingAccountActivationSearch(
         model: ACTIVATION_MODEL,
         runId,
       });
-      scored.push(toActivationResultFromOpportunity(opp, scoring.analysisResult));
+      scored.push(
+        toActivationResultFromOpportunity(opp, scoring.analysisResult),
+      );
       log.info("saved GTM opportunity scored", {
         oppId: opp.id,
         score: scoring.normalizedScore,
@@ -146,7 +149,8 @@ function toActivationResultFromOpportunity(
     verdict: analysis.verdict,
     reasonToBelieve: analysis.reason_to_believe,
     fundingStage: typeof t.funding_stage === "string" ? t.funding_stage : null,
-    employeeCount: typeof t.employee_count === "number" ? t.employee_count : null,
+    employeeCount:
+      typeof t.employee_count === "number" ? t.employee_count : null,
     industry: typeof t.industry === "string" ? t.industry : null,
     analysis,
   };

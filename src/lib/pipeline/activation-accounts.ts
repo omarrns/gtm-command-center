@@ -29,10 +29,11 @@ import {
 import { buildScoreComponents } from "@/lib/pipeline/steps/score-accounts";
 import { createOpportunity, advanceStage } from "@/lib/pipeline/opportunities";
 import { createLogger } from "@/lib/logger";
+import { MODELS } from "@/lib/ai/anthropic";
 
 const MAX_CANDIDATES = 15;
 const MAX_RESULTS = 5;
-const ACTIVATION_MODEL = "claude-sonnet-4-6";
+const ACTIVATION_MODEL = MODELS.sonnet;
 const POSTED_MAX_AGE_DAYS = 30;
 
 export interface AccountActivationResult {

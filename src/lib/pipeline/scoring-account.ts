@@ -21,6 +21,7 @@ import { exaFindCompany, formatExaResults } from "@/lib/ai/exa";
 import { loadMemoryContext } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import { runGenerateObject, type AiCallScope } from "@/lib/ai/calls";
+import { MODELS } from "@/lib/ai/anthropic";
 import { createLogger } from "@/lib/logger";
 import {
   buildIcpAccountFitSystem,
@@ -175,7 +176,7 @@ export async function scoreAccountAgainstIcp({
     research,
   });
   const baseArgs = {
-    model: model ?? "claude-sonnet-4-6",
+    model: model ?? MODELS.sonnet,
     system: buildIcpAccountFitSystem(sender),
     schema: icpAccountAnalysisSchema,
     // 25 sub-dim breakdown × {score, reasoning} + 6 broad rollups +

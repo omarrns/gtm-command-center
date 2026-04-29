@@ -18,6 +18,7 @@ import { searchJobs } from "@/lib/pipeline/jsearch";
 import { createOpportunity } from "@/lib/pipeline/opportunities";
 import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
 import { createLogger, type Logger } from "@/lib/logger";
+import { MODELS } from "@/lib/ai/anthropic";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,7 +56,7 @@ export interface ActivationSearchResult {
 const MAX_ACTIVATION_DISCOVERIES = 10;
 const RECENCY_DAYS = 10;
 const MAX_RESULTS = 5;
-const ACTIVATION_MODEL = "claude-sonnet-4-6";
+const ACTIVATION_MODEL = MODELS.sonnet;
 
 // ---------------------------------------------------------------------------
 // Main

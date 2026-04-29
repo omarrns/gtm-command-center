@@ -5,8 +5,9 @@ import { exaSearch, formatExaResults } from "@/lib/ai/exa";
 import { firecrawlScrape } from "@/lib/ai/firecrawl";
 import { runGenerateObject, type AiCallScope } from "@/lib/ai/calls";
 import { advanceStage } from "@/lib/pipeline/opportunities";
+import { MODELS } from "@/lib/ai/anthropic";
 
-const PIPELINE_MODEL = "claude-sonnet-4-6";
+const PIPELINE_MODEL = MODELS.sonnet;
 
 export const gtmAccountResearchSchema = z.object({
   techStack: z.object({
@@ -139,10 +140,17 @@ export async function researchOneGtmAccount(
 
   if (reportError) throw reportError;
 
-  const advanced = await advanceStage(svc, opp.id, userId, "scored", "researched", {
-    research_id: report.id,
-    last_error: null,
-  });
+  const advanced = await advanceStage(
+    svc,
+    opp.id,
+    userId,
+    "scored",
+    "researched",
+    {
+      research_id: report.id,
+      last_error: null,
+    },
+  );
   if (!advanced) {
     throw new Error(
       `Stage precondition missed: expected 'scored' for opportunity ${opp.id}`,
@@ -152,7 +160,9 @@ export async function researchOneGtmAccount(
   return { researched: true, reportId: report.id as string };
 }
 
-async function scrapeCompanySiteQuietly(domain: string | null): Promise<string> {
+async function scrapeCompanySiteQuietly(
+  domain: string | null,
+): Promise<string> {
   if (!domain) return "";
   const url = domain.startsWith("http") ? domain : `https://${domain}`;
   try {

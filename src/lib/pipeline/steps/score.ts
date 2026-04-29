@@ -19,9 +19,10 @@ import {
   getOpportunitiesByStage,
 } from "@/lib/pipeline/opportunities";
 import { addToWatchlist } from "@/lib/pipeline/watchlist";
+import { MODELS } from "@/lib/ai/anthropic";
 
 const MAX_SCORES_PER_RUN = 10;
-const PIPELINE_MODEL = "claude-sonnet-4-6";
+const PIPELINE_MODEL = MODELS.sonnet;
 
 export interface ScoreResult {
   processed: number;
