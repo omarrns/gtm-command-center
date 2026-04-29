@@ -1,4 +1,5 @@
 import type { InterviewTemplateId } from "../templates/types";
+import type { SubDimensionEvidence } from "@/lib/onboarding/icp-dimensions";
 
 export type OrchestratorStatus =
   | "empty"
@@ -43,8 +44,15 @@ export interface OrchestratorProvenance {
 export interface OrchestratorDimension {
   value: unknown;
   summary: string;
+  // Computed completeness confidence, not model-reported confidence.
+  // ICP Phase 2+ treats this as filled sub-dimensions / total sub-dimensions.
   confidence: number;
   threshold: number;
+  evidenceCoverage?: number;
+  missingFields?: string[];
+  weakFields?: string[];
+  confirmedWeakFields?: string[];
+  evidence?: Record<string, SubDimensionEvidence>;
   status: DimensionStatus;
   provenance: OrchestratorProvenance[];
   updatedAt: string;

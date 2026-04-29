@@ -7,6 +7,11 @@
 // asks the questions exemplars can't answer alone.
 
 import type { Dimension } from "./templates/types";
+import { renderPromptChecklist } from "@/lib/onboarding/icp-dimensions";
+
+const COMPACT_EXTRACTION_CHECKLIST = renderPromptChecklist({
+  mode: "compact_extraction",
+});
 
 export const ICP_ORCHESTRATOR_SYSTEM_PROMPT = `You are the orchestrator in a two-agent onboarding interview for GTM teams defining their ICP (Ideal Customer Profile). Your job: read the user's artifacts and build a structured ICP rubric by SYNTHESISING PATTERNS across multiple exemplars — not just extracting facts from a single source. You must be specific and detailed in your synthesis.
 
@@ -19,26 +24,27 @@ Each <artifact> has a \`kind\` attribute. They mean different things:
 - **buyer_persona**: An individual LinkedIn profile or background. Reveals persona shape (role, seniority, career path). Rarely reveals company-level ICP by itself — you need positive_examples for firmographics and stage.
 - **company_context**: The user's own product copy, deck, sales notes, or declarative ICP statements ("we sell to Series A-C devtools"). This is the subject's self-description — what the user SAYS their ICP is.
 
+## Configured field checklist
+
+${COMPACT_EXTRACTION_CHECKLIST}
+
 ## For each dimension, produce
 
 - **value**: your best-guess value. The shape is dimension-specific (field keys must match verbatim — the downstream adapter validates against a zod schema; mismatches fall back to defaults):
-  - \`product\`: { category: string, core_jtbd: string, wedge: string }
-  - \`buyer\`: { economic_buyer: string, champion: string, end_user: string }
-  - \`firmographics\`: { industries: string[], employee_range_min: number, employee_range_max: number, stages: string[], geographies: string[] } — TWO SEPARATE scalar fields for the employee range, NOT a tuple or nested object.
-  - \`technographics\`: { required_tools: string[], excluded_tools: string[] }
-  - \`signals\`: { hiring_roles: string[], jtbd_evidence: string[], trigger_events: string[] }
-  - \`disqualifiers\`: string[]
+  - \`product\`: { category: string, core_jtbd: string, wedge: string, delivery_model: string }
+  - \`buyer\`: { economic_buyer: string, champion: string, end_user: string, deal_blocker: string }
+  - \`firmographics\`: { industries: string[], business_model: string, employee_range: { min: number, max: number | null }, stages: string[], geographies: string[] }
+  - \`technographics\`: { required_tools: string[], excluded_tools: string[], tech_maturity: string, data_infrastructure: string }
+  - \`signals\`: { hiring_roles: string[], jtbd_evidence: string[], trigger_events: string[], pain_language: string[] }
+  - \`disqualifiers\`: { tech_disqualifiers: string[], size_disqualifiers: string, stage_disqualifiers: string[], behavioral_disqualifiers: string[] }
   - \`proof_points\`: { existing_customers: string[], won_deals: string[], lost_deals_reasons: string[] }
 - **summary**: one short plain-English line rendered in the status panel. Example: "3 of 4 positive examples are Series A-B devtools with 20-100 employees."
-- **confidence**: 0-1. Be honest:
-  - \`>= 0.8\` when a pattern is consistent across 3+ positive examples.
-  - \`0.5-0.8\` for inferences from 1-2 positive examples OR from company_context alone.
-  - \`< 0.5\` when guessing without support.
+- **evidence**: a map keyed by sub-dimension. Each entry has { strength, proofPoints, sources, notes }. Use strength \`direct_user_provided\`, \`inferred_from_customer_examples\`, \`inferred_from_public_data\`, or \`weak_or_unknown\`.
 - **provenance**: cite the artifact id(s) and a short quote (< 200 chars) where possible.
 
 ## Hard synthesis rules
 
-1. **Exemplar scarcity clamp.** When positive_example count is 1 or 2, cap confidence on exemplar-derived dimensions (firmographics, technographics, signals, proof_points.existing_customers) at 0.6 regardless of how clear the single example looks. One data point is not a pattern. When count is 0, rely on company_context only and note in the summary that the dimension is "declarative only — no exemplars to validate against."
+1. **Exemplar scarcity.** When positive_example count is 1 or 2, exemplar-derived dimensions (firmographics, technographics, signals) may be structurally filled, but evidence strength stays \`weak_or_unknown\` unless the user directly confirmed it or public data independently supports it. One data point is not a pattern. When count is 0, rely on company_context only and note in the summary that the dimension is "declarative only — no exemplars to validate against."
 
 2. **Disagreement surfacing.** When the declared ICP (company_context) disagrees with what exemplars show, record BOTH values. Use the dimension value for the exemplar-derived version; include the declared version in the summary line. Example: value="Series A-B", summary="Exemplars skew A-B; user declared A-C in deck". Never hide a disagreement — the interviewer's highest-priority question is surfacing these.
 
@@ -46,7 +52,9 @@ Each <artifact> has a \`kind\` attribute. They mean different things:
 
 4. **Never invent customers.** \`proof_points.existing_customers\` comes only from names the user has attached to \`positive_example\` artifacts OR named in transcript. Don't pull "likely customers" from web scraping context. A confident name with no source is wrong.
 
-5. **Product dimension grounds everything.** If the user hasn't provided company_context with their product's category + JTBD + wedge, mark the product dimension as "needs_question" with low confidence. The orchestrator cannot infer the product from exemplars alone; only the user knows what they're actually selling.
+5. **Product dimension grounds everything.** If the user hasn't provided company_context with their product's category + JTBD + wedge, leave those fields empty or weak. The orchestrator cannot infer the product from exemplars alone; only the user knows what they're actually selling.
+
+6. **Use canonical enum values verbatim.** Sub-fields marked \`enum_single\` or \`enum_multi\` in the field checklist accept ONLY the listed values. Stable snake_case keys are stored ("united_states", "series_a", "saas") — humanization happens in the UI, not your output. Never invent variants ("US" / "United States" → "united_states"; "Series A" → "series_a"; "SaaS" → "saas"). If a user describes a value not in the list, pick the closest canonical value or leave the field empty rather than inventing.
 
 You never speak to the user directly. Your output updates shared state; the interviewer decides which gaps to surface.`;
 
@@ -54,12 +62,16 @@ export const ICP_EXTRACTION_SYSTEM_PROMPT = `You are extracting a structured ICP
 
 Output a clean, edit-ready ICP rubric with these EXACT field keys. Field names must match verbatim — the downstream pipeline validates against a zod schema and any mismatch silently falls back to defaults.
 
-- **product**: { category: string, core_jtbd: string, wedge: string }
-- **icp.buyer**: { economic_buyer: string, champion: string, end_user: string } — role titles
-- **icp.firmographics**: { industries: string[], employee_range_min: number, employee_range_max: number, stages: string[], geographies: string[] } — NOTE: two separate scalar fields (employee_range_min, employee_range_max), NOT a tuple or object.
-- **icp.technographics**: { required_tools: string[], excluded_tools: string[] }
-- **icp.signals**: { hiring_roles: string[], jtbd_evidence: string[], trigger_events: string[] }
-- **icp.disqualifiers**: string[] — post-filter exclusions from negative_example artifacts
+## Configured field checklist
+
+${COMPACT_EXTRACTION_CHECKLIST}
+
+- **product**: { category: string, core_jtbd: string, wedge: string, delivery_model: string }
+- **icp.buyer**: { economic_buyer: string, champion: string, end_user: string, deal_blocker: string } — role titles
+- **icp.firmographics**: { industries: string[], business_model: string, employee_range: { min: number, max: number | null }, stages: string[], geographies: string[] }
+- **icp.technographics**: { required_tools: string[], excluded_tools: string[], tech_maturity: string, data_infrastructure: string }
+- **icp.signals**: { hiring_roles: string[], jtbd_evidence: string[], trigger_events: string[], pain_language: string[] }
+- **icp.disqualifiers**: { tech_disqualifiers: string[], size_disqualifiers: string, stage_disqualifiers: string[], behavioral_disqualifiers: string[] } — post-filter exclusions from negative_example artifacts
 - **proof_points**: { existing_customers: string[], won_deals: string[], lost_deals_reasons: string[] }
 
 ## Discipline
@@ -70,7 +82,9 @@ Output a clean, edit-ready ICP rubric with these EXACT field keys. Field names m
 
 3. When the interview shows a declared-vs-exemplar disagreement the user didn't resolve, prefer the EXEMPLAR value in the extraction and note the declared value in the \`lost_deals_reasons\` or \`disqualifiers\` field as appropriate — the rubric has to commit to one value.
 
-4. Empty arrays are fine. Better empty than invented. Numeric fields default to sensible defaults (employee_range_min=0, employee_range_max=10000) if unknown — don't invent a range.`;
+4. Empty arrays are fine. Better empty than invented. Numeric fields default to sensible defaults (employee_range.min=0, employee_range.max=10000) if unknown — don't invent a range.
+
+5. Use canonical enum values verbatim. Sub-fields marked \`enum_single\` or \`enum_multi\` in the field checklist accept ONLY the listed values — stable snake_case keys ("united_states", "series_a", "saas"). Never emit human-text variants like "United States" or "Series A"; the UI humanizes for display. If the transcript hints at a value not in the list, pick the closest canonical value or leave the field empty rather than inventing.`;
 
 export interface IcpInterviewerContext {
   isRefresh: boolean;
@@ -111,7 +125,7 @@ export function buildIcpInterviewerSystemPrompt(
 
   let scarcityGuidance: string;
   if (hasHypothesis) {
-    scarcityGuidance = `The orchestrator has a structured guess for this dimension (shown above). Your job is to surface that guess and ask the user to confirm or correct ONE specific field — not to re-ask the dimension from scratch. Pick the field where the confidence is weakest or the inference is most likely to be wrong, name it, and ask whether it's right. If the structured guess names specific customers, tools, or roles, anchor your question on those. Do not ask an open-ended "what is your X" question when you already have an inference to validate.`;
+    scarcityGuidance = `The orchestrator has a structured guess for this dimension (shown above). Your job is to surface that guess and ask the user to confirm or correct ONE configured field — not to re-ask the dimension from scratch. Pick the weakest or most likely-wrong field, name it, and ask whether it's right. If the structured guess names specific customers, tools, or roles, anchor your question on those. Do not ask an open-ended "what is your X" question when you already have an inference to validate.`;
   } else if (positiveExemplarCount >= 3) {
     scarcityGuidance = `You have ${positiveExemplarCount} positive exemplars to pattern-match against, but no structured value for this dimension yet. Ask a SHARPENING question: surface the pattern across the exemplars and ask whether it matches the user's intent. Name what specific attribute you're testing.`;
   } else if (positiveExemplarCount > 0) {
@@ -125,8 +139,13 @@ export function buildIcpInterviewerSystemPrompt(
   }
 
   const hypothesisBlock = hasHypothesis
-    ? `Summary: ${currentHypothesis}\nConfidence: ${formatConfidence(hypothesisConfidence)} (threshold ${nextDimension.confidenceThreshold.toFixed(2)})\n\nStructured value (this is what the orchestrator inferred from artifacts — confirm or correct it):\n${renderedHypothesisBlock}`
-    : `Summary: ${currentHypothesis}\nConfidence: ${formatConfidence(hypothesisConfidence)} (threshold ${nextDimension.confidenceThreshold.toFixed(2)})\n\n(no structured inference — artifacts yielded nothing concrete for this dimension)`;
+    ? `Summary: ${currentHypothesis}\nCompleteness: ${formatConfidence(hypothesisConfidence)} (threshold ${nextDimension.confidenceThreshold.toFixed(2)})\n\nStructured value (this is what the orchestrator inferred from artifacts — confirm or correct it):\n${renderedHypothesisBlock}`
+    : `Summary: ${currentHypothesis}\nCompleteness: ${formatConfidence(hypothesisConfidence)} (threshold ${nextDimension.confidenceThreshold.toFixed(2)})\n\n(no structured inference — artifacts yielded nothing concrete for this dimension)`;
+
+  const checklist = renderPromptChecklist({
+    mode: "focused_interview",
+    dimensionKey: nextDimension.key,
+  });
 
   const refreshNote = ctx.isRefresh
     ? `\n\n## Refresh mode\nThe user has previously confirmed an ICP. Existing rubric for context:\n\n${ctx.existingProfile ?? "(none)"}\n\nDon't re-ask what's already settled; probe for what's changed (new customer patterns, new disqualifiers, new signals).`
@@ -144,6 +163,9 @@ ${hypothesisBlock}
 
 ## What to ask
 ${scarcityGuidance}
+
+## Configured fields for this dimension
+${checklist}
 
 ## General rules
 

@@ -1,0 +1,105 @@
+{
+  "company_name": "Acme Corp",
+  "firmo_fit": {
+    "score": 4,
+    "reasoning": "Mid-market SaaS, US-based, Series B — solid match."
+  },
+  "techno_fit": {
+    "score": 4,
+    "reasoning": "Stack includes Salesforce; no excluded tools detected."
+  },
+  "hiring_signal_fit": {
+    "score": 5,
+    "reasoning": "Active SDR + RevOps roles posted in last 30 days."
+  },
+  "buyer_fit": {
+    "score": 4,
+    "reasoning": "VP Sales is economic buyer; champion role identified."
+  },
+  "proof_point_relevance": {
+    "score": 3,
+    "reasoning": "Adjacent to existing customer pattern; not exact."
+  },
+  "disqualifier_risk": {
+    "score": 5,
+    "reasoning": "No disqualifier triggers found."
+  },
+  "breakdown": {
+    "product": {
+      "category": { "score": 4, "reasoning": "Devtools GTM aligned." },
+      "core_jtbd": { "score": 4, "reasoning": "Outbound prospecting JTBD." },
+      "wedge": { "score": 3, "reasoning": "Wedge fit moderate." },
+      "delivery_model": { "score": 4, "reasoning": "SaaS delivery." }
+    },
+    "buyer": {
+      "economic_buyer": {
+        "score": 4,
+        "reasoning": "VP Sales identified on LinkedIn."
+      },
+      "champion": {
+        "score": 4,
+        "reasoning": "RevOps director profile present."
+      },
+      "end_user": { "score": 5, "reasoning": "SDR team of 12." },
+      "deal_blocker": {
+        "score": 3,
+        "reasoning": "Procurement standard for size."
+      }
+    },
+    "firmographics": {
+      "industries": {
+        "score": 5,
+        "reasoning": "Devtools — direct industry hit."
+      },
+      "business_model": { "score": 4, "reasoning": "B2B SaaS." },
+      "employee_range": { "score": 5, "reasoning": "180 employees, in band." },
+      "stages": { "score": 5, "reasoning": "Series B confirmed." },
+      "geographies": { "score": 5, "reasoning": "HQ San Francisco." }
+    },
+    "technographics": {
+      "required_tools": { "score": 4, "reasoning": "Salesforce confirmed." },
+      "excluded_tools": { "score": 5, "reasoning": "No Zoho or HubSpot." },
+      "tech_maturity": {
+        "score": 4,
+        "reasoning": "Modern stack, GraphQL APIs."
+      },
+      "data_infrastructure": {
+        "score": 3,
+        "reasoning": "Likely Snowflake; not confirmed."
+      }
+    },
+    "signals": {
+      "hiring_roles": { "score": 5, "reasoning": "5 SDR roles open." },
+      "jtbd_evidence": {
+        "score": 4,
+        "reasoning": "Job posts mention manual prospecting pain."
+      },
+      "trigger_events": { "score": 4, "reasoning": "New VP Sales hired Q1." },
+      "pain_language": {
+        "score": 3,
+        "reasoning": "Generic outbound pain language."
+      }
+    },
+    "disqualifiers": {
+      "tech_disqualifiers": {
+        "score": 5,
+        "reasoning": "No disqualifier tech detected."
+      },
+      "size_disqualifiers": {
+        "score": 5,
+        "reasoning": "Within target size band."
+      },
+      "stage_disqualifiers": {
+        "score": 5,
+        "reasoning": "Stage not in disqualifier list."
+      },
+      "behavioral_disqualifiers": {
+        "score": 5,
+        "reasoning": "No no-outbound or PLG-only signals."
+      }
+    }
+  },
+  "verdict": "Pursue",
+  "tier": "A",
+  "reason_to_believe": "Acme is an active devtools SaaS Series B hiring 5 SDRs with VP Sales recently in seat — direct ICP match."
+}

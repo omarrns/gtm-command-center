@@ -1,16 +1,31 @@
 "use client";
 
 import { TagInput } from "@/components/tag-input";
-import { Input } from "@/components/ui/input";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
+import { ICP_ENUMS, humanizeEnumValue } from "@/lib/onboarding/icp-dimensions";
+import { Input } from "@/components/ui/input";
 import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
+import { DimensionMeta } from "./dimension-meta";
+import { EnumSelect } from "./enum-select";
 
-// Section 2 of the ICP review. Firmographics, technographics, signals,
-// and proof points. When positive_example artifacts exist the
-// orchestrator pattern-extracts these across them; when none exist
-// the fields still accept declarative input. Split into four
-// sibling ReviewFormSections — the split gives each dimension its own
-// heading and reading rhythm in the document layout.
+const STAGE_OPTIONS = ICP_ENUMS.stageValues.map((value) => ({
+  value,
+  label: humanizeEnumValue(value),
+}));
+const GEOGRAPHY_OPTIONS = ICP_ENUMS.geographyValues.map((value) => ({
+  value,
+  label: humanizeEnumValue(value),
+}));
+
+// Section 2 of the ICP review. Firmographics, technographics, signals.
+// When positive_example artifacts exist the orchestrator
+// pattern-extracts these across them; when none exist the fields still
+// accept declarative input. Split into three sibling ReviewFormSections
+// so each dimension gets its own heading and reading rhythm.
+//
+// Proof Points used to live here as a fourth peer section. Phase 8
+// moved it out (proof_points is calibration, not a core dimension); see
+// proof-points-calibration.tsx.
 
 interface InferredFromExemplarsProps {
   firmographics: IcpEdits["icp"]["firmographics"];
@@ -19,9 +34,8 @@ interface InferredFromExemplarsProps {
   onTechnographicsChange: (next: IcpEdits["icp"]["technographics"]) => void;
   signals: IcpEdits["icp"]["signals"];
   onSignalsChange: (next: IcpEdits["icp"]["signals"]) => void;
-  proofPoints: IcpEdits["proof_points"];
-  onProofPointsChange: (next: IcpEdits["proof_points"]) => void;
   positiveExemplarCount: number;
+  evidence?: IcpEdits["evidence"];
 }
 
 export function InferredFromExemplars({
@@ -31,9 +45,8 @@ export function InferredFromExemplars({
   onTechnographicsChange,
   signals,
   onSignalsChange,
-  proofPoints,
-  onProofPointsChange,
   positiveExemplarCount,
+  evidence,
 }: InferredFromExemplarsProps) {
   return (
     <>
@@ -45,7 +58,16 @@ export function InferredFromExemplars({
         </p>
       )}
 
-      <ReviewFormSection title="Firmographics">
+      <ReviewFormSection
+        title="Firmographics"
+        meta={
+          <DimensionMeta
+            dimensionKey="firmographics"
+            value={firmographics}
+            evidence={evidence}
+          />
+        }
+      >
         <div className="space-y-5">
           <TagInput
             values={firmographics.industries}
@@ -59,6 +81,14 @@ export function InferredFromExemplars({
             itemNoun="industry"
             itemNounPlural="industries"
           />
+          <EnumSelect
+            label="Business model"
+            value={firmographics.business_model}
+            onChange={(business_model) =>
+              onFirmographicsChange({ ...firmographics, business_model })
+            }
+            options={ICP_ENUMS.businessModelValues}
+          />
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs text-[var(--color-text-muted)]">
@@ -67,14 +97,14 @@ export function InferredFromExemplars({
               <Input
                 type="number"
                 min={0}
-                value={firmographics.employee_range_min}
+                value={firmographics.employee_range.min}
                 onChange={(e) =>
                   onFirmographicsChange({
                     ...firmographics,
-                    employee_range_min: Math.max(
-                      0,
-                      parseInt(e.target.value) || 0,
-                    ),
+                    employee_range: {
+                      ...firmographics.employee_range,
+                      min: Math.max(0, parseInt(e.target.value) || 0),
+                    },
                   })
                 }
                 className="border-transparent"
@@ -87,14 +117,17 @@ export function InferredFromExemplars({
               <Input
                 type="number"
                 min={0}
-                value={firmographics.employee_range_max}
+                value={firmographics.employee_range.max ?? ""}
                 onChange={(e) =>
                   onFirmographicsChange({
                     ...firmographics,
-                    employee_range_max: Math.max(
-                      0,
-                      parseInt(e.target.value) || 0,
-                    ),
+                    employee_range: {
+                      ...firmographics.employee_range,
+                      max:
+                        e.target.value.trim() === ""
+                          ? null
+                          : Math.max(0, parseInt(e.target.value) || 0),
+                    },
                   })
                 }
                 className="border-transparent"
@@ -111,6 +144,7 @@ export function InferredFromExemplars({
             description="Company maturity stages (e.g. seed, series A)"
             placeholder="Add a stage..."
             itemNoun="stage"
+            options={STAGE_OPTIONS}
           />
           <TagInput
             values={firmographics.geographies}
@@ -123,11 +157,21 @@ export function InferredFromExemplars({
             placeholder="Add a geography..."
             itemNoun="geography"
             itemNounPlural="geographies"
+            options={GEOGRAPHY_OPTIONS}
           />
         </div>
       </ReviewFormSection>
 
-      <ReviewFormSection title="Technographics">
+      <ReviewFormSection
+        title="Technographics"
+        meta={
+          <DimensionMeta
+            dimensionKey="technographics"
+            value={technographics}
+            evidence={evidence}
+          />
+        }
+      >
         <div className="space-y-5">
           <TagInput
             values={technographics.required_tools}
@@ -151,10 +195,38 @@ export function InferredFromExemplars({
             placeholder="Add an excluded tool..."
             itemNoun="tool"
           />
+          <EnumSelect
+            label="Tech maturity"
+            value={technographics.tech_maturity}
+            onChange={(tech_maturity) =>
+              onTechnographicsChange({ ...technographics, tech_maturity })
+            }
+            options={ICP_ENUMS.techMaturityValues}
+          />
+          <EnumSelect
+            label="Data infrastructure"
+            value={technographics.data_infrastructure}
+            onChange={(data_infrastructure) =>
+              onTechnographicsChange({
+                ...technographics,
+                data_infrastructure,
+              })
+            }
+            options={ICP_ENUMS.dataInfrastructureValues}
+          />
         </div>
       </ReviewFormSection>
 
-      <ReviewFormSection title="Signals">
+      <ReviewFormSection
+        title="Signals"
+        meta={
+          <DimensionMeta
+            dimensionKey="signals"
+            value={signals}
+            evidence={evidence}
+          />
+        }
+      >
         <div className="space-y-5">
           <TagInput
             values={signals.hiring_roles}
@@ -189,43 +261,16 @@ export function InferredFromExemplars({
             placeholder="Add a trigger event..."
             itemNoun="event"
           />
-        </div>
-      </ReviewFormSection>
-
-      <ReviewFormSection title="Proof Points">
-        <div className="space-y-5">
           <TagInput
-            values={proofPoints.existing_customers}
-            onChange={(existing_customers) =>
-              onProofPointsChange({ ...proofPoints, existing_customers })
+            values={signals.pain_language}
+            onChange={(pain_language) =>
+              onSignalsChange({ ...signals, pain_language })
             }
-            inputId="icp-customers"
-            label="Existing customers"
-            description="Names you'd reference in outreach"
-            placeholder="Add a customer..."
-            itemNoun="customer"
-          />
-          <TagInput
-            values={proofPoints.won_deals}
-            onChange={(won_deals) =>
-              onProofPointsChange({ ...proofPoints, won_deals })
-            }
-            inputId="icp-won"
-            label="Won deals"
-            description="Deals worth quoting in case studies"
-            placeholder="Add a won deal..."
-            itemNoun="deal"
-          />
-          <TagInput
-            values={proofPoints.lost_deals_reasons}
-            onChange={(lost_deals_reasons) =>
-              onProofPointsChange({ ...proofPoints, lost_deals_reasons })
-            }
-            inputId="icp-lost"
-            label="Lost deal reasons"
-            description="Patterns from lost deals — informs disqualifiers"
-            placeholder="Add a reason..."
-            itemNoun="reason"
+            inputId="icp-pain-language"
+            label="Pain language"
+            description="Words buyers use to describe the problem"
+            placeholder="Add pain language..."
+            itemNoun="phrase"
           />
         </div>
       </ReviewFormSection>

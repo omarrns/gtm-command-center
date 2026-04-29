@@ -22,21 +22,13 @@
 // enough to draw the user's eye to fields that need a second look.
 
 import type { OrchestratorState } from "./types";
+import { ICP_DIMENSIONS } from "@/lib/onboarding/icp-dimensions";
 
 type ProvenanceClass = "declared" | "inferred" | "unknown";
 
-// Only the seven ICP rubric dimensions are eligible. Other state keys
+// Only the core ICP rubric dimensions are eligible. Evidence/calibration
+// fields like proof_points are not conflict-routed as dimensions.
 // (none today, but room for orchestrator-internal book-keeping) skip.
-const ICP_DIMENSIONS: ReadonlyArray<{ key: string; label: string }> = [
-  { key: "product", label: "Product" },
-  { key: "buyer", label: "Buyer roles" },
-  { key: "firmographics", label: "Firmographics" },
-  { key: "technographics", label: "Technographics" },
-  { key: "signals", label: "Signals" },
-  { key: "disqualifiers", label: "Disqualifiers" },
-  { key: "proof_points", label: "Proof points" },
-];
-
 const HIGH_SEVERITY_KEYWORDS = [
   "conflict",
   "contradict",
@@ -96,6 +88,7 @@ export function detectIcpDisagreements(
   }
 
   const result: IcpDisagreement[] = [];
+  result.push(...detectStructuredConflicts(state));
   for (const dim of ICP_DIMENSIONS) {
     const stateDim = state.dimensions[dim.key];
     if (!stateDim) continue;
@@ -126,4 +119,77 @@ export function detectIcpDisagreements(
   }
 
   return result;
+}
+
+function detectStructuredConflicts(state: OrchestratorState): IcpDisagreement[] {
+  const result: IcpDisagreement[] = [];
+  const tech = asRecord(state.dimensions.technographics?.value);
+  const disq = asRecord(state.dimensions.disqualifiers?.value);
+
+  const requiredTools = stringArray(tech?.required_tools);
+  const excludedTools = stringArray(tech?.excluded_tools);
+  const techDisqualifiers = stringArray(disq?.tech_disqualifiers);
+  const requiredExcludedOverlap = overlap(requiredTools, excludedTools);
+  const requiredDisqualifiedOverlap = overlap(requiredTools, techDisqualifiers);
+  const toolOverlap = unique([
+    ...requiredExcludedOverlap,
+    ...requiredDisqualifiedOverlap,
+  ]);
+
+  if (toolOverlap.length > 0) {
+    result.push({
+      dimensionKey: "technographics",
+      label: "Technographics",
+      summary: `Required tools also appear as excluded or disqualified: ${toolOverlap.join(", ")}`,
+      severity: "high",
+      declaredSources: ["technographics.required_tools"],
+      inferredSources: [
+        requiredExcludedOverlap.length > 0
+          ? "technographics.excluded_tools"
+          : "disqualifiers.tech_disqualifiers",
+      ],
+    });
+  }
+
+  const stages = stringArray(asRecord(state.dimensions.firmographics?.value)?.stages);
+  const stageDisqualifiers = stringArray(disq?.stage_disqualifiers);
+  const stageOverlap = overlap(stages, stageDisqualifiers);
+  if (stageOverlap.length > 0) {
+    result.push({
+      dimensionKey: "firmographics",
+      label: "Firmographics",
+      summary: `Target stages also appear as stage disqualifiers: ${stageOverlap.join(", ")}`,
+      severity: "high",
+      declaredSources: ["firmographics.stages"],
+      inferredSources: ["disqualifiers.stage_disqualifiers"],
+    });
+  }
+
+  return result;
+}
+
+function asRecord(input: unknown): Record<string, unknown> | null {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return null;
+  }
+  return input as Record<string, unknown>;
+}
+
+function stringArray(input: unknown): string[] {
+  return Array.isArray(input)
+    ? input.filter((entry): entry is string => typeof entry === "string")
+    : [];
+}
+
+function overlap(left: string[], right: string[]): string[] {
+  const rightSet = new Set(right.map(normalize));
+  return unique(left.filter((entry) => rightSet.has(normalize(entry))));
+}
+
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function normalize(value: string): string {
+  return value.trim().toLowerCase();
 }

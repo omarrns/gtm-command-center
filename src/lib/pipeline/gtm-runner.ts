@@ -16,7 +16,7 @@ import { runDiscoverAccounts } from "@/lib/pipeline/steps/discover-accounts";
 import { runScoreAccounts } from "@/lib/pipeline/steps/score-accounts";
 import type { DiscoverResult } from "@/lib/pipeline/steps/discover";
 import type { ScoreResult } from "@/lib/pipeline/steps/score";
-import { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
+import { safeParseIcpRubric } from "@/lib/onboarding/icp-schemas";
 import { createLogger, newRunId } from "@/lib/logger";
 
 export async function runGtmPipeline(
@@ -51,7 +51,7 @@ export async function runGtmPipeline(
     return emptyGtmResult(userId, startedAt, "No icp_rubric found for user");
   }
 
-  const parsed = icpRubricSchema.safeParse(rawRubric);
+  const parsed = safeParseIcpRubric(rawRubric);
   if (!parsed.success) {
     log.error("icp_rubric failed schema validation", parsed.error);
     return emptyGtmResult(

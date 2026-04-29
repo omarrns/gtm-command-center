@@ -1,0 +1,90 @@
+{
+  "company_name": "BadFit LLC",
+  "firmo_fit": {
+    "score": 2,
+    "reasoning": "Industry adjacent but stage too late."
+  },
+  "techno_fit": {
+    "score": 1,
+    "reasoning": "Stack contains an excluded tool (Zoho)."
+  },
+  "hiring_signal_fit": {
+    "score": 2,
+    "reasoning": "No active hiring matching ICP roles."
+  },
+  "buyer_fit": { "score": 2, "reasoning": "VP Sales role not present." },
+  "proof_point_relevance": {
+    "score": 1,
+    "reasoning": "Matches a lost-deal pattern."
+  },
+  "disqualifier_risk": {
+    "score": 1,
+    "reasoning": "Tech disqualifier hit on excluded tool."
+  },
+  "breakdown": {
+    "product": {
+      "category": { "score": 2, "reasoning": "Adjacent product category." },
+      "core_jtbd": { "score": 2, "reasoning": "Different JTBD focus." },
+      "wedge": { "score": 1, "reasoning": "Wedge mismatch." },
+      "delivery_model": { "score": 3, "reasoning": "SaaS delivery — neutral." }
+    },
+    "buyer": {
+      "economic_buyer": { "score": 2, "reasoning": "No VP Sales identified." },
+      "champion": { "score": 2, "reasoning": "RevOps role absent." },
+      "end_user": { "score": 2, "reasoning": "Small SDR team." },
+      "deal_blocker": { "score": 3, "reasoning": "Standard procurement." }
+    },
+    "firmographics": {
+      "industries": { "score": 2, "reasoning": "Adjacent industry." },
+      "business_model": { "score": 3, "reasoning": "B2B SaaS." },
+      "employee_range": {
+        "score": 2,
+        "reasoning": "1200 employees — over band."
+      },
+      "stages": { "score": 1, "reasoning": "Series E — too late." },
+      "geographies": { "score": 4, "reasoning": "US-based." }
+    },
+    "technographics": {
+      "required_tools": {
+        "score": 2,
+        "reasoning": "Salesforce not confirmed."
+      },
+      "excluded_tools": {
+        "score": 1,
+        "reasoning": "Zoho detected — excluded tool."
+      },
+      "tech_maturity": { "score": 3, "reasoning": "Modern stack." },
+      "data_infrastructure": { "score": 3, "reasoning": "Standard data infra." }
+    },
+    "signals": {
+      "hiring_roles": { "score": 2, "reasoning": "No SDR roles open." },
+      "jtbd_evidence": {
+        "score": 2,
+        "reasoning": "No outbound pain in postings."
+      },
+      "trigger_events": {
+        "score": 2,
+        "reasoning": "No relevant trigger events."
+      },
+      "pain_language": { "score": 2, "reasoning": "Different pain framing." }
+    },
+    "disqualifiers": {
+      "tech_disqualifiers": {
+        "score": 1,
+        "reasoning": "Zoho — excluded tool present."
+      },
+      "size_disqualifiers": { "score": 2, "reasoning": "Over employee band." },
+      "stage_disqualifiers": {
+        "score": 1,
+        "reasoning": "Series E in disqualifier list."
+      },
+      "behavioral_disqualifiers": {
+        "score": 3,
+        "reasoning": "Outbound posture neutral."
+      }
+    }
+  },
+  "verdict": "Skip",
+  "tier": "C",
+  "reason_to_believe": "Disqualifier match — tech_disqualifiers: Zoho present | stage_disqualifiers: Series E in disqualifier list"
+}

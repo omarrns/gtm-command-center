@@ -12,18 +12,18 @@ import {
 } from "../../interview-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
 import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
-import type { IcpEdits } from "@/lib/onboarding/icp-schemas";
+import { icpEditsSchema, type IcpEdits } from "@/lib/onboarding/icp-schemas";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 import { detectIcpDisagreements } from "@/lib/onboarding/orchestrator/icp-disagreements";
 import { DeclaredIcp } from "./icp/declared-icp";
 import { InferredFromExemplars } from "./icp/inferred-from-exemplars";
 import { CommonPatterns } from "./icp/common-patterns";
-import { MeaningfulVariations } from "./icp/meaningful-variations";
 import { Exclusions } from "./icp/exclusions";
 import { Disagreements } from "./icp/disagreements";
 import { ScoringPreview } from "./icp/scoring-preview";
 import { PerExemplarBreakdown } from "./icp/per-exemplar-breakdown";
 import { ExemplarScarcityBanner } from "./icp/exemplar-scarcity-banner";
+import { ProofPointsCalibration } from "./icp/proof-points-calibration";
 
 // SPEC-3 Phase 5.a: ICP review UI. Replaces the Phase 1.e stub. Eight
 // synthesis + comparison sections, each in its own file under
@@ -37,19 +37,34 @@ import { ExemplarScarcityBanner } from "./icp/exemplar-scarcity-banner";
 // <IcpDashboard> there).
 
 const EMPTY_EDITS: IcpEdits = {
-  product: { category: "", core_jtbd: "", wedge: "" },
+  product: { category: "", core_jtbd: "", wedge: "", delivery_model: "" },
   icp: {
-    buyer: { economic_buyer: "", champion: "", end_user: "" },
+    buyer: { economic_buyer: "", champion: "", end_user: "", deal_blocker: "" },
     firmographics: {
       industries: [],
-      employee_range_min: 0,
-      employee_range_max: 10000,
+      business_model: "",
+      employee_range: { min: 0, max: 10000 },
       stages: [],
       geographies: [],
     },
-    technographics: { required_tools: [], excluded_tools: [] },
-    signals: { hiring_roles: [], jtbd_evidence: [], trigger_events: [] },
-    disqualifiers: [],
+    technographics: {
+      required_tools: [],
+      excluded_tools: [],
+      tech_maturity: "",
+      data_infrastructure: "",
+    },
+    signals: {
+      hiring_roles: [],
+      jtbd_evidence: [],
+      trigger_events: [],
+      pain_language: [],
+    },
+    disqualifiers: {
+      tech_disqualifiers: [],
+      size_disqualifiers: "",
+      stage_disqualifiers: [],
+      behavioral_disqualifiers: [],
+    },
   },
   proof_points: {
     existing_customers: [],
@@ -85,7 +100,10 @@ export function ReviewIcp({
     (interview.orchestrator_state as OrchestratorState | null) ?? null;
   const positiveExemplarCount = countSucceededPositives(orchestratorState);
 
-  const initialEdits = (interview.extracted as IcpEdits | null) ?? EMPTY_EDITS;
+  const parsedInitialEdits = icpEditsSchema.safeParse(interview.extracted);
+  const initialEdits = parsedInitialEdits.success
+    ? parsedInitialEdits.data
+    : EMPTY_EDITS;
   const [edits, setEdits] = useState<IcpEdits>(initialEdits);
 
   const disagreements = useMemo(
@@ -146,6 +164,7 @@ export function ReviewIcp({
         onBuyerChange={(buyer) =>
           setEdits({ ...edits, icp: { ...edits.icp, buyer } })
         }
+        evidence={edits.evidence}
       />
 
       <InferredFromExemplars
@@ -161,11 +180,8 @@ export function ReviewIcp({
         onSignalsChange={(signals) =>
           setEdits({ ...edits, icp: { ...edits.icp, signals } })
         }
-        proofPoints={edits.proof_points}
-        onProofPointsChange={(proof_points) =>
-          setEdits({ ...edits, proof_points })
-        }
         positiveExemplarCount={positiveExemplarCount}
+        evidence={edits.evidence}
       />
 
       {positiveExemplarCount >= 3 && (
@@ -175,19 +191,22 @@ export function ReviewIcp({
         />
       )}
 
-      <MeaningfulVariations
-        orchestratorState={orchestratorState}
-        positiveExemplarCount={positiveExemplarCount}
-      />
-
       <Exclusions
         disqualifiers={edits.icp.disqualifiers}
         onDisqualifiersChange={(disqualifiers) =>
           setEdits({ ...edits, icp: { ...edits.icp, disqualifiers } })
         }
+        evidence={edits.evidence}
       />
 
       <Disagreements disagreements={disagreements} />
+
+      <ProofPointsCalibration
+        proofPoints={edits.proof_points}
+        onProofPointsChange={(proof_points) =>
+          setEdits({ ...edits, proof_points })
+        }
+      />
 
       <ScoringPreview edits={edits} />
 

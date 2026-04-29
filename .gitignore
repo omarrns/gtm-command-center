@@ -22,6 +22,20 @@ supabase/db.sqlite3
 
 # claude-code worktrees
 .claude/worktrees/
+.claude/plans/
+.claude/settings.local.json
+
+# editor scratch
+.cursor/
+
+# build caches
+.swc/
+
+# scratch outputs
+output/
+audits/
+docs/
+scripts/
 
 # misc
 .DS_Store

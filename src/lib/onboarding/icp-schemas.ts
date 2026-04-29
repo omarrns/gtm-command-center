@@ -6,6 +6,22 @@
 // the server-only template module.
 
 import { z } from "zod";
+import {
+  ICP_DIMENSIONS,
+  coerceIcpRubric,
+  type BuyerIcpRubric,
+  type DisqualifiersIcpRubric,
+  type EvidenceSource,
+  type EmployeeRange,
+  type FirmographicsIcpRubric,
+  type IcpEvidence,
+  type IcpRubric,
+  type ProductIcpRubric,
+  type ProofPointsIcpRubric,
+  type SignalsIcpRubric,
+  type SubDimensionEvidence,
+  type TechnographicsIcpRubric,
+} from "@/lib/onboarding/icp-dimensions";
 
 // Per-section sub-schemas. Exported individually so the adapter in
 // orchestrator/to-confirm-edits.ts can safeParse each orchestrator
@@ -20,105 +36,210 @@ import { z } from "zod";
 // discovery step from TheirStack job metadata. The naming looks similar
 // because they're related concepts at different layers of the stack.
 export const buyerSchema = z.object({
-  economic_buyer: z.string().default(""),
-  champion: z.string().default(""),
-  end_user: z.string().default(""),
-});
+  economic_buyer: z.string(),
+  champion: z.string(),
+  end_user: z.string(),
+  deal_blocker: z.string(),
+}) satisfies z.ZodType<BuyerIcpRubric>;
 
-export const firmographicsSchema = z.object({
-  industries: z.array(z.string()).default([]),
-  employee_range_min: z.number().default(0),
-  employee_range_max: z.number().default(10000),
-  stages: z.array(z.string()).default([]),
-  geographies: z.array(z.string()).default([]),
-});
+const employeeRangeSchema = z.object({
+  min: z.number(),
+  max: z.number().nullable(),
+}) satisfies z.ZodType<EmployeeRange>;
+
+export const firmographicsSchema = z.preprocess(
+  (input) => coerceIcpRubric({ firmographics: input }).firmographics,
+  z.object({
+    industries: z.array(z.string()),
+    business_model: z.string(),
+    employee_range: employeeRangeSchema,
+    stages: z.array(z.string()),
+    geographies: z.array(z.string()),
+  }) satisfies z.ZodType<FirmographicsIcpRubric>,
+);
 
 export const technographicsSchema = z.object({
-  required_tools: z.array(z.string()).default([]),
-  excluded_tools: z.array(z.string()).default([]),
-});
+  required_tools: z.array(z.string()),
+  excluded_tools: z.array(z.string()),
+  tech_maturity: z.string(),
+  data_infrastructure: z.string(),
+}) satisfies z.ZodType<TechnographicsIcpRubric>;
 
 export const signalsSchema = z.object({
-  hiring_roles: z.array(z.string()).default([]),
-  jtbd_evidence: z.array(z.string()).default([]),
-  trigger_events: z.array(z.string()).default([]),
-});
+  hiring_roles: z.array(z.string()),
+  jtbd_evidence: z.array(z.string()),
+  trigger_events: z.array(z.string()),
+  pain_language: z.array(z.string()),
+}) satisfies z.ZodType<SignalsIcpRubric>;
 
 export const productSchema = z.object({
-  category: z.string().default(""),
-  core_jtbd: z.string().default(""),
-  wedge: z.string().default(""),
-});
+  category: z.string(),
+  core_jtbd: z.string(),
+  wedge: z.string(),
+  delivery_model: z.string(),
+}) satisfies z.ZodType<ProductIcpRubric>;
 
 export const proofPointsSchema = z.object({
-  existing_customers: z.array(z.string()).default([]),
-  won_deals: z.array(z.string()).default([]),
-  lost_deals_reasons: z.array(z.string()).default([]),
-});
+  existing_customers: z.array(z.string()),
+  won_deals: z.array(z.string()),
+  lost_deals_reasons: z.array(z.string()),
+}) satisfies z.ZodType<ProofPointsIcpRubric>;
 
-export const icpExtractionSchema = z.object({
+const disqualifiersRubricSchema = z.object({
+  tech_disqualifiers: z.array(z.string()),
+  size_disqualifiers: z.string(),
+  stage_disqualifiers: z.array(z.string()),
+  behavioral_disqualifiers: z.array(z.string()),
+}) satisfies z.ZodType<DisqualifiersIcpRubric>;
+
+const proofPointsRubricSchema = z.object({
+  existing_customers: z.array(z.string()),
+  won_deals: z.array(z.string()),
+  lost_deals_reasons: z.array(z.string()),
+}) satisfies z.ZodType<ProofPointsIcpRubric>;
+
+export interface IcpExtraction {
+  product: ProductIcpRubric;
+  icp: {
+    buyer: BuyerIcpRubric;
+    firmographics: FirmographicsIcpRubric;
+    technographics: TechnographicsIcpRubric;
+    signals: SignalsIcpRubric;
+    disqualifiers: DisqualifiersIcpRubric;
+  };
+  proof_points: ProofPointsIcpRubric;
+  evidence?: IcpEvidence;
+}
+
+export type IcpEdits = IcpExtraction;
+
+function toCanonicalIcpExtraction(input: unknown): IcpExtraction {
+  const rubric = coerceIcpRubric(input);
+  return {
+    product: rubric.product,
+    icp: {
+      buyer: rubric.buyer,
+      firmographics: rubric.firmographics,
+      technographics: rubric.technographics,
+      signals: rubric.signals,
+      disqualifiers: rubric.disqualifiers,
+    },
+    proof_points: rubric.proof_points,
+    evidence: rubric.evidence,
+  };
+}
+
+const canonicalIcpExtractionSchema = z.object({
   product: productSchema,
   icp: z.object({
     buyer: buyerSchema,
     firmographics: firmographicsSchema,
     technographics: technographicsSchema,
     signals: signalsSchema,
-    disqualifiers: z.array(z.string()).default([]),
+    disqualifiers: disqualifiersRubricSchema,
   }),
   proof_points: proofPointsSchema,
-});
+  evidence: z.lazy(() => icpEvidenceSchema).optional(),
+}) as unknown as z.ZodType<IcpExtraction>;
 
-export type IcpExtraction = z.infer<typeof icpExtractionSchema>;
+export const icpExtractionSchema = z.preprocess(
+  toCanonicalIcpExtraction,
+  canonicalIcpExtractionSchema,
+) as z.ZodType<IcpExtraction>;
 
 // Edits mirror extraction — reviewer can tune any leaf on the review UI.
 // Required (no defaults) so the review screen's form always round-trips a
 // complete rubric; the orchestrator + extraction prefill defaults.
-export const icpEditsSchema = z.object({
+export const icpEditsSchema = z.preprocess(
+  toCanonicalIcpExtraction,
+  canonicalIcpExtractionSchema,
+) as z.ZodType<IcpEdits>;
+
+const subDimensionEvidenceSchema = z.object({
+  strength: z.enum([
+    "direct_user_provided",
+    "inferred_from_customer_examples",
+    "inferred_from_public_data",
+    "weak_or_unknown",
+  ]),
+  proofPoints: z.array(z.string()),
+  sources: z.array(
+    z.object({
+      type: z.enum(["artifact", "url", "user_answer", "public_research"]),
+      label: z.string(),
+      quote: z.string().optional(),
+    }) satisfies z.ZodType<EvidenceSource>,
+  ),
+  notes: z.string(),
+}) satisfies z.ZodType<SubDimensionEvidence>;
+
+const icpEvidenceSchema = z.object(
+  Object.fromEntries(
+    ICP_DIMENSIONS.map((dimension) => [
+      dimension.key,
+      z.object(
+        Object.fromEntries(
+          dimension.subDimensions.map((subDimension) => [
+            subDimension,
+            subDimensionEvidenceSchema,
+          ]),
+        ),
+      ),
+    ]),
+  ),
+) as unknown as z.ZodType<IcpEvidence>;
+
+const canonicalIcpRubricSchema = z.object({
   product: z.object({
     category: z.string(),
     core_jtbd: z.string(),
     wedge: z.string(),
+    delivery_model: z.string(),
   }),
-  icp: z.object({
-    buyer: z.object({
-      economic_buyer: z.string(),
-      champion: z.string(),
-      end_user: z.string(),
-    }),
-    firmographics: z.object({
-      industries: z.array(z.string()),
-      employee_range_min: z.number(),
-      employee_range_max: z.number(),
-      stages: z.array(z.string()),
-      geographies: z.array(z.string()),
-    }),
-    technographics: z.object({
-      required_tools: z.array(z.string()),
-      excluded_tools: z.array(z.string()),
-    }),
-    signals: z.object({
-      hiring_roles: z.array(z.string()),
-      jtbd_evidence: z.array(z.string()),
-      trigger_events: z.array(z.string()),
-    }),
-    disqualifiers: z.array(z.string()),
+  buyer: z.object({
+    economic_buyer: z.string(),
+    champion: z.string(),
+    end_user: z.string(),
+    deal_blocker: z.string(),
   }),
-  proof_points: z.object({
-    existing_customers: z.array(z.string()),
-    won_deals: z.array(z.string()),
-    lost_deals_reasons: z.array(z.string()),
+  firmographics: z.object({
+    industries: z.array(z.string()),
+    business_model: z.string(),
+    employee_range: employeeRangeSchema,
+    stages: z.array(z.string()),
+    geographies: z.array(z.string()),
   }),
+  technographics: z.object({
+    required_tools: z.array(z.string()),
+    excluded_tools: z.array(z.string()),
+    tech_maturity: z.string(),
+    data_infrastructure: z.string(),
+  }),
+  signals: z.object({
+    hiring_roles: z.array(z.string()),
+    jtbd_evidence: z.array(z.string()),
+    trigger_events: z.array(z.string()),
+    pain_language: z.array(z.string()),
+  }),
+  disqualifiers: disqualifiersRubricSchema,
+  proof_points: proofPointsRubricSchema,
+  evidence: icpEvidenceSchema,
 });
 
-export type IcpEdits = z.infer<typeof icpEditsSchema>;
+// Runtime JSONB compatibility boundary. Old saved rubrics are normalized
+// before validation, so existing readers can keep using this stable export.
+export const icpRubricSchema = z.preprocess(
+  coerceIcpRubric,
+  canonicalIcpRubricSchema,
+) as z.ZodType<IcpRubric>;
 
-// rubricSchema mirrors the dimension keys the orchestrator updates.
-export const icpRubricSchema = z.object({
-  product: productSchema.optional(),
-  buyer: buyerSchema.optional(),
-  firmographics: firmographicsSchema.optional(),
-  technographics: technographicsSchema.optional(),
-  signals: signalsSchema.optional(),
-  disqualifiers: z.array(z.string()).optional(),
-  proof_points: proofPointsSchema.optional(),
-});
+export type { IcpRubric };
+export { coerceIcpRubric };
+
+export function parseIcpRubric(input: unknown): IcpRubric {
+  return icpRubricSchema.parse(input);
+}
+
+export function safeParseIcpRubric(input: unknown) {
+  return icpRubricSchema.safeParse(input);
+}

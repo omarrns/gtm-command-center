@@ -1,0 +1,51 @@
+{
+  "company_name": "Bad Enum Inc",
+  "firmo_fit": { "score": 4, "reasoning": "ok" },
+  "techno_fit": { "score": 4, "reasoning": "ok" },
+  "hiring_signal_fit": { "score": 4, "reasoning": "ok" },
+  "buyer_fit": { "score": 4, "reasoning": "ok" },
+  "proof_point_relevance": { "score": 4, "reasoning": "ok" },
+  "disqualifier_risk": { "score": 5, "reasoning": "ok" },
+  "breakdown": {
+    "product": {
+      "category": { "score": 4, "reasoning": "ok" },
+      "core_jtbd": { "score": 4, "reasoning": "ok" },
+      "wedge": { "score": 4, "reasoning": "ok" },
+      "delivery_model": { "score": 4, "reasoning": "ok" }
+    },
+    "buyer": {
+      "economic_buyer": { "score": 4, "reasoning": "ok" },
+      "champion": { "score": 4, "reasoning": "ok" },
+      "end_user": { "score": 4, "reasoning": "ok" },
+      "deal_blocker": { "score": 4, "reasoning": "ok" }
+    },
+    "firmographics": {
+      "industries": { "score": 4, "reasoning": "ok" },
+      "business_model": { "score": 4, "reasoning": "ok" },
+      "employee_range": { "score": 4, "reasoning": "ok" },
+      "stages": { "score": 4, "reasoning": "ok" },
+      "geographies": { "score": 4, "reasoning": "ok" }
+    },
+    "technographics": {
+      "required_tools": { "score": 4, "reasoning": "ok" },
+      "excluded_tools": { "score": 5, "reasoning": "ok" },
+      "tech_maturity": { "score": 4, "reasoning": "ok" },
+      "data_infrastructure": { "score": 3, "reasoning": "ok" }
+    },
+    "signals": {
+      "hiring_roles": { "score": 4, "reasoning": "ok" },
+      "jtbd_evidence": { "score": 4, "reasoning": "ok" },
+      "trigger_events": { "score": 4, "reasoning": "ok" },
+      "pain_language": { "score": 3, "reasoning": "ok" }
+    },
+    "disqualifiers": {
+      "tech_disqualifiers": { "score": 5, "reasoning": "ok" },
+      "size_disqualifiers": { "score": 5, "reasoning": "ok" },
+      "stage_disqualifiers": { "score": 5, "reasoning": "ok" },
+      "behavioral_disqualifiers": { "score": 5, "reasoning": "ok" }
+    }
+  },
+  "verdict": "Worth Exploring",
+  "tier": "B",
+  "reason_to_believe": "Capitalized 'Worth Exploring' should fail the enum check."
+}

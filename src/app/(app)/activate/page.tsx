@@ -4,9 +4,16 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { UserType } from "@/lib/supabase/types";
 import { ActivationClient } from "./_components/activation-client";
 
-export default async function ActivatePage() {
+interface ActivatePageProps {
+  searchParams?: Promise<{ limit?: string; source?: string }>;
+}
+
+export default async function ActivatePage({ searchParams }: ActivatePageProps) {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();
+  const params = await searchParams;
+  const activationSource = params?.source === "existing" ? "existing" : "live";
+  const activationLimit = params?.limit ?? null;
 
   const [{ data: config }, { data: profile }] = await Promise.all([
     svc
@@ -22,7 +29,7 @@ export default async function ActivatePage() {
   ]);
 
   // Already activated — go to Today
-  if (config?.activation_completed_at) {
+  if (config?.activation_completed_at && activationSource !== "existing") {
     redirect("/");
   }
 
@@ -46,6 +53,8 @@ export default async function ActivatePage() {
       gmailConnected={!!gmailCreds}
       scoreThreshold={scoreThreshold}
       userType={userType}
+      activationSource={activationSource}
+      activationLimit={activationLimit}
     />
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ExternalLink, Play, Settings, Mail } from "lucide-react";
+import { Loader2, ExternalLink, Play, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,37 +21,32 @@ import type {
 import type { UserType } from "@/lib/supabase/types";
 import { OpportunityCard } from "../../_components/opportunity-card";
 import { AccountResultCard } from "./account-result-card";
+import {
+  ActivationEmptyState,
+  ActivationScoringFailedState,
+} from "./activate-message-states";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const REASSURANCE_MESSAGES = [
-  "Searching job boards...",
-  "Found some matches, scoring against your profile...",
-  "Running full analysis on each role — this takes a minute or two...",
-  "Still scoring — each role gets a detailed fit analysis...",
-  "Almost done — comparing your best matches...",
-];
-
+const REASSURANCE_MESSAGES = ["Searching job boards...", "Found some matches, scoring against your profile...", "Running full analysis on each role — this takes a minute or two...", "Still scoring — each role gets a detailed fit analysis...", "Almost done — comparing your best matches..."];
 const REASSURANCE_INTERVALS = [0, 8_000, 25_000, 60_000, 90_000];
+const LONG_RUNNING_BANNER_MS = 180_000;
+const FETCH_TIMEOUT_MS = 240_000;
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-type Phase = "searching" | "results" | "empty" | "error";
+type Phase = "searching" | "results" | "empty" | "error" | "scoring-failed";
 
 interface ActivationClientProps {
   gmailConnected: boolean;
   scoreThreshold: number;
   userType: UserType;
+  activationSource?: "live" | "existing";
+  activationLimit?: string | null;
 }
 
 export function ActivationClient({
   gmailConnected,
   scoreThreshold,
   userType,
+  activationSource = "live",
+  activationLimit = null,
 }: ActivationClientProps) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("searching");
@@ -63,36 +58,56 @@ export function ActivationClient({
     AccountActivationResult[]
   >([]);
   const [messageIndex, setMessageIndex] = useState(0);
+  const [longRunning, setLongRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fetchedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Timed reassurance messages
   useEffect(() => {
     if (phase !== "searching") return;
 
-    const timers = REASSURANCE_INTERVALS.slice(1).map((delay, i) =>
+    const reassurance = REASSURANCE_INTERVALS.slice(1).map((delay, i) =>
       setTimeout(() => setMessageIndex(i + 1), delay),
     );
+    const longTimer = setTimeout(
+      () => setLongRunning(true),
+      LONG_RUNNING_BANNER_MS,
+    );
 
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      reassurance.forEach(clearTimeout);
+      clearTimeout(longTimer);
+    };
   }, [phase]);
+
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const runSearch = useCallback(async () => {
     setPhase("searching");
     setMessageIndex(0);
+    setLongRunning(false);
     setError(null);
     setData(null);
     setResults([]);
     setAccountData(null);
     setAccountResults([]);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
     const endpoint =
       userType === "gtm"
-        ? "/api/activation/accounts"
+        ? buildAccountActivationEndpoint(activationSource, activationLimit)
         : "/api/activation/search";
     try {
-      const res = await fetch(endpoint, { method: "POST" });
+      const res = await fetch(endpoint, {
+        method: "POST",
+        signal: controller.signal,
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(
@@ -105,7 +120,11 @@ export function ActivationClient({
         const result: AccountActivationSearchResult = await res.json();
         setAccountData(result);
         setAccountResults(result.results);
-        setPhase(result.results.length > 0 ? "results" : "empty");
+        if (result.results.length === 0 && result.stats.errors > 0) {
+          setPhase("scoring-failed");
+        } else {
+          setPhase(result.results.length > 0 ? "results" : "empty");
+        }
       } else {
         const result: ActivationSearchResult = await res.json();
         setData(result);
@@ -113,19 +132,24 @@ export function ActivationClient({
         setPhase(result.results.length > 0 ? "results" : "empty");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Activation search failed");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Activation timed out — try narrowing the rubric and retry.");
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Activation search failed",
+        );
+      }
       setPhase("error");
+    } finally {
+      clearTimeout(timeoutId);
     }
-  }, [userType]);
+  }, [userType, activationSource, activationLimit]);
 
-  // Fire activation search on mount
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     runSearch();
   }, [runSearch]);
-
-  // ── Actions ──
 
   function handleDeeperSearch() {
     startTransition(async () => {
@@ -173,12 +197,10 @@ export function ActivationClient({
     runSearch();
   }
 
-  // ── Searching state ──
   if (phase === "searching") {
     const searchingNoun = userType === "gtm" ? "accounts" : "roles";
     return (
       <div className="mx-auto max-w-2xl py-6 space-y-8">
-        {/* Header mirrors the results phase so the transition is structural. */}
         <div>
           <h1 className="text-xl font-bold tracking-tight">
             Finding your top {searchingNoun}…
@@ -195,7 +217,24 @@ export function ActivationClient({
           className="py-2"
         />
 
-        {/* Structural scaffold for the cards that will land here. */}
+        {longRunning ? (
+          <Card className="gap-3 p-4">
+            <p className="text-sm font-medium">
+              This is taking longer than usual.
+            </p>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              The scoring sweep runs each candidate sequentially against your
+              rubric. If you&apos;d rather not wait, cancel and retry — or come
+              back in a minute.
+            </p>
+            <div>
+              <Button variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+            </div>
+          </Card>
+        ) : null}
+
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
             <ResultCardSkeleton key={i} />
@@ -205,7 +244,6 @@ export function ActivationClient({
     );
   }
 
-  // ── Error state ──
   if (phase === "error") {
     return (
       <div className="mx-auto max-w-lg py-16 text-center space-y-4">
@@ -227,85 +265,31 @@ export function ActivationClient({
     );
   }
 
-  // ── Empty state ──
   if (phase === "empty") {
-    const emptyCopy =
-      userType === "gtm"
-        ? {
-            title: "No accounts hiring a rubric role in the last 30 days",
-            subtitle:
-              "TheirStack didn't find firmographic matches actively posting jobs. Broaden the rubric or wait for the weekly dormant sweep to surface ICP-fit accounts that aren't hiring yet.",
-            bullets: [
-              "Broadening firmographics in Settings (industry, employee range, stage)",
-              "Adding more hiring roles to the rubric signals",
-              "Waiting for the weekly dormant sweep (runs Mondays at 12:00 UTC)",
-            ],
-          }
-        : {
-            title: "No matches in the last 10 days",
-            subtitle:
-              "We searched for your configured queries but didn't find matching roles posted recently.",
-            bullets: [
-              "Broadening your search queries in Settings",
-              "Adding more locations",
-              "Running a deeper search (checks the full month)",
-            ],
-          };
-
     return (
-      <div className="mx-auto max-w-lg py-16 space-y-5">
-        <div className="text-center space-y-2">
-          <h2 className="text-lg font-semibold">{emptyCopy.title}</h2>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            {emptyCopy.subtitle}
-          </p>
-        </div>
-        <Card className="gap-1.5 p-4">
-          <p className="text-sm font-medium">Try:</p>
-          <ul className="text-sm text-[var(--color-text-muted)] list-disc pl-5 space-y-1">
-            {emptyCopy.bullets.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </Card>
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={handleAdjustSettings}
-            disabled={isPending}
-          >
-            <Settings size={14} />
-            Adjust Settings
-          </Button>
-          <div className="flex items-center gap-2">
-            {userType !== "gtm" && (
-              <Button
-                variant="outline"
-                onClick={handleDeeperSearch}
-                disabled={isPending}
-              >
-                {isPending ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Play size={14} />
-                )}
-                Run Deeper Search
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              onClick={handleGoToDashboard}
-              disabled={isPending}
-            >
-              Go to Dashboard
-            </Button>
-          </div>
-        </div>
-      </div>
+      <ActivationEmptyState
+        userType={userType}
+        isPending={isPending}
+        onAdjustSettings={handleAdjustSettings}
+        onDeeperSearch={handleDeeperSearch}
+        onGoToDashboard={handleGoToDashboard}
+      />
     );
   }
 
-  // ── Results state ──
+  if (phase === "scoring-failed") {
+    return (
+      <ActivationScoringFailedState
+        discovered={accountData?.stats.discovered ?? 0}
+        errors={accountData?.stats.errors ?? 0}
+        firstError={accountData?.stats.firstError ?? null}
+        isPending={isPending}
+        onRetry={handleRetry}
+        onGoToDashboard={handleGoToDashboard}
+      />
+    );
+  }
+
   const isGtm = userType === "gtm";
   const headerCounts = isGtm
     ? {
@@ -321,7 +305,6 @@ export function ActivationClient({
 
   return (
     <div className="mx-auto max-w-2xl py-6 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold tracking-tight">Your top matches</h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
@@ -330,7 +313,6 @@ export function ActivationClient({
         </p>
       </div>
 
-      {/* Result cards */}
       <div className="space-y-2">
         {isGtm
           ? accountResults.map((r) => (
@@ -351,7 +333,6 @@ export function ActivationClient({
             ))}
       </div>
 
-      {/* Gmail prompt */}
       {!gmailConnected && (
         <Card className="gap-3 p-5">
           <div className="flex items-center gap-2">
@@ -370,7 +351,6 @@ export function ActivationClient({
               <ExternalLink size={13} />
               Connect Gmail
             </a>
-            {/* "Skip for now" is implicit — they can just proceed to dashboard */}
           </div>
           <p className="text-xs text-[var(--color-text-subtle)]">
             Gmail is optional. The pipeline can discover, score, and draft
@@ -379,7 +359,6 @@ export function ActivationClient({
         </Card>
       )}
 
-      {/* Bottom actions */}
       <div className="flex items-center justify-between">
         {!isGtm && (
           <Button
@@ -401,4 +380,15 @@ export function ActivationClient({
       </div>
     </div>
   );
+}
+
+function buildAccountActivationEndpoint(
+  source: "live" | "existing",
+  limit: string | null,
+): string {
+  const params = new URLSearchParams();
+  if (source === "existing") params.set("source", "existing");
+  if (source === "existing" && limit) params.set("limit", limit);
+  const query = params.toString();
+  return `/api/activation/accounts${query ? `?${query}` : ""}`;
 }

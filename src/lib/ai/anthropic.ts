@@ -13,7 +13,21 @@ import { captureAiCall, type AiCallScope } from "@/lib/ai/calls";
  * (best-effort observability — never breaks the actual call).
  */
 
-const DEFAULT_MODEL = "claude-opus-4-6";
+/**
+ * Central model-id registry. When a Claude version is deprecated, change the
+ * literal here and every call site updates. Tier names describe the role,
+ * not the marketing name.
+ */
+export const MODELS = {
+  /** Reasoning-tier — deep scoring, orchestration, extraction. */
+  opus: "claude-opus-4-6",
+  /** Pipeline-tier — high-volume batch work, chat, fast scoring. */
+  sonnet: "claude-sonnet-4-6",
+} as const;
+
+export type ModelId = (typeof MODELS)[keyof typeof MODELS];
+
+const DEFAULT_MODEL: ModelId = MODELS.opus;
 
 function model(name: string = DEFAULT_MODEL) {
   return anthropic(name);

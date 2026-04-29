@@ -1,10 +1,18 @@
 /**
- * ICP account scorer — parallel Exa enrichment + generateObject.
+ * ICP account scorer — Exa enrichment + generateObject (single Sonnet
+ * call) returning broad components + per-sub-dimension breakdown.
  *
- * Per-account analog of `scoreOpportunity` in scoring.ts, but scoped to
- * the GTM persona. The rubric drives the scoring anchors; Exa provides
- * research evidence (funding news, competitive context) the scorer needs
- * to judge proof-point relevance.
+ * v1 keeps a single LLM call: the prompt asks for the existing six
+ * broad fields (firmo_fit, techno_fit, ...) for backward-compatible
+ * persistence + UI, plus a closed nested breakdown keyed by
+ * canonical `ICP_DIMENSIONS`. Two passes were considered and deferred
+ * (see plan §5 "scoring strategy") — split only if structured-output
+ * cost or reliability becomes an issue.
+ *
+ * Disqualifier matches MUST force verdict='Skip' / tier='C' regardless
+ * of model output. We trust the model to score sub-dimensions but not
+ * to honor the override consistently, so the post-processing
+ * `applyDisqualifierOverride` is the safety net.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -13,60 +21,96 @@ import { exaFindCompany, formatExaResults } from "@/lib/ai/exa";
 import { loadMemoryContext } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import { runGenerateObject, type AiCallScope } from "@/lib/ai/calls";
+import { MODELS } from "@/lib/ai/anthropic";
+import { createLogger } from "@/lib/logger";
 import {
   buildIcpAccountFitSystem,
   buildIcpAccountFitPrompt,
   type AccountFirmographics,
 } from "@/lib/skills/prompts/icp-account-fit";
-import type { IcpRubric } from "@/lib/pipeline/icp-to-theirstack-filters";
+import {
+  buildAccountScoringBreakdownSchema,
+  computeAccountScoreFromBreakdown,
+  detectDisqualifierOverride,
+  type AccountScoringBreakdown,
+  type DisqualifierOverride,
+  type SubDimensionWeightMap,
+} from "@/lib/onboarding/icp-dimensions";
+import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
+import { coerceIcpRubric } from "@/lib/onboarding/icp-schemas";
 
-const accountDimensionSchema = z.object({
-  score: z.number().min(1).max(5),
+// Loosened from int().min(1).max(5) for the same reason as
+// subDimensionScoringSchema in icp-scoring.ts — Sonnet's structured
+// output occasionally emits decimals or out-of-range integers and a
+// hard schema reject on a recoverable value fails the whole 31-field
+// object. The 1-5 anchor is enforced via the prompt; consumers that
+// care (computeAccountScoreFromBreakdown) round + clamp at read time.
+const broadComponentSchema = z.object({
+  score: z.number(),
   reasoning: z.string(),
 });
 
+const breakdownSchema = buildAccountScoringBreakdownSchema();
+
+export interface IcpAccountBroadComponent {
+  score: number;
+  reasoning: string;
+}
+
+export interface IcpAccountAnalysis {
+  company_name: string;
+  firmo_fit: IcpAccountBroadComponent;
+  techno_fit: IcpAccountBroadComponent;
+  hiring_signal_fit: IcpAccountBroadComponent;
+  buyer_fit: IcpAccountBroadComponent;
+  proof_point_relevance: IcpAccountBroadComponent;
+  disqualifier_risk: IcpAccountBroadComponent;
+  breakdown: AccountScoringBreakdown;
+  verdict: "Pursue" | "Worth exploring" | "Skip";
+  tier: "A" | "B" | "C";
+  reason_to_believe: string;
+}
+
 export const icpAccountAnalysisSchema = z.object({
   company_name: z.string(),
-  firmo_fit: accountDimensionSchema,
-  techno_fit: accountDimensionSchema,
-  hiring_signal_fit: accountDimensionSchema,
-  buyer_fit: accountDimensionSchema,
-  proof_point_relevance: accountDimensionSchema,
-  disqualifier_risk: accountDimensionSchema,
+  firmo_fit: broadComponentSchema,
+  techno_fit: broadComponentSchema,
+  hiring_signal_fit: broadComponentSchema,
+  buyer_fit: broadComponentSchema,
+  proof_point_relevance: broadComponentSchema,
+  disqualifier_risk: broadComponentSchema,
+  breakdown: breakdownSchema,
   verdict: z.enum(["Pursue", "Worth exploring", "Skip"]),
   tier: z.enum(["A", "B", "C"]),
   reason_to_believe: z.string(),
-});
-
-export type IcpAccountAnalysis = z.infer<typeof icpAccountAnalysisSchema>;
+}) satisfies z.ZodType<IcpAccountAnalysis>;
 
 export interface AccountScoringResult {
   normalizedScore: number;
   analysisResult: IcpAccountAnalysis;
+  disqualifierOverride: DisqualifierOverride;
 }
 
-const DIMENSIONS = [
+const BROAD_COMPONENT_KEYS = [
   "firmo_fit",
   "techno_fit",
   "hiring_signal_fit",
   "buyer_fit",
   "proof_point_relevance",
   "disqualifier_risk",
-] as const;
+] as const satisfies readonly (keyof IcpAccountAnalysis)[];
 
 /**
- * Normalise the six 1-5 dimension scores into a 0-100 score. Same scaling
- * as scoreOpportunity's `normalizedScore` so downstream thresholds
- * (watchlist >= 80, activation preview tiering) apply unchanged.
+ * Normalise the breakdown into a 0-100 score. Uniform sub-dim weights
+ * for v1 — same scaling target as the previous broad-six average so
+ * downstream thresholds (watchlist >= 80, score_threshold) stay
+ * comparable in magnitude.
  */
-export function computeAccountScore(analysis: IcpAccountAnalysis): number {
-  const MAX_PER_DIM = 5;
-  let sum = 0;
-  for (const dim of DIMENSIONS) {
-    sum += analysis[dim].score;
-  }
-  const max = DIMENSIONS.length * MAX_PER_DIM;
-  return Math.round((sum / max) * 100);
+export function computeAccountScore(
+  analysis: IcpAccountAnalysis,
+  weights?: SubDimensionWeightMap,
+): number {
+  return computeAccountScoreFromBreakdown(analysis.breakdown, weights);
 }
 
 // Narrower than OpportunityRow — the scorer only needs id + company
@@ -115,6 +159,7 @@ export async function scoreAccountAgainstIcp({
 
   const sender = extractSenderIdentity(memoryCtx, memoryCtx.displayName);
   const firmographics = extractFirmographics(opp);
+  const normalizedRubric = coerceIcpRubric(rubric);
 
   const scope: AiCallScope = {
     userId,
@@ -124,23 +169,88 @@ export async function scoreAccountAgainstIcp({
     callPurpose: "score-account",
   };
 
-  const analysis = await runGenerateObject({
-    model: model ?? "claude-sonnet-4-6",
+  const basePrompt = buildIcpAccountFitPrompt({
+    companyName: opp.company_name,
+    rubric: normalizedRubric,
+    firmographics,
+    research,
+  });
+  const baseArgs = {
+    model: model ?? MODELS.sonnet,
     system: buildIcpAccountFitSystem(sender),
-    prompt: buildIcpAccountFitPrompt({
-      companyName: opp.company_name,
-      rubric,
-      firmographics,
-      research,
-    }),
     schema: icpAccountAnalysisSchema,
-    maxOutputTokens: 4096,
+    // 25 sub-dim breakdown × {score, reasoning} + 6 broad rollups +
+    // verdict/tier/reason ≈ 3K tokens at typical reasoning length. 8192
+    // gives headroom against truncation. Matches `scoring.ts:158`
+    // (job_seeker analysisSchema) — same pattern, same budget.
+    maxOutputTokens: 8192,
+    // Stay on the default `jsonTool` path — Anthropic's strict
+    // `outputFormat` grammar compiler rejects icpAccountAnalysisSchema
+    // with "compiled grammar is too large" because the closed shape has
+    // 31 required nested {score, reasoning} pairs. `jsonTool` is more
+    // permissive and successfully accepts the same schema.
     scope,
+  };
+
+  // Two-attempt model boundary. The retry is local to this scorer so
+  // other generateObject call sites keep their single-shot semantics.
+  //   1. First attempt with the standard prompt.
+  //   2. One-shot retry with an explicit reminder about emitting every
+  //      sub-field (added in d54e1a0 to absorb non-canonical model
+  //      output from the closed schema).
+  // If both attempts fail, throw. Batch callers isolate per-row errors;
+  // activation renders the dedicated scoring-failed state instead of
+  // synthesizing fake Skip/C scores.
+  const log = createLogger({ runId, userId, scope: "scoring-account" });
+  const analysis = await runGenerateObject({
+    ...baseArgs,
+    prompt: basePrompt,
+  }).catch(async (err: unknown) => {
+    log.warn("first scoring attempt failed; retrying with strict reminder", {
+      oppId: opp.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return runGenerateObject({
+      ...baseArgs,
+      prompt: `${basePrompt}\n\nReminder: every sub-field listed in the breakdown must appear with both \`score\` (integer 1-5) and \`reasoning\` (string). When you have no signal for a sub-field, emit score 3 with reasoning "(no evidence)" — do not omit the key.`,
+    });
   });
 
+  const override = detectDisqualifierOverride(analysis.breakdown);
+  const adjusted = applyDisqualifierOverride(analysis, override);
+
   return {
-    normalizedScore: computeAccountScore(analysis),
-    analysisResult: analysis,
+    normalizedScore: computeAccountScore(adjusted),
+    analysisResult: adjusted,
+    disqualifierOverride: override,
+  };
+}
+
+/**
+ * Force verdict='Skip' / tier='C' on a clear disqualifier hit, and
+ * clamp the broad `disqualifier_risk` rollup down to 1 so the broad
+ * scorecard agrees with the breakdown. Reason-to-believe is rewritten
+ * to surface the trigger so the AE knows why the row was killed.
+ */
+function applyDisqualifierOverride(
+  analysis: IcpAccountAnalysis,
+  override: DisqualifierOverride,
+): IcpAccountAnalysis {
+  if (!override.triggered) return analysis;
+  const triggerSummary = override.triggers
+    .map((t) => `${t.subDimension}: ${t.reasoning}`)
+    .join(" | ");
+  return {
+    ...analysis,
+    verdict: "Skip",
+    tier: "C",
+    disqualifier_risk: {
+      score: Math.min(analysis.disqualifier_risk.score, 1),
+      reasoning:
+        analysis.disqualifier_risk.reasoning ||
+        "Disqualifier override engaged.",
+    },
+    reason_to_believe: `Disqualifier match — ${triggerSummary}`.slice(0, 400),
   };
 }
 
@@ -165,3 +275,10 @@ function extractFirmographics(opp: ScoreAccountSubject): AccountFirmographics {
     seniority: typeof p.seniority === "string" ? p.seniority : null,
   };
 }
+
+/**
+ * Re-export for callers (analytics, persistence) that want a stable
+ * list of the broad rollup fields without importing the constants
+ * tuple inline.
+ */
+export const ICP_ACCOUNT_BROAD_COMPONENT_KEYS = BROAD_COMPONENT_KEYS;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MODELS } from "@/lib/ai/anthropic";
 import {
   buildInterviewPrompt,
   interviewTools,
@@ -310,7 +311,7 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
   agenticMode: true,
   dimensions,
   rubricSchema,
-  orchestratorModel: "claude-opus-4-6",
+  orchestratorModel: MODELS.opus,
   orchestratorMaxOutputTokens: 4096,
   orchestratorSystemPrompt: () => ORCHESTRATOR_SYSTEM_PROMPT,
   interviewerSystemPrompt: buildInterviewerSystemPrompt,
@@ -323,7 +324,7 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
   wrapUpThreshold: 10,
   completionMarker: "[INTERVIEW_COMPLETE]",
   completionTopicThreshold: 5,
-  chatModel: "claude-sonnet-4-6",
+  chatModel: MODELS.sonnet,
   chatMaxOutputTokens: 1024,
 
   topics: INTERVIEW_TOPICS,
@@ -339,7 +340,7 @@ export const JOB_SEARCH_TEMPLATE: InterviewTemplate<
 
   extractionSchema: jobSearchExtractionSchema,
   extractionSystemPrompt: EXTRACTION_SYSTEM_PROMPT,
-  extractionModel: "claude-opus-4-6",
+  extractionModel: MODELS.opus,
   extractionMaxOutputTokens: 4096,
 
   insightsSchema,

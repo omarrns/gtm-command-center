@@ -18,11 +18,15 @@ import {
   getOpportunitiesByStage,
 } from "@/lib/pipeline/opportunities";
 import { addToWatchlist } from "@/lib/pipeline/watchlist";
-import { scoreAccountAgainstIcp } from "@/lib/pipeline/scoring-account";
+import {
+  scoreAccountAgainstIcp,
+  type IcpAccountAnalysis,
+} from "@/lib/pipeline/scoring-account";
 import { createLogger } from "@/lib/logger";
+import { MODELS } from "@/lib/ai/anthropic";
 
 const MAX_SCORES_PER_RUN = 10;
-const PIPELINE_MODEL = "claude-sonnet-4-6";
+const PIPELINE_MODEL = MODELS.sonnet;
 
 export interface ScoreOneAccountResult {
   newStage: "scored" | "filtered";
@@ -89,17 +93,7 @@ export async function scoreOneAccount(
     newStage,
     {
       score: scoring.normalizedScore,
-      score_components: {
-        firmo_fit: scoring.analysisResult.firmo_fit.score,
-        techno_fit: scoring.analysisResult.techno_fit.score,
-        hiring_signal_fit: scoring.analysisResult.hiring_signal_fit.score,
-        buyer_fit: scoring.analysisResult.buyer_fit.score,
-        proof_point_relevance:
-          scoring.analysisResult.proof_point_relevance.score,
-        disqualifier_risk: scoring.analysisResult.disqualifier_risk.score,
-        tier: scoring.analysisResult.tier,
-        verdict: scoring.analysisResult.verdict,
-      },
+      score_components: buildScoreComponents(scoring.analysisResult),
       analysis_id: analysis.id,
     },
   );
@@ -115,6 +109,29 @@ export async function scoreOneAccount(
   }
 
   return { newStage, normalizedScore: scoring.normalizedScore };
+}
+
+/**
+ * Persistence shape for `opportunities.score_components`. Keeps the
+ * existing six broad keys + tier + verdict that the /accounts UI
+ * reads, and stuffs the per-sub-dimension breakdown under `breakdown`
+ * for downstream consumers (analytics, future UI). Centralised here so
+ * activation persistence stays in lockstep.
+ */
+export function buildScoreComponents(
+  analysis: IcpAccountAnalysis,
+): Record<string, unknown> {
+  return {
+    firmo_fit: analysis.firmo_fit.score,
+    techno_fit: analysis.techno_fit.score,
+    hiring_signal_fit: analysis.hiring_signal_fit.score,
+    buyer_fit: analysis.buyer_fit.score,
+    proof_point_relevance: analysis.proof_point_relevance.score,
+    disqualifier_risk: analysis.disqualifier_risk.score,
+    tier: analysis.tier,
+    verdict: analysis.verdict,
+    breakdown: analysis.breakdown,
+  };
 }
 
 export async function runScoreAccounts(

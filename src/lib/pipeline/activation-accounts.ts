@@ -26,12 +26,14 @@ import {
   type IcpAccountAnalysis,
   type ScoreAccountSubject,
 } from "@/lib/pipeline/scoring-account";
+import { buildScoreComponents } from "@/lib/pipeline/steps/score-accounts";
 import { createOpportunity, advanceStage } from "@/lib/pipeline/opportunities";
 import { createLogger } from "@/lib/logger";
+import { MODELS } from "@/lib/ai/anthropic";
 
 const MAX_CANDIDATES = 15;
 const MAX_RESULTS = 5;
-const ACTIVATION_MODEL = "claude-sonnet-4-6";
+const ACTIVATION_MODEL = MODELS.sonnet;
 const POSTED_MAX_AGE_DAYS = 30;
 
 export interface AccountActivationResult {
@@ -53,6 +55,9 @@ export interface AccountActivationStats {
   discovered: number;
   scored: number;
   errors: number;
+  // First per-row error message (truncated, mapped through mapAiError) so
+  // the UI can show the user a friendly cause instead of a stuck spinner.
+  firstError: string | null;
   rubricIncomplete: boolean;
 }
 
@@ -78,7 +83,13 @@ export async function runAccountActivationSearch(
     log.info("activation skipped — rubric has no hiring_roles");
     return {
       results: [],
-      stats: { discovered: 0, scored: 0, errors: 0, rubricIncomplete: true },
+      stats: {
+        discovered: 0,
+        scored: 0,
+        errors: 0,
+        firstError: null,
+        rubricIncomplete: true,
+      },
     };
   }
 
@@ -87,6 +98,7 @@ export async function runAccountActivationSearch(
 
   const scored: AccountActivationResult[] = [];
   let errors = 0;
+  let firstError: string | null = null;
 
   // Inline scoring loop. Per-row error isolation mirrors
   // runScoreAccounts' contract — a single bad job doesn't blow the
@@ -97,7 +109,7 @@ export async function runAccountActivationSearch(
     if (!subject) continue;
 
     try {
-      const { normalizedScore, analysisResult } = await scoreAccountAgainstIcp({
+      const scoring = await scoreAccountAgainstIcp({
         opp: subject,
         rubric,
         userId,
@@ -105,6 +117,7 @@ export async function runAccountActivationSearch(
         model: ACTIVATION_MODEL,
         runId,
       });
+      const { normalizedScore, analysisResult } = scoring;
 
       const activationResult: AccountActivationResult = {
         id: subject.id,
@@ -140,6 +153,11 @@ export async function runAccountActivationSearch(
     } catch (err) {
       errors++;
       log.error("activation scoring failed", err, { jobId: job.id });
+      if (firstError === null) {
+        firstError = mapAiError(
+          err instanceof Error ? err.message : String(err),
+        );
+      }
     }
   }
 
@@ -151,9 +169,25 @@ export async function runAccountActivationSearch(
       discovered: jobs.length,
       scored: scored.length,
       errors,
+      firstError,
       rubricIncomplete: false,
     },
   };
+}
+
+// Strip SDK-internal prefixes from raw error messages before exposing to
+// the user. Return one meaningful sentence under 240 chars. No stack
+// traces, no nested prefixes.
+export function mapAiError(raw: string): string {
+  const trimmed = raw.replace(/^AI_[A-Za-z]+Error:\s*/, "").trim();
+  if (
+    trimmed.startsWith("No object generated") ||
+    trimmed.startsWith("Scoring failed") ||
+    trimmed.startsWith("Failed after")
+  ) {
+    return "Scoring response didn't match the expected shape — retry, or narrow the rubric.";
+  }
+  return trimmed.slice(0, 240);
 }
 
 function toScoreSubject(job: TheirStackJob): ScoreAccountSubject | null {
@@ -270,16 +304,7 @@ async function persistActivationResult(
 
   await advanceStage(svc, newOpp.id, userId, "discovered", "scored", {
     score: result.score,
-    score_components: {
-      firmo_fit: result.analysis.firmo_fit.score,
-      techno_fit: result.analysis.techno_fit.score,
-      hiring_signal_fit: result.analysis.hiring_signal_fit.score,
-      buyer_fit: result.analysis.buyer_fit.score,
-      proof_point_relevance: result.analysis.proof_point_relevance.score,
-      disqualifier_risk: result.analysis.disqualifier_risk.score,
-      tier: result.tier,
-      verdict: result.verdict,
-    },
+    score_components: buildScoreComponents(result.analysis),
     analysis_id: analysis.id,
   });
 }

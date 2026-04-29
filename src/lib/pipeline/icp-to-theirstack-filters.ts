@@ -11,14 +11,14 @@
  * dropped — better to filter loose than to reject a good match on a typo.
  */
 
-import type { z } from "zod";
-import type { icpRubricSchema } from "@/lib/onboarding/icp-schemas";
+import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
+import { coerceIcpRubric } from "@/lib/onboarding/icp-schemas";
 import type {
   FundingStage,
   TheirStackFilters,
 } from "@/lib/integrations/theirstack";
 
-export type IcpRubric = z.infer<typeof icpRubricSchema>;
+export type { IcpRubric };
 
 // Rubric ships "Series B", "series b", "SeriesB" etc. Normalize to
 // TheirStack enum form. Anything off-map gets dropped.
@@ -105,9 +105,11 @@ export function icpToTheirStackFilters(
   rubric: IcpRubric,
   opts: IcpToFiltersOptions = {},
 ): TheirStackFilters {
-  const firmo = rubric.firmographics;
-  const techno = rubric.technographics;
-  const signals = rubric.signals;
+  const normalizedRubric = coerceIcpRubric(rubric);
+  const firmo = normalizedRubric.firmographics;
+  const techno = normalizedRubric.technographics;
+  const signals = normalizedRubric.signals;
+  const disqualifiers = normalizedRubric.disqualifiers;
 
   const filters: TheirStackFilters = {
     posted_at_max_age_days: opts.postedMaxAgeDays ?? 30,
@@ -119,14 +121,19 @@ export function icpToTheirStackFilters(
   }
 
   if (firmo) {
-    // Employee count: only send if the rubric supplied non-default values.
-    // The extraction schema defaults to [0, 10000], which would over-filter
-    // every call with a meaningless "under 10k employees" floor.
-    if (firmo.employee_range_min && firmo.employee_range_min > 0) {
-      filters.min_employee_count = firmo.employee_range_min;
+    // Employee count: only send when the rubric supplied a meaningful
+    // bound. `max === null` means the user explicitly chose unbounded
+    // and we drop the upper filter; `max < 10000` keeps the historical
+    // default-rubric guardrail (extraction defaults to [0, 10000], and
+    // sending that as a literal cap would tag every loose firmographic
+    // call with a useless "under 10k employees" filter). A user who
+    // wants the literal cap of 10000 should pick a slightly tighter
+    // value or rely on null/unbounded semantics.
+    if (firmo.employee_range.min > 0) {
+      filters.min_employee_count = firmo.employee_range.min;
     }
-    if (firmo.employee_range_max && firmo.employee_range_max < 10000) {
-      filters.max_employee_count = firmo.employee_range_max;
+    if (firmo.employee_range.max !== null && firmo.employee_range.max < 10000) {
+      filters.max_employee_count = firmo.employee_range.max;
     }
 
     const fundingStages = normalizeFundingStages(firmo.stages);
@@ -143,9 +150,13 @@ export function icpToTheirStackFilters(
   }
 
   // company_keyword_slug_or/not uses TheirStack's internal slug vocab.
-  // Same deferral pattern as industry_id — requires a translation table
-  // we don't have yet. Rubric tech hints get used in scoring instead.
+  // Same deferral pattern as industry_id — we don't have a translation
+  // table from rubric tech hints to TheirStack slugs yet. Rubric tech
+  // signals + structured disqualifiers (tech_disqualifiers,
+  // behavioral_disqualifiers, etc.) are read by the scoring prompt
+  // instead, where free-text matching is already the norm.
   void techno;
+  void disqualifiers;
 
   return filters;
 }
