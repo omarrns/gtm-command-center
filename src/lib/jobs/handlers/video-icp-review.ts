@@ -36,22 +36,17 @@ export async function runVideoIcpReviewJob(
   ]);
 
   const sender = extractSenderIdentity(memoryCtx, memoryCtx.displayName);
-  const analysis = await runGenerateObject({
-    model: MODELS.sonnet,
-    system: buildVideoIcpReviewSystem(sender),
-    prompt: buildVideoIcpReviewPrompt({
-      rubric,
-      video: extraction.meta,
-      paragraphs: extraction.transcript.paragraphs,
-    }),
-    schema: videoIcpAnalysisSchema,
-    structuredOutputMode: "jsonTool",
-    scope: {
-      userId: job.user_id,
-      scopeTable: "video_icp_reviews",
-      scopeId: review.id,
-      callPurpose: "video-icp-review",
-    },
+  const system = buildVideoIcpReviewSystem(sender);
+  const prompt = buildVideoIcpReviewPrompt({
+    rubric,
+    video: extraction.meta,
+    paragraphs: extraction.transcript.paragraphs,
+  });
+  const analysis = await runVideoIcpAnalysis({
+    userId: job.user_id,
+    reviewId: review.id,
+    system,
+    prompt,
   });
 
   await completeVideoIcpReview({
@@ -73,4 +68,58 @@ export async function runVideoIcpReviewJob(
     video_id: extraction.source.id,
     comments_status: extraction.commentsStatus,
   };
+}
+
+export async function runVideoIcpAnalysis({
+  userId,
+  reviewId,
+  system,
+  prompt,
+}: {
+  userId: string;
+  reviewId: string;
+  system: string;
+  prompt: string;
+}) {
+  const scope = {
+    userId,
+    scopeTable: "video_icp_reviews",
+    scopeId: reviewId,
+  };
+
+  try {
+    return await runGenerateObject({
+      model: MODELS.videoIcpReview,
+      system,
+      prompt,
+      schema: videoIcpAnalysisSchema,
+      scope: {
+        ...scope,
+        callPurpose: "video-icp-review",
+      },
+    });
+  } catch (primaryError) {
+    try {
+      return await runGenerateObject({
+        model: MODELS.videoIcpReviewFallback,
+        system,
+        prompt,
+        schema: videoIcpAnalysisSchema,
+        structuredOutputMode: "jsonTool",
+        scope: {
+          ...scope,
+          callPurpose: "video-icp-review-fallback",
+        },
+      });
+    } catch (fallbackError) {
+      throw new Error(
+        `Video ICP analysis failed on primary and fallback models. Primary: ${formatError(primaryError)}. Fallback: ${formatError(fallbackError)}`,
+        { cause: fallbackError },
+      );
+    }
+  }
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

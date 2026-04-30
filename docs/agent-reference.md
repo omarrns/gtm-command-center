@@ -307,7 +307,7 @@ The streaming chat route still serves both modes — agentic templates get a `sy
   - `src/lib/pipeline/scoring.ts` — `analysisSchema`, strict (malformed output throws → `last_error` set, pipeline continues).
 - Lower-traffic / free-form outputs (draft generation, people search, planner, career-coach, analysis actions) still use `runClaudeJson` in `src/lib/ai/anthropic.ts`. Prefer `generateObject` + zod for new LLM call sites where the output shape is stable and consumed as structured data.
 - Keep Anthropic-specific `providerOptions.anthropic.structuredOutputMode` where already used; the orchestrator/extraction schemas rely on `jsonTool` for permissive schemas with `z.record` / `z.unknown`.
-- Video ICP Loop 1 uses `runGenerateObject` with Sonnet and a transcript-only prompt. YouTube comments are rendered raw for sanity-check and must not be included in the prompt or scored.
+- Video ICP Loop 1 uses `runGenerateObject` with Gemini 3 Flash primary and Sonnet fallback for a transcript-only prompt. YouTube comments are rendered raw for sanity-check and must not be included in the prompt or scored.
 
 ### Shared UI Patterns
 

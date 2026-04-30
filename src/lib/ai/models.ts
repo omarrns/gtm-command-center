@@ -16,7 +16,10 @@ export const MODELS = {
   tinyExtraction: "google/gemini-2.5-flash-lite",
   /** Human-inspected analysis synthesis. */
   analysisSynthesis: "google/gemini-3-flash",
+  /** Video ICP synthetic review primary. */
+  videoIcpReview: "google/gemini-3-flash",
+  /** Video ICP synthetic review fallback. */
+  videoIcpReviewFallback: "anthropic/claude-sonnet-4.6",
 } as const;
 
 export type ModelId = (typeof MODELS)[keyof typeof MODELS];
-
