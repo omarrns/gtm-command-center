@@ -91,6 +91,7 @@
     "unpdf": "^1.6.0",
     "use-stick-to-bottom": "^1.1.3",
     "workflow": "^4.2.0",
+    "ytdlp-nodejs": "3.4.4",
     "zod": "^3.23.8"
   },
   "pnpm": {
@@ -102,7 +103,8 @@
       "msw",
       "sharp",
       "supabase",
-      "unrs-resolver"
+      "unrs-resolver",
+      "ytdlp-nodejs"
     ]
   },
   "devDependencies": {
