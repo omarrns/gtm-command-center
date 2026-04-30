@@ -302,7 +302,10 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   agenticMode: true,
   dimensions,
   rubricSchema: icpRubricSchema,
-  orchestratorModel: MODELS.opus,
+  orchestratorModel:
+    process.env.USE_SONNET_ICP_ORCHESTRATOR === "true"
+      ? MODELS.sonnet
+      : MODELS.opus,
   orchestratorMaxOutputTokens: 8192,
   orchestratorSystemPrompt: () => ICP_ORCHESTRATOR_SYSTEM_PROMPT,
   // positiveExemplarCount comes from the call sites (chat/route +

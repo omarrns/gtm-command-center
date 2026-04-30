@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
@@ -22,7 +22,6 @@ import {
   type PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
-  PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { Loader } from "@/components/ai-elements/loader";
 import { Button } from "@/components/ui/button";
@@ -60,6 +59,36 @@ function extractDisplayText(msg: UIMessage): string {
     .join("")
     .replace(/\[INTERVIEW_COMPLETE\]/g, "")
     .trim();
+}
+
+function isEditableElement(element: Element | null): boolean {
+  if (!element || !(element instanceof HTMLElement)) return false;
+  return (
+    element.isContentEditable ||
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLSelectElement
+  );
+}
+
+function useRefocusTextarea(status: string, isStreaming: boolean) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (status !== "ready" || isStreaming) return;
+    const frame = requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea || textarea.disabled) return;
+      const activeElement = document.activeElement;
+      if (activeElement !== document.body && isEditableElement(activeElement)) {
+        return;
+      }
+      textarea.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [status, isStreaming]);
+
+  return textareaRef;
 }
 
 export function InterviewClient(props: InterviewClientProps) {
@@ -260,7 +289,6 @@ function AgenticChat({
   orchestratorState,
   onOrchestratorStateUpdate,
   onInterviewComplete,
-  onSwitchToManual,
 }: AgenticChatProps) {
   const [input, setInput] = useState("");
 
@@ -277,6 +305,7 @@ function AgenticChat({
   const isStreaming = isSubmitted || status === "streaming";
   const lastMessage = messages[messages.length - 1];
   const awaitingAssistant = isSubmitted && lastMessage?.role === "user";
+  const textareaRef = useRefocusTextarea(status, isStreaming);
 
   // After each completed turn, poll orchestrator state + interview status.
   useEffect(() => {
@@ -354,6 +383,7 @@ function AgenticChat({
               className="bg-card border border-[var(--color-border-strong)] shadow-sm rounded-xl overflow-hidden focus-within:border-[var(--color-blue)] focus-within:ring-2 focus-within:ring-[var(--color-blue-muted)] transition-colors"
             >
               <PromptInputTextarea
+                ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Reply to continue…"
@@ -390,7 +420,6 @@ function LegacyInterview({
   interview,
   clientTemplate,
   onExtracted,
-  onSwitchToManual,
 }: InterviewClientProps) {
   const [input, setInput] = useState("");
   const [isExtracting, startExtraction] = useTransition();
@@ -418,6 +447,7 @@ function LegacyInterview({
   const isStreaming = isSubmitted || status === "streaming";
   const lastMessage = messages[messages.length - 1];
   const awaitingAssistant = isSubmitted && lastMessage?.role === "user";
+  const textareaRef = useRefocusTextarea(status, isStreaming);
 
   useEffect(() => {
     if (status !== "ready") return;
@@ -538,6 +568,7 @@ function LegacyInterview({
           className="bg-card border border-[var(--color-border-strong)] shadow-sm rounded-xl overflow-hidden focus-within:border-[var(--color-blue)] focus-within:ring-2 focus-within:ring-[var(--color-blue-muted)] transition-colors"
         >
           <PromptInputTextarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Reply to continue..."
