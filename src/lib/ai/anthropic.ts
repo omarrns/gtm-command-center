@@ -1,5 +1,7 @@
 import { gateway, generateText } from "ai";
 import { captureAiCall, type AiCallScope } from "@/lib/ai/calls";
+export { MODELS, type ModelId } from "@/lib/ai/models";
+import { MODELS, type ModelId } from "@/lib/ai/models";
 
 /**
  * Claude calls via Vercel AI SDK v6 + AI Gateway.
@@ -11,27 +13,12 @@ import { captureAiCall, type AiCallScope } from "@/lib/ai/calls";
  * (best-effort observability — never breaks the actual call).
  */
 
-/**
- * Central model-id registry. When a Claude version is deprecated, change the
- * literal here and every call site updates. Tier names describe the role,
- * not the marketing name.
- */
-export const MODELS = {
-  /** Reasoning-tier — deep scoring, orchestration, extraction. */
-  opus: "anthropic/claude-opus-4.6",
-  /** Pipeline-tier — high-volume batch work, chat, fast scoring. */
-  sonnet: "anthropic/claude-sonnet-4.6",
-  /** Utility-tier — narrow extraction/classification only. */
-  haiku: "anthropic/claude-haiku-4.5",
-} as const;
-
-export type ModelId = (typeof MODELS)[keyof typeof MODELS];
-
 const DEFAULT_MODEL: ModelId = MODELS.opus;
 
 /**
- * Call Claude expecting a JSON object response. Strips code fences and parses.
- * Throws with a truncated snippet if parsing fails.
+ * Legacy helper name retained for compatibility. It can route any Vercel AI
+ * Gateway text model, not only Claude. Expects a JSON object response, strips
+ * code fences, and parses.
  */
 export async function runClaudeJson<T = unknown>({
   system,

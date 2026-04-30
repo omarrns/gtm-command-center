@@ -9,7 +9,8 @@ import { addToWatchlist } from "@/lib/pipeline/watchlist";
 import { getGmailClient, sendEmail } from "@/lib/integrations/gmail";
 import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
 import { firecrawlScrape } from "@/lib/ai/firecrawl";
-import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS } from "@/lib/ai/anthropic";
+import { runJsonWithFallback } from "@/lib/ai/json-with-fallback";
 import { createLogger } from "@/lib/logger";
 import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
 import type { OpportunityStage, PipelineConfigRow } from "@/lib/supabase/types";
@@ -474,16 +475,18 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
     return { ok: false, error: "Job page returned empty content" };
   }
 
-  const parsed = await runClaudeJson<{
+  const parsed = await runJsonWithFallback<{
     company_name: string;
     role_title: string;
   }>({
     system:
       "Extract the hiring company name and exact job title from the job posting. Return JSON with keys company_name and role_title only.",
     prompt: markdown.slice(0, 8000),
-    model: MODELS.haiku,
+    primaryModel: MODELS.tinyExtraction,
+    fallbackModel: MODELS.haiku,
     maxTokens: 128,
     scope: { userId: user.id, callPurpose: "manual_inject_extract" },
+    validate: validateManualInjectExtraction,
   });
 
   const opp = await createOpportunity(svc, user.id, {
@@ -526,4 +529,17 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
     companyName: parsed.company_name,
     roleTitle: parsed.role_title,
   };
+}
+
+function validateManualInjectExtraction(value: {
+  company_name?: unknown;
+  role_title?: unknown;
+}): string | null {
+  if (typeof value.company_name !== "string" || !value.company_name.trim()) {
+    return "company_name must be a non-empty string";
+  }
+  if (typeof value.role_title !== "string" || !value.role_title.trim()) {
+    return "role_title must be a non-empty string";
+  }
+  return null;
 }

@@ -42,7 +42,8 @@
     "test:pipeline-dispatch-persona": "tsx scripts/test-pipeline-dispatch-persona.ts",
     "test:pursuit-removed": "tsx scripts/test-pursuit-removed.ts",
     "test:artifact-kind-per-template": "tsx scripts/test-artifact-kind-per-template.ts",
-    "test:theirstack-webhook": "tsx scripts/test-theirstack-webhook.ts"
+    "test:theirstack-webhook": "tsx scripts/test-theirstack-webhook.ts",
+    "test:model-routing-easy": "tsx scripts/test-model-routing-easy.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.156",
