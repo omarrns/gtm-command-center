@@ -6,9 +6,9 @@
 // The live orchestrator is `src/lib/pipeline/workflow.ts` (Vercel Workflow
 // durable execution), which is what cron and manual triggers import.
 //
-// This file is retained only because `src/lib/pipeline/gtm-runner.ts` imports
-// the `PipelineRunResult` type from it. Do not add new logic here. If you need
-// to change pipeline behavior, edit `workflow.ts`.
+// This file is retained only because `scripts/test-pipeline-regression.ts`
+// imports `runPipeline` for end-to-end fixture coverage. Do not add new logic
+// here. If you need to change pipeline behavior, edit `workflow.ts`.
 // =============================================================================
 
 /**
@@ -36,19 +36,9 @@ import {
   advanceStage,
 } from "@/lib/pipeline/opportunities";
 import { runGtmPipeline } from "@/lib/pipeline/gtm-runner";
+import type { PipelineRunResult } from "@/lib/pipeline/types";
 
-export interface PipelineRunResult {
-  userId: string;
-  startedAt: string;
-  completedAt: string;
-  discover: DiscoverResult;
-  score: ScoreResult;
-  research: ResearchResult;
-  enrich: EnrichResult;
-  draft: DraftResult;
-  queuedRecovery: number;
-  error: string | null;
-}
+export type { PipelineRunResult } from "@/lib/pipeline/types";
 
 /** @deprecated Legacy synchronous path. Use `pipelineWorkflow` from `workflow.ts`. */
 export async function runPipeline(

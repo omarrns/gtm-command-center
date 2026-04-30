@@ -11,7 +11,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PipelineConfigRow } from "@/lib/supabase/types";
-import type { PipelineRunResult } from "@/lib/pipeline/runner";
+import type { PipelineRunResult } from "@/lib/pipeline/types";
 import { runDiscoverAccounts } from "@/lib/pipeline/steps/discover-accounts";
 import { runScoreAccounts } from "@/lib/pipeline/steps/score-accounts";
 import type { DiscoverResult } from "@/lib/pipeline/steps/discover";

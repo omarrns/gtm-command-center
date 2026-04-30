@@ -1,11 +1,13 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { JobRow } from "@/lib/supabase/types";
+import { videoIcpJobPayloadSchema } from "@/lib/video-icp/schemas";
 import { runCompanyFitAnalyzerJob } from "./handlers/company-fit-analyzer";
 import { runFullAnalysisJob } from "./handlers/full-analysis";
 import { runPeopleResearchJob } from "./handlers/people-research";
 import { runCareerCoachJob } from "./handlers/career-coach";
 import { runGtmFindContactsJob } from "./handlers/gtm-find-contacts";
 import { runOnboardingArtifactAnalysisJob } from "./handlers/onboarding-artifact-analysis";
+import { runVideoIcpReviewJob } from "./handlers/video-icp-review";
 
 type JobHandler = (
   job: JobRow,
@@ -20,7 +22,24 @@ const HANDLERS: Record<string, JobHandler> = {
   "career-coach": runCareerCoachJob,
   "gtm-find-contacts": runGtmFindContactsJob,
   "onboarding-artifact-analysis": runOnboardingArtifactAnalysisJob,
+  "video-icp-review": runVideoIcpReviewJob,
 };
+
+const testHandlers = new Map<string, JobHandler>();
+
+export function __setJobHandlerForTests(
+  type: string,
+  handler: JobHandler | null,
+) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Cannot override job handlers in production.");
+  }
+  if (handler) {
+    testHandlers.set(type, handler);
+    return;
+  }
+  testHandlers.delete(type);
+}
 
 /**
  * Claim the oldest pending job matching any of `types`, run the handler, and
@@ -39,7 +58,7 @@ export async function claimAndRun(types: string[]): Promise<JobRow | null> {
   if (claimError || !claimed?.id) return null;
   const job = claimed as JobRow;
 
-  const handler = HANDLERS[job.type];
+  const handler = testHandlers.get(job.type) ?? HANDLERS[job.type];
   if (!handler) {
     await svc
       .from("jobs")
@@ -62,7 +81,7 @@ export async function claimAndRun(types: string[]): Promise<JobRow | null> {
       .eq("id", job.id);
 
     // Propagate failure to the domain row so the UI doesn't stay stuck on "running".
-    await propagateFailureToDomainRow(job, svc);
+    await propagateFailureToDomainRow(job, svc, message);
   }
 
   return job;
@@ -70,16 +89,22 @@ export async function claimAndRun(types: string[]): Promise<JobRow | null> {
 
 /**
  * When a job fails, update the linked domain row (analyses, research_reports,
- * coaching_sessions) so the UI shows "failed" instead of staying on "running".
+ * coaching_sessions, video_icp_reviews) so the UI shows "failed" instead of
+ * staying on "running".
  */
 async function propagateFailureToDomainRow(
   job: JobRow,
   svc: ReturnType<typeof createSupabaseServiceClient>,
+  errorMessage?: string,
 ) {
   const payload = job.payload as Record<string, unknown>;
 
-  const domainUpdates: Array<{ table: string; idField: string; id: string }> =
-    [];
+  const domainUpdates: Array<{
+    table: string;
+    idField: string;
+    id: string;
+    error?: string | null;
+  }> = [];
 
   if (payload.analysis_id) {
     domainUpdates.push({
@@ -102,11 +127,22 @@ async function propagateFailureToDomainRow(
       id: payload.session_id as string,
     });
   }
+  const videoIcpPayload = videoIcpJobPayloadSchema.safeParse(payload);
+  if (videoIcpPayload.success) {
+    domainUpdates.push({
+      table: "video_icp_reviews",
+      idField: "id",
+      id: videoIcpPayload.data.review_id,
+      error: errorMessage ?? job.error,
+    });
+  }
 
-  for (const { table, idField, id } of domainUpdates) {
+  for (const { table, idField, id, error } of domainUpdates) {
+    const update =
+      error === undefined ? { status: "failed" } : { status: "failed", error };
     await svc
       .from(table)
-      .update({ status: "failed" })
+      .update(update)
       .eq(idField, id)
       .eq("user_id", job.user_id);
   }

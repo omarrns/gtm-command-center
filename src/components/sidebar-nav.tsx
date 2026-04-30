@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Inbox,
   UserRound,
+  Video,
 } from "lucide-react";
 import {
   AnimatePresence,
@@ -42,6 +43,7 @@ function buildNav(userType: UserType | null): NavItem[] {
   if (userType === "gtm") {
     return [
       { href: "/icp", label: "ICP System Prompt", icon: CalendarCheck },
+      { href: "/video-icp", label: "Video ICP", icon: Video },
       { href: "/accounts", label: "Accounts", icon: Inbox },
       { href: "/calls", label: "Calls", icon: Phone, badge: "POC" },
       { href: "/trends", label: "Trends", icon: TrendingUp, badge: "POC" },

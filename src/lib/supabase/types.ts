@@ -116,6 +116,30 @@ export interface WorkspaceArtifactRow {
   updated_at: string;
 }
 
+export type VideoIcpReviewStatus = "pending" | "running" | "complete" | "failed";
+
+export type VideoIcpCommentsStatus = "not_requested" | "fetched" | "failed";
+
+export interface VideoIcpReviewRow {
+  id: string;
+  user_id: string;
+  job_id: string | null;
+  youtube_url: string;
+  video_id: string | null;
+  video_title: string | null;
+  channel_title: string | null;
+  duration_sec: number | null;
+  status: VideoIcpReviewStatus;
+  error: string | null;
+  transcript: Record<string, unknown> | null;
+  comments: Record<string, unknown>[] | null;
+  comments_status: VideoIcpCommentsStatus;
+  comments_error: string | null;
+  analysis: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ---------------------------------------------------------------------------
 // Pipeline V2 types
 // ---------------------------------------------------------------------------

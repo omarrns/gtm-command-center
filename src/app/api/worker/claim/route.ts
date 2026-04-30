@@ -8,6 +8,7 @@ const ALL_JOB_TYPES = [
   "career-coach",
   "gtm-find-contacts",
   "onboarding-artifact-analysis",
+  "video-icp-review",
 ];
 
 /**

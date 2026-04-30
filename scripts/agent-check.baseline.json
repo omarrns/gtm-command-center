@@ -1,0 +1,26 @@
+{
+  "_comment": "Files that exceed the 400-line rule today. Do not raise these to silence a violation; shrink the file instead. Line counts use text.split(\"\\n\").length (one greater than `wc -l` when files end with a newline).",
+  "files": {
+    "scripts/test-icp-interview.ts": 1540,
+    "scripts/test-pipeline-regression.ts": 1102,
+    "scripts/test-pipeline-path.ts": 713,
+    "src/app/(app)/onboard/_components/interview-client.tsx": 590,
+    "scripts/test-pipeline-workflow-persona.ts": 585,
+    "src/app/(app)/onboard/_components/artifact-input.tsx": 577,
+    "src/app/(app)/actions.ts": 546,
+    "scripts/test-persona-switch-artifact-retention.ts": 532,
+    "src/app/(app)/_components/account-card.tsx": 523,
+    "scripts/test-icp-confirm.ts": 490,
+    "src/app/(app)/trends/_components/trends-client.tsx": 462,
+    "src/lib/onboarding/orchestrator/run.ts": 459,
+    "src/lib/pipeline/watchlist.ts": 457,
+    "scripts/onboard-fixture.ts": 443,
+    "scripts/test-model-routing-easy.ts": 428,
+    "src/lib/pipeline/people-search.ts": 416,
+    "scripts/test-job-scoring-retry.ts": 408,
+    "src/lib/calls/data.ts": 407,
+    "scripts/test-icp-dimensions.ts": 406,
+    "src/lib/pipeline/scoring.ts": 404,
+    "src/app/(app)/profile/_components/profile-content.tsx": 401
+  }
+}
