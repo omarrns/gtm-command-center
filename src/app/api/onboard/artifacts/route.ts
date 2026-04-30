@@ -19,29 +19,16 @@ import {
   type OrchestratorState,
 } from "@/lib/onboarding/orchestrator/types";
 import { enqueueOnboardingArtifactAnalysisJob } from "@/lib/jobs/onboarding-artifact-analysis";
+import { parseArtifactRequest } from "../_lib/request-validation";
 
 export const maxDuration = 120;
 
-interface BatchUrlItem {
-  url: string;
-  kind: string;
-}
-
-interface ArtifactRequestBody {
-  interviewId?: string | null;
-  kind?: string;
-  url?: string;
-  text?: string;
-  urls?: BatchUrlItem[];
-  sourceLabel?: string;
-}
-
 export async function POST(req: Request) {
-  const user = await requireUser();
-  const svc = createSupabaseServiceClient();
   const contentType = req.headers.get("content-type") ?? "";
 
   if (contentType.includes("multipart/form-data")) {
+    const user = await requireUser();
+    const svc = createSupabaseServiceClient();
     const form = await req.formData();
     const file = form.get("file");
     const interviewId = (form.get("interviewId") as string | null) ?? null;
@@ -80,7 +67,11 @@ export async function POST(req: Request) {
     return Response.json({ artifact: row, orchestratorState });
   }
 
-  const body = (await req.json()) as ArtifactRequestBody;
+  const parsed = await parseArtifactRequest(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const user = await requireUser();
+  const svc = createSupabaseServiceClient();
 
   // Batch URL path: scrape N URLs in parallel, persist all, then queue one
   // async artifact-analysis job so the HTTP request doesn't wait on Opus.

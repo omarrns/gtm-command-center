@@ -21,6 +21,7 @@ import {
   type OrchestratorState,
 } from "@/lib/onboarding/orchestrator/types";
 import { toConfirmEditsForTemplate } from "@/lib/onboarding/orchestrator/to-confirm-edits";
+import { parseChatRequest } from "../_lib/request-validation";
 
 export const maxDuration = 120;
 
@@ -39,11 +40,10 @@ interface InterviewRow {
 }
 
 export async function POST(req: Request) {
+  const parsed = await parseChatRequest(req);
+  if (!parsed.ok) return parsed.response;
+  const { messages, interviewId } = parsed.data;
   const user = await requireUser();
-  const { messages, interviewId } = (await req.json()) as {
-    messages: UIMessage[];
-    interviewId: string;
-  };
 
   const svc = createSupabaseServiceClient();
 

@@ -3,16 +3,15 @@ import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { getTemplate } from "@/lib/onboarding/templates";
 import { formatTranscript } from "@/lib/onboarding/transcript";
+import { parseStoryStreamRequest } from "../../_lib/request-validation";
 
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
+  const parsed = await parseStoryStreamRequest(req);
+  if (!parsed.ok) return parsed.response;
+  const { interviewId } = parsed.data;
   const user = await requireUser();
-  const { interviewId } = (await req.json()) as { interviewId: string };
-
-  if (!interviewId) {
-    return new Response("interviewId required", { status: 400 });
-  }
 
   const svc = createSupabaseServiceClient();
 
