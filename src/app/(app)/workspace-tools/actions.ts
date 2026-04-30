@@ -1,7 +1,7 @@
 "use server";
 
 import { requireUser } from "@/lib/supabase/server";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
 import { loadMemoryContext } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import {
@@ -34,6 +34,7 @@ export async function generatePromptAction(formData: FormData) {
   }>({
     system: buildCreatePromptSystem(sender),
     prompt: buildCreatePromptPrompt(inputs),
+    model: MODELS.sonnet,
     maxTokens: 4096,
     scope: { userId: user.id, callPurpose: "create_prompt" },
   });
@@ -63,6 +64,7 @@ export async function generateSkillAction(formData: FormData) {
   }>({
     system: buildCreateSkillSystem(sender),
     prompt: buildCreateSkillPrompt(inputs),
+    model: MODELS.sonnet,
     maxTokens: 4096,
     scope: { userId: user.id, callPurpose: "create_skill" },
   });

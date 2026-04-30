@@ -4,7 +4,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
 import type { AiCallScope } from "@/lib/ai/calls";
 import { WEBSETS_BASE } from "@/lib/ai/exa";
 import {
@@ -169,6 +169,7 @@ export async function researchPeople(
       roleTitle,
       research: researchText,
     }),
+    model: MODELS.sonnet,
     maxTokens: 4096,
     scope: options?.scope,
   });

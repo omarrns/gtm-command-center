@@ -3,7 +3,7 @@
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { enqueueJob } from "@/lib/jobs/enqueue";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import {
@@ -38,6 +38,7 @@ export async function runJdRubricAction(formData: FormData) {
       roleTitle,
       memory,
     }),
+    model: MODELS.sonnet,
     maxTokens: 4096,
     scope: { userId: user.id, callPurpose: "jd_fit_rubric" },
   });

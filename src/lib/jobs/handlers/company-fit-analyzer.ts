@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { JobRow } from "@/lib/supabase/types";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
 import { exaFindCompany, formatExaResults } from "@/lib/ai/exa";
 import {
   buildCompanyFitAnalyzerSystem,
@@ -39,6 +39,7 @@ export async function runCompanyFitAnalyzerJob(
       research,
       memory,
     }),
+    model: MODELS.sonnet,
     maxTokens: 4096,
     scope: {
       userId: job.user_id,

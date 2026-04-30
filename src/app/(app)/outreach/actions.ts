@@ -1,7 +1,7 @@
 "use server";
 
 import { requireUser, createSupabaseServerClient } from "@/lib/supabase/server";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
 import { loadMemoryContext } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import {
@@ -59,6 +59,7 @@ export async function generateEmailDraftAction(formData: FormData) {
       senderProfile: ctx.profile,
       outreachStyle: ctx.outreachStyle,
     }),
+    model: MODELS.sonnet,
     maxTokens: 4096,
   });
 

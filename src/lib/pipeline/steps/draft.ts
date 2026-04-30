@@ -7,7 +7,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpportunityRow } from "@/lib/supabase/types";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
 import {
   buildEmailB2bCustomerSupportSystem,
   buildEmailB2bCustomerSupportPrompt,
@@ -129,6 +129,7 @@ Never mention internal scoring, dealbreakers, or strategy notes.`;
   const draftOutput = await runClaudeJson<DraftOutput>({
     system,
     prompt,
+    model: MODELS.sonnet,
     maxTokens: 4096,
     scope: {
       runId,

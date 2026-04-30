@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { JobRow } from "@/lib/supabase/types";
+import { MODELS } from "@/lib/ai/anthropic";
 import { scoreOpportunity } from "@/lib/pipeline/scoring";
 
 export async function runFullAnalysisJob(job: JobRow, svc: SupabaseClient) {
@@ -17,6 +18,15 @@ export async function runFullAnalysisJob(job: JobRow, svc: SupabaseClient) {
     job_description,
     job.user_id,
     svc,
+    {
+      model: MODELS.sonnet,
+      scope: {
+        userId: job.user_id,
+        scopeTable: "analyses",
+        scopeId: analysis_id,
+        callPurpose: "full_analysis",
+      },
+    },
   );
 
   await svc

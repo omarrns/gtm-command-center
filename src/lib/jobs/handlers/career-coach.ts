@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { JobRow } from "@/lib/supabase/types";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
 import {
   buildCareerCoachSystem,
   buildCareerCoachPrompt,
@@ -37,6 +37,7 @@ export async function runCareerCoachJob(job: JobRow, svc: SupabaseClient) {
   const result = await runClaudeJson({
     system: buildCareerCoachSystem(sender),
     prompt: buildCareerCoachPrompt({ transcript, memory, recentTrail }),
+    model: MODELS.sonnet,
     maxTokens: 4096,
     scope: {
       userId: job.user_id,
