@@ -6,7 +6,7 @@ import {
   type PlaylistInfo,
   type VideoInfo,
 } from "ytdlp-nodejs";
-import { languageFromSrtName, pickPreferredSrt } from "./transcript/index.js";
+import { languageFromSrtName, pickPreferredSrt } from "./transcript/index";
 
 let _ytdlp: YtDlp | null = null;
 function getYtDlp(): YtDlp {

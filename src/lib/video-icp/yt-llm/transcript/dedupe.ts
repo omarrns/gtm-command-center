@@ -1,4 +1,4 @@
-import type { TranscriptSegment } from "../schema.js";
+import type { TranscriptSegment } from "../schema";
 
 export function dedupeSegments(segs: TranscriptSegment[]): TranscriptSegment[] {
   const out: TranscriptSegment[] = [];

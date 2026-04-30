@@ -46,6 +46,7 @@ src/
 │       ├── settings/
 │       ├── trail/              # Career-coach TRAIL.md viewer
 │       ├── trends/             # JSearch trend dashboard
+│       ├── video-icp/          # GTM persona: YouTube transcript review against ICP rubric
 │       ├── watchlist/
 │       └── workspace-tools/    # Misc dev/ops actions
 │   └── api/
@@ -208,6 +209,7 @@ story_review  → confirmed       confirm-logic.ts: performConfirm
 | `onboarding_artifacts`  | User-uploaded URLs/files/text, normalized to markdown. `interview_id` is `ON DELETE SET NULL` so artifacts survive interview deletion / persona switch.                                               | RLS by user.                                       |
 | `memory_documents`      | User profile, positioning, outreach style, dealbreakers, interview insights                                                                                                                           | RLS by user.                                       |
 | `ai_calls`              | Best-effort capture of every model call (params, prompt, output, latency) for replay/inspection. Capture failure must not break the actual call.                                                      | Service-role only. No client RLS.                  |
+| `video_icp_reviews`     | GTM-only YouTube transcript/comment extraction + synthetic ICP review output. Comments are raw/unscored; failures are preserved separately from empty comments.                                       | RLS owner select/insert. Worker updates.           |
 
 Migrations live in `supabase/migrations/`. TypeScript row types in `src/lib/supabase/types.ts`.
 
@@ -305,6 +307,7 @@ The streaming chat route still serves both modes — agentic templates get a `sy
   - `src/lib/pipeline/scoring.ts` — `analysisSchema`, strict (malformed output throws → `last_error` set, pipeline continues).
 - Lower-traffic / free-form outputs (draft generation, people search, planner, career-coach, analysis actions) still use `runClaudeJson` in `src/lib/ai/anthropic.ts`. Prefer `generateObject` + zod for new LLM call sites where the output shape is stable and consumed as structured data.
 - Keep Anthropic-specific `providerOptions.anthropic.structuredOutputMode` where already used; the orchestrator/extraction schemas rely on `jsonTool` for permissive schemas with `z.record` / `z.unknown`.
+- Video ICP Loop 1 uses `runGenerateObject` with Sonnet and a transcript-only prompt. YouTube comments are rendered raw for sanity-check and must not be included in the prompt or scored.
 
 ### Shared UI Patterns
 
@@ -313,7 +316,7 @@ The streaming chat route still serves both modes — agentic templates get a `sy
 - `QueueFilterBar` (`src/app/(app)/_components/queue-filter-bar.tsx`) owns Min/Max Score + Company search. Pass a `leftSlot` for stage / window / tier controls. Optional `onApply` switches to server-roundtrip mode (form submit + Apply button); omit it for live client-side filtering.
 - `PageHeader` on every list page. `DetailHeader` on every detail page. `EmptyState` for zero items. `<Alert>` (with optional `<RefreshCw className="animate-spin">` for running states) for status banners.
 - `command-palette.tsx` and `sidebar-nav.tsx` are **intentionally custom** — they own spring motion, LayoutGroup active-pill, and ⌘K / ⌘B shortcuts. Do not swap them for shadcn `command` / `sidebar` without an explicit ask.
-- Background jobs: server action enqueues → client polls via `useJobPoll(jobId)` → `router.refresh()` on completion.
+- Background jobs: server action enqueues → client polls via `useJobPoll(jobId)` → `router.refresh()` on completion. `video-icp-review` follows this path.
 - Toast: `toast` from `"sonner"`.
 - Sidebar: desktop `w-60` aside, mobile Sheet. State in `AppShell`.
 - `OpportunityCard` is unified across Activate, Today, and History views.

@@ -1,4 +1,4 @@
-import type { TranscriptParagraph, TranscriptSegment } from "../schema.js";
+import type { TranscriptParagraph, TranscriptSegment } from "../schema";
 
 export function toParagraphs(
   segs: TranscriptSegment[],

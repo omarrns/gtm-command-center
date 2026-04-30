@@ -11,6 +11,7 @@ import {
   Search,
   Settings,
   UserRound,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,7 +46,18 @@ function buildItems(userType: UserType | null): PaletteItem[] {
     },
   ];
 
-  if (userType === "gtm") return baseItems;
+  if (userType === "gtm") {
+    return [
+      baseItems[0],
+      {
+        id: "video-icp",
+        label: "Go to Video ICP",
+        href: "/video-icp",
+        icon: Video,
+      },
+      ...baseItems.slice(1),
+    ];
+  }
 
   return [
     baseItems[0],

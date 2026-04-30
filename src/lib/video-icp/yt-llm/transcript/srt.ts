@@ -1,4 +1,4 @@
-import type { TranscriptSegment } from "../schema.js";
+import type { TranscriptSegment } from "../schema";
 
 export function parseSrtTime(t: string): number {
   const cleaned = t.replace(",", ".").trim();

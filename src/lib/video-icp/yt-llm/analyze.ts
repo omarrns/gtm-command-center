@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { dedupeSegments, parseSrt, toParagraphs } from "./transcript/index.js";
+import { dedupeSegments, parseSrt, toParagraphs } from "./transcript/index";
 import {
   type AnalyzeError,
   type AnalyzeResult,
@@ -10,8 +10,8 @@ import {
   type VideoBundle,
   type VideoMeta,
   VideoBundleSchema,
-} from "./schema.js";
-import { DEFAULT_ALLOWED_HOSTS, isAllowedHost } from "./url.js";
+} from "./schema";
+import { DEFAULT_ALLOWED_HOSTS, isAllowedHost } from "./url";
 import {
   fetchCaptionsToTemp,
   fetchComments,
@@ -20,7 +20,7 @@ import {
   type Entry,
   type FetchCommentsOptions,
   type VideoInfo,
-} from "./yt.js";
+} from "./yt";
 
 export type AnalyzeOptions = {
   /** Subtitle language patterns to fetch. Defaults to `['en.*']` to match the Python script. */

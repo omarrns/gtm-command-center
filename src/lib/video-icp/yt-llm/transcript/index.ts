@@ -1,6 +1,6 @@
-export { parseSrt, parseSrtTime } from "./srt.js";
-export { dedupeSegments } from "./dedupe.js";
-export { toParagraphs } from "./paragraphs.js";
+export { parseSrt, parseSrtTime } from "./srt";
+export { dedupeSegments } from "./dedupe";
+export { toParagraphs } from "./paragraphs";
 
 const SRT_RE = /^raw\.([^.]+)\.srt$/;
 

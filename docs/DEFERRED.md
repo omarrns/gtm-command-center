@@ -189,17 +189,16 @@ Living log of features we've considered, cut, and scheduled for future considera
 
 **What.** Drop a published YouTube URL → pull transcript + comments via yt-llm, fingerprint each commenter (channel name, bio, prior comment patterns), score whether they look ICP-shaped against the user's confirmed `icp_rubric`, cluster sentiment + theme (objection / praise / question / feature ask), cross-reference comment timestamps with transcript moments to surface "what content triggered ICP engagement." ICP-shaped commenters seed the existing account discovery pipeline as `source='yt_comments'` opportunities. Output: % of commenters that look ICP-shaped, top objections from them, deep-linked engagement moments, lookalike accounts queued.
 
-**Deferred from.** Brainstorm 2026-04-29 — yt-llm integration scoping for GTM persona. Loop 1 (synthetic pre-publish ICP screening) is the wedge; Loop 2 is the integration that ties published video content into the existing pipeline.
+**Deferred from.** Brainstorm 2026-04-29 — yt-llm integration scoping for GTM persona. Loop 1 is now the `/video-icp` synthetic review wedge; Loop 2 is the integration that ties published video content into the existing pipeline.
 
-**Why deferred.** Three blockers stacked:
+**Why deferred.** Two blockers remain:
 
-1. **yt-llm v0.1 doesn't surface comments.** `yt-dlp --with-comments` is forwarded but the bundle drops them. Either contribute upstream (we own yt-llm — cheapest path), hit YouTube Data API v3 directly (OAuth quota + per-day cap pain), or wait for v0.2.
-2. **Loop 1 hasn't shipped.** The synthetic-ICP-review output needs to prove useful first — if directional persona reactions don't land, the harder problem of real-commenter mining isn't worth the upstream work or the runtime cost (`yt-dlp` shell-out per URL).
-3. **Multi-tenant ICP is unresolved.** Current `icp_rubric` is single-user-shaped; the "B2B marketer with their own ICP" framing requires either reusing the rubric structurally with a different mode or building a parallel ICP definition flow.
+1. **Loop 1 still needs usage signal.** The synthetic-ICP-review output should prove useful before we invest in commenter fingerprinting, ICP-fit scoring, and opportunity seeding.
+2. **Multi-tenant ICP is unresolved.** Current `icp_rubric` is single-user-shaped; the "B2B marketer with their own ICP" framing requires either reusing the rubric structurally with a different mode or building a parallel ICP definition flow.
 
-**Trigger to revisit.** Loop 1 ships AND ≥1 GTM user with a confirmed ICP rubric explicitly asks "can I see who's commenting on my videos?" OR yt-llm v0.2 lands comments support and the upstream cost drops to near-zero, making it cheap to spike behind a flag.
+**Trigger to revisit.** `/video-icp` ships AND ≥1 GTM user with a confirmed ICP rubric explicitly asks "can I see who's commenting on my videos?"
 
-**Dependencies.** Loop 1 shipped. yt-llm comments support (upstream contribution or v0.2). GTM scoring branch (deferred separately — see "Manual GTM account entry + scoring branch"). `yt-dlp` runtime decided (Vercel Sandbox vs sidecar worker — yt-llm shells out to a Python binary, can't run in a standard Vercel function).
+**Dependencies.** Loop 1 review surface shipped. The vendored yt-llm runtime now supports raw comment fetches via `ytdlp-nodejs`; Loop 2 still needs commenter fingerprinting, ICP-fit scoring, and the GTM scoring branch (deferred separately — see "Manual GTM account entry + scoring branch").
 
 **Rough scope.** Its own SPEC. ~6–8 commits: yt-llm comments contribution OR Data API v3 adapter, commenter fingerprint + ICP-fit scoring (reuse existing scoring infra), sentiment/theme extraction prompt, transcript↔comment timestamp join, opportunity seeding with `source='yt_comments'`, review UI surface, regression test against captured fixture (transcript + comments JSON).
 
@@ -258,6 +257,14 @@ Not deferred — these are live decisions we'll need to make, tracked here so th
 ## Shipped
 
 Items that started on this list and have since shipped. Populate as we go.
+
+### Video ICP Loop 1 synthetic review (2026-04-30)
+
+**What shipped.** GTM-only `/video-icp` flow that accepts a YouTube URL, extracts a sanitized transcript plus raw top comments through the vendored yt-llm runtime, runs a transcript-only Sonnet review against the confirmed ICP rubric, and renders persona reactions, timeline annotations, recommended edits, and raw comments.
+
+**Still deferred.** Commenter ICP-fit scoring, opportunity seeding, competitor/category aggregation, sharing/export, and collaboration remain out of scope. See "ICP-shaped comment mining for published video content (yt-llm Loop 2)" above.
+
+---
 
 ### Drop legacy `extracted_*` columns (2026-04-25)
 

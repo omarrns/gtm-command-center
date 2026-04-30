@@ -1,4 +1,4 @@
-import type { VideoBundle } from "./schema.js";
+import type { VideoBundle } from "./schema";
 
 const INVISIBLE_RE =
   /[\u{200B}-\u{200F}\u{202A}-\u{202E}\u{2060}-\u{206F}\u{FEFF}\u{E0000}-\u{E007F}\u{FE00}-\u{FE0F}\u{E0100}-\u{E01EF}]/gu;
