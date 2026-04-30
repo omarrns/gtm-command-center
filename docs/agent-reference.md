@@ -79,7 +79,8 @@ src/
     ├── integrations/           # gmail.ts, crypto.ts (AES-256-GCM token storage), theirstack.ts
     ├── pipeline/
     │   ├── workflow.ts                 # LIVE orchestrator (Vercel Workflow durable). Edit this, not runner.ts.
-    │   ├── runner.ts                   # LEGACY — kept only because gtm-runner.ts imports `PipelineRunResult` type. Do not add logic.
+    │   ├── runner.ts                   # LEGACY — kept only for `scripts/test-pipeline-regression.ts` end-to-end fixture coverage. Do not add logic.
+    │   ├── types.ts                    # Shared pipeline result types (PipelineRunResult). Imported by gtm-runner.ts and runner.ts.
     │   ├── gtm-runner.ts               # GTM persona pipeline entry (discover-accounts → score-accounts; no draft yet)
     │   ├── opportunities.ts            # Stage transitions + atomic claiming
     │   ├── scoring.ts                  # job_seeker per-opportunity scoring (analysisSchema, strict)
@@ -342,7 +343,8 @@ pnpm seed             # Run all imports
 pnpm onboard:reset    # Delete all onboarding data
 pnpm onboard:fixture  # Seed: --state=partial|complete|empty --interview-state=transcript|review|ready
 
-pnpm test                 # Umbrella — runs 16 test:* scripts in sequence (correctness, extraction, confirm, icp-confirm, persona-switch, pipeline-regression, etc.)
+pnpm test                 # Umbrella — runs 22 test:* scripts in sequence (correctness, extraction, confirm, icp-confirm, persona-switch, pipeline-regression, etc.)
+pnpm agent:check          # Enforce 400-line owned-file rule + forbidden imports (see scripts/agent-check.ts)
 pnpm test:correctness       # Recent pipeline correctness guardrails
 pnpm test:extraction        # Opus extraction on transcript fixture (template-parameterized)
 pnpm test:onboarding-confirm # DB-integration regression for the confirm path

@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "agent:check": "tsx scripts/agent-check.ts",
     "import:memory": "tsx scripts/import-memory.ts",
     "import:evaluations": "tsx scripts/import-evaluations.ts",
     "import:research": "tsx scripts/import-research.ts",

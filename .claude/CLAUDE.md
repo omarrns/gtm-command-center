@@ -128,8 +128,10 @@ These are constraints. Violating any rule is a bug.
 
 ### File Size
 
-- Hard limit: 400 lines per file. No exceptions for data files, schemas, or prompts.
+- Hard limit: 400 lines per file for owned source. No exceptions for data files, schemas, or prompts.
+- Vendored upstream code is exempt: `src/components/ai-elements/**` is re-vendored from Vercel AI Elements and not hand-edited.
 - If a file approaches 400 lines, split it before adding code. Extract the largest coherent unit into a new file named after what it does, not where it came from.
+- `pnpm agent:check` enforces this rule against an `scripts/agent-check.baseline.json` of currently-grandfathered files. Do not edit the baseline to silence a violation; shrink the file instead.
 
 ### Functions
 
@@ -201,4 +203,3 @@ These are constraints. Violating any rule is a bug.
 ### Idempotency
 
 Every pipeline stage must be safe to run twice on the same input.
-
