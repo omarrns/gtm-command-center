@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   CheckCircle2,
   AlertCircle,
@@ -26,6 +26,7 @@ import {
   detectKindFromUrl,
 } from "@/lib/onboarding/templates/artifact-kind";
 import { parseUrlLike, parseUrlLikeBatch } from "@/lib/onboarding/url-paste";
+import { getOrchestratorStateAction } from "../interview-actions";
 
 interface ArtifactResponse {
   artifact: OnboardingArtifactRow;
@@ -67,6 +68,7 @@ async function readBatchArtifactResponse(
 interface ArtifactInputProps {
   interviewId: string;
   clientTemplate: ClientInterviewTemplate;
+  initialOrchestratorState?: OrchestratorState | null;
   onStateUpdated: (state: OrchestratorState) => void;
   onReadyToChat: () => void;
 }
@@ -115,14 +117,34 @@ function artifactLabel(a: ArtifactListItem): string {
 export function ArtifactInput({
   interviewId,
   clientTemplate,
+  initialOrchestratorState = null,
   onStateUpdated,
   onReadyToChat,
 }: ArtifactInputProps) {
   const templateId = clientTemplate.id;
   const artifactContract = clientTemplate.artifactKindContract;
   const [inputValue, setInputValue] = useState("");
-  const [artifacts, setArtifacts] = useState<ArtifactListItem[]>([]);
+  const [artifacts, setArtifacts] = useState<ArtifactListItem[]>(
+    () =>
+      initialOrchestratorState?.artifacts.map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        source_type: a.sourceType,
+        source_url: a.sourceUrl ?? null,
+        file_name: null,
+        status: a.status,
+        error_message: a.errorMessage ?? null,
+      })) ?? [],
+  );
   const [isUploading, startUpload] = useTransition();
+  const [analysisState, setAnalysisState] = useState<OrchestratorState | null>(
+    initialOrchestratorState,
+  );
+  const [analysisError, setAnalysisError] = useState<string | null>(
+    initialOrchestratorState?.status === "failed"
+      ? "Artifact analysis failed. Try again or paste text."
+      : null,
+  );
   // ICP-only: pill-driven kind override. Cleared after each submit.
   // Lets the "Bad-fit URL" pill flag the next submit as
   // negative_example without needing a separate input mode. job_search
@@ -138,15 +160,53 @@ export function ArtifactInput({
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }
 
+  function handleOrchestratorState(state: OrchestratorState | null) {
+    if (!state) return;
+    setAnalysisState(state);
+    onStateUpdated(state);
+    if (state.status !== "failed") {
+      setAnalysisError(null);
+    }
+    if (state.status === "failed") {
+      setAnalysisError("Artifact analysis failed. Try again or paste text.");
+      return;
+    }
+    if (canEnterChat(state)) {
+      onReadyToChat();
+    }
+  }
+
+  useEffect(() => {
+    if (analysisState?.status !== "analyzing") return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const snapshot = await getOrchestratorStateAction(interviewId);
+        if (cancelled) return;
+        handleOrchestratorState(snapshot.orchestratorState);
+      } catch {
+        // transient; next tick retries
+      }
+    }, 2500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysisState?.status, interviewId]);
+
   async function submit() {
     const value = inputValue.trim();
-    if (!value || isUploading) return;
+    if (!value || isUploading || analysisState?.status === "analyzing") return;
     const submitted = value;
     const normalizedUrl = parseUrlLike(value);
     const batchUrls = normalizedUrl ? null : parseUrlLikeBatch(value);
     const override = kindOverride;
     startUpload(async () => {
       try {
+        setAnalysisError(null);
         if (batchUrls) {
           const items = batchUrls.map((u) => ({
             url: u,
@@ -161,7 +221,7 @@ export function ArtifactInput({
           setArtifacts((prev) => [...prev, ...data.artifacts]);
           setInputValue((curr) => (curr.trim() === submitted ? "" : curr));
           if (textareaRef.current) textareaRef.current.style.height = "auto";
-          if (data.orchestratorState) onStateUpdated(data.orchestratorState);
+          handleOrchestratorState(data.orchestratorState);
           const failures = data.artifacts.filter((a) => a.status === "failed");
           if (failures.length > 0) {
             toast.warning(
@@ -170,7 +230,10 @@ export function ArtifactInput({
                 : `${failures.length} of ${data.artifacts.length} URLs failed — see chips for details.`,
             );
           }
-          if (data.artifacts.some((a) => a.status === "succeeded")) {
+          if (
+            !data.orchestratorState &&
+            data.artifacts.some((a) => a.status === "succeeded")
+          ) {
             onReadyToChat();
           }
           return;
@@ -194,11 +257,11 @@ export function ArtifactInput({
         // the next paste while this request was in flight.
         setInputValue((curr) => (curr.trim() === submitted ? "" : curr));
         if (textareaRef.current) textareaRef.current.style.height = "auto";
-        if (data.orchestratorState) onStateUpdated(data.orchestratorState);
+        handleOrchestratorState(data.orchestratorState);
         if (data.artifact.status === "failed" && data.artifact.error_message) {
           toast.warning(data.artifact.error_message);
         }
-        if (data.artifact.status === "succeeded") {
+        if (!data.orchestratorState && data.artifact.status === "succeeded") {
           onReadyToChat();
         }
       } catch (err) {
@@ -212,13 +275,14 @@ export function ArtifactInput({
 
   async function submitFile(file: File) {
     if (!file) return;
-    if (isUploading) {
+    if (isUploading || analysisState?.status === "analyzing") {
       toast.info("Hang on — finishing the previous upload");
       return;
     }
     const override = kindOverride;
     startUpload(async () => {
       try {
+        setAnalysisError(null);
         const form = new FormData();
         form.append("file", file);
         form.append("interviewId", interviewId);
@@ -232,11 +296,11 @@ export function ArtifactInput({
         });
         const data = await readArtifactResponse(res);
         setArtifacts((prev) => [...prev, data.artifact]);
-        if (data.orchestratorState) onStateUpdated(data.orchestratorState);
+        handleOrchestratorState(data.orchestratorState);
         if (data.artifact.status === "failed" && data.artifact.error_message) {
           toast.warning(data.artifact.error_message);
         }
-        if (data.artifact.status === "succeeded") {
+        if (!data.orchestratorState && data.artifact.status === "succeeded") {
           onReadyToChat();
         }
       } catch (err) {
@@ -262,6 +326,8 @@ export function ArtifactInput({
   );
 
   const copy = buildCopy(templateId);
+  const isAnalyzing = analysisState?.status === "analyzing";
+  const isBusy = isUploading || isAnalyzing;
 
   // Pill click may prefill the textarea (hint), trigger a side effect
   // (action), AND/OR set the kind override for the next submit. ICP
@@ -314,8 +380,14 @@ export function ArtifactInput({
         </p>
       </div>
 
-      {isUploading && (
+      {isBusy && (
         <CyclicLoader messages={copy.cyclicMessages} className="mb-3" />
+      )}
+      {analysisError && (
+        <div className="mb-3 flex max-w-lg items-center gap-2 rounded-md border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/5 px-3 py-2 text-sm text-[var(--color-danger)]">
+          <AlertCircle size={14} className="shrink-0" />
+          <span>{analysisError}</span>
+        </div>
       )}
 
       {/* Artifact chips */}
@@ -356,6 +428,7 @@ export function ArtifactInput({
         <textarea
           ref={textareaRef}
           value={inputValue}
+          disabled={isBusy}
           onChange={(e) => {
             setInputValue(e.target.value);
             autoResize();
@@ -377,15 +450,15 @@ export function ArtifactInput({
           <button
             type="button"
             onClick={submit}
-            disabled={!inputValue.trim() || isUploading}
+            disabled={!inputValue.trim() || isBusy}
             className={cn(
               "p-1.5 rounded-lg transition-colors",
-              inputValue.trim() && !isUploading
+              inputValue.trim() && !isBusy
                 ? "bg-[var(--color-blue)] text-white hover:opacity-90"
                 : "bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] cursor-not-allowed",
             )}
           >
-            {isUploading ? (
+            {isBusy ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               <ArrowUp size={16} />
@@ -437,6 +510,11 @@ export function ArtifactInput({
       </div>
     </div>
   );
+}
+
+function canEnterChat(state: OrchestratorState): boolean {
+  if (state.status === "ready_for_review") return true;
+  return state.status === "interviewing" && Boolean(state.nextDimensionKey);
 }
 
 // ── Copy ────────────────────────────────────────────────────────────────────

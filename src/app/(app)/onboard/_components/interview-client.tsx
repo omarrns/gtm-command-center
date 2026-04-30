@@ -98,16 +98,16 @@ function AgenticInterview({
   const [orchestratorState, setOrchestratorState] =
     useState<OrchestratorState | null>(initialState);
 
-  const hasPriorAnalysis =
-    (initialState?.dimensions &&
-      Object.keys(initialState.dimensions).length > 0) ||
-    (initialState?.artifacts.length ?? 0) > 0;
-  const [phase, setPhase] = useState<"artifacts" | "chat">(
-    hasPriorAnalysis ? "chat" : "artifacts",
-  );
-
   const storedMessages = (interview.messages as UIMessage[]) ?? [];
   const hasStored = storedMessages.length > 0;
+  const canResumeChat =
+    hasStored ||
+    initialState?.status === "ready_for_review" ||
+    (initialState?.status === "interviewing" &&
+      Boolean(initialState.nextDimensionKey));
+  const [phase, setPhase] = useState<"artifacts" | "chat">(
+    canResumeChat ? "chat" : "artifacts",
+  );
 
   const [kickoff, setKickoff] = useState<KickoffState>({ status: "idle" });
 
@@ -170,6 +170,7 @@ function AgenticInterview({
         <ArtifactInput
           interviewId={interview.id}
           clientTemplate={clientTemplate}
+          initialOrchestratorState={orchestratorState}
           onStateUpdated={setOrchestratorState}
           onReadyToChat={() => setPhase("chat")}
         />

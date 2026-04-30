@@ -70,6 +70,7 @@ export interface OrchestratorMetrics {
   artifactSuccessCount: number;
   artifactFailureCount: number;
   reviewEdits: OrchestratorReviewEdit[];
+  currentAnalysisRunId?: string;
 }
 
 export interface OrchestratorState {
