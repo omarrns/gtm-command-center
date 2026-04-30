@@ -9,7 +9,7 @@ import { addToWatchlist } from "@/lib/pipeline/watchlist";
 import { getGmailClient, sendEmail } from "@/lib/integrations/gmail";
 import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
 import { firecrawlScrape } from "@/lib/ai/firecrawl";
-import { runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
 import { createLogger } from "@/lib/logger";
 import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
 import type { OpportunityStage, PipelineConfigRow } from "@/lib/supabase/types";
@@ -481,7 +481,7 @@ export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
     system:
       "Extract the hiring company name and exact job title from the job posting. Return JSON with keys company_name and role_title only.",
     prompt: markdown.slice(0, 8000),
-    model: "claude-haiku-4-5-20251001",
+    model: MODELS.haiku,
     maxTokens: 128,
     scope: { userId: user.id, callPurpose: "manual_inject_extract" },
   });

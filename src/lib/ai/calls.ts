@@ -11,8 +11,7 @@
  * importing generateObject directly so they get capture for free.
  */
 
-import { generateObject } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { gateway, generateObject } from "ai";
 import type { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -49,6 +48,21 @@ export interface CapturedCall {
 }
 
 const MAX_TEXT = 100_000;
+
+function gatewayOptions(scope: AiCallScope | undefined, callKind: string) {
+  const tags = [
+    scope?.callPurpose ? `purpose:${scope.callPurpose}` : null,
+    scope?.scopeTable ? `scope:${scope.scopeTable}` : null,
+    `kind:${callKind}`,
+  ].filter((tag): tag is string => Boolean(tag));
+
+  if (!scope?.userId && tags.length === 0) return undefined;
+
+  return {
+    ...(scope?.userId ? { user: scope.userId } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+  };
+}
 
 export async function captureAiCall(
   scope: AiCallScope | undefined,
@@ -105,10 +119,9 @@ function truncate(s: string | undefined | null): string | null {
 
 /* ── Wrapped generateObject — auto-captures every call ────────────────── */
 
-// Mirrors the @ai-sdk/anthropic v3.0.71 enum at
-// node_modules/@ai-sdk/anthropic/dist/index.d.ts:134-138. `outputFormat`
-// uses Anthropic's native `output_config.format.schema` (strictest;
-// useful for small closed Zod schemas).
+// Mirrors Anthropic's structured-output modes surfaced through AI SDK.
+// `outputFormat` uses Anthropic's native `output_config.format.schema`
+// (strictest; useful for small closed Zod schemas).
 // `jsonTool` is the legacy tool-calling path (more permissive; required
 // for orchestrator/extraction schemas that use z.record / z.unknown).
 // `auto` lets the SDK pick. Default stays `jsonTool` for backward
@@ -159,15 +172,18 @@ export async function runGenerateObject<S extends z.ZodType>(
   // icpAccountAnalysisSchema) opt into `outputFormat` per call for
   // stricter validation against verdict/tier enums and required fields.
   const structuredOutputMode = args.structuredOutputMode ?? "jsonTool";
+  const gatewayProviderOptions = gatewayOptions(args.scope, "object");
   try {
-    const result = await generateObject({
-      model: anthropic(args.model),
+    const result = await generateObject<S, "object", z.infer<S>>({
+      output: "object",
+      model: gateway(args.model),
       system: args.system,
       prompt: args.prompt,
       schema: args.schema,
       maxOutputTokens: args.maxOutputTokens,
       providerOptions: {
         anthropic: { structuredOutputMode },
+        ...(gatewayProviderOptions ? { gateway: gatewayProviderOptions } : {}),
       },
     });
 

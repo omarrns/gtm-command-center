@@ -15,8 +15,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { createSupabaseServiceClient } from "../src/lib/supabase/service";
-import { generateObject, generateText } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { gateway, generateObject, generateText } from "ai";
 import { z } from "zod";
 
 interface AiCallRow {
@@ -190,7 +189,7 @@ async function replayOne(row: AiCallRow) {
       // Without the original schema, replay returns plain JSON via generateText.
       // Use a permissive object schema so the SDK doesn't reject.
       const { object } = await generateObject({
-        model: anthropic(row.model),
+        model: gateway(row.model),
         system: row.system_prompt ?? "",
         prompt: row.user_prompt ?? "",
         schema: z.record(z.string(), z.any()),
@@ -199,7 +198,7 @@ async function replayOne(row: AiCallRow) {
       console.log(JSON.stringify(object, null, 2));
     } else {
       const { text } = await generateText({
-        model: anthropic(row.model),
+        model: gateway(row.model),
         system: row.system_prompt ?? "",
         prompt: row.user_prompt ?? "",
       });

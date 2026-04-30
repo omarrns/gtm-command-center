@@ -1,11 +1,11 @@
 import {
+  gateway,
   streamText,
   convertToModelMessages,
   isToolUIPart,
   getToolName,
   type UIMessage,
 } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
@@ -135,7 +135,7 @@ async function handleAgenticTurn(
     const wrapUpSystem = `You are wrapping up an interview. Briefly thank the user and tell them the review screen is next. Keep it to 1–2 sentences. End with ${template.completionMarker} on its own line. Do NOT ask questions.`;
 
     const result = streamText({
-      model: anthropic(template.chatModel),
+      model: gateway(template.chatModel),
       system: wrapUpSystem,
       messages: await convertToModelMessages(messages),
       maxOutputTokens: 256,
@@ -207,7 +207,7 @@ async function handleAgenticTurn(
     .eq("id", interview.id);
 
   const result = streamText({
-    model: anthropic(template.chatModel),
+    model: gateway(template.chatModel),
     system: interviewerSystem,
     messages: await convertToModelMessages(messages),
     maxOutputTokens: template.chatMaxOutputTokens,
@@ -266,7 +266,7 @@ async function handleLegacyTurn(
   }
 
   const result = streamText({
-    model: anthropic(template.chatModel),
+    model: gateway(template.chatModel),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
     tools: template.tools,

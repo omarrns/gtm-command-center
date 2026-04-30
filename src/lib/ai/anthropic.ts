@@ -1,12 +1,10 @@
-import { anthropic } from "@ai-sdk/anthropic";
-import { generateText } from "ai";
+import { gateway, generateText } from "ai";
 import { captureAiCall, type AiCallScope } from "@/lib/ai/calls";
 
 /**
- * Claude calls via Vercel AI SDK v6 + @ai-sdk/anthropic.
+ * Claude calls via Vercel AI SDK v6 + AI Gateway.
  *
- * Auth: OIDC via `vercel env pull` — AI Gateway handles provider auth,
- * routing, failover, and cost tracking on deploy.
+ * Auth: `AI_GATEWAY_API_KEY` locally, or OIDC on Vercel deploys.
  *
  * Both helpers accept an optional `scope` for ai_calls capture so any
  * call can be replayed by id later. When omitted, capture is skipped
@@ -20,18 +18,16 @@ import { captureAiCall, type AiCallScope } from "@/lib/ai/calls";
  */
 export const MODELS = {
   /** Reasoning-tier — deep scoring, orchestration, extraction. */
-  opus: "claude-opus-4-6",
+  opus: "anthropic/claude-opus-4.6",
   /** Pipeline-tier — high-volume batch work, chat, fast scoring. */
-  sonnet: "claude-sonnet-4-6",
+  sonnet: "anthropic/claude-sonnet-4.6",
+  /** Utility-tier — narrow extraction/classification only. */
+  haiku: "anthropic/claude-haiku-4.5",
 } as const;
 
 export type ModelId = (typeof MODELS)[keyof typeof MODELS];
 
 const DEFAULT_MODEL: ModelId = MODELS.opus;
-
-function model(name: string = DEFAULT_MODEL) {
-  return anthropic(name);
-}
 
 /**
  * Call Claude expecting a JSON object response. Strips code fences and parses.
@@ -60,7 +56,7 @@ export async function runClaudeJson<T = unknown>({
 
   try {
     const result = await generateText({
-      model: model(modelName),
+      model: gateway(modelName),
       system,
       prompt,
       maxOutputTokens: maxTokens,
@@ -138,7 +134,7 @@ export async function runClaudeText({
   const start = Date.now();
   try {
     const result = await generateText({
-      model: model(modelName),
+      model: gateway(modelName),
       system,
       prompt,
       maxOutputTokens: maxTokens,

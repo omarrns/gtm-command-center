@@ -1,5 +1,4 @@
-import { streamObject, type UIMessage } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { gateway, streamObject, type UIMessage } from "ai";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { getTemplate } from "@/lib/onboarding/templates";
@@ -60,7 +59,7 @@ export async function POST(req: Request) {
   );
 
   const result = streamObject({
-    model: anthropic(template.extractionModel),
+    model: gateway(template.extractionModel),
     system: template.insightsSystemPrompt,
     prompt: `<transcript>\n${transcript}\n</transcript>\n\nWrite the reflective synthesis now. Return JSON matching the schema in your system prompt.`,
     schema: template.insightsSchema,
