@@ -7,6 +7,8 @@ The app supports two personas that share the same infrastructure but run separat
 - **Job Seeker** — discovers inbound job postings, scores them, finds contacts, drafts outreach, and sends approved emails through Gmail.
 - **GTM** — tracks target accounts from TheirStack hiring signals and Exa company sweeps, scores them against an ICP rubric, and surfaces warm accounts for outreach.
 
+GTM users can also run Video ICP reviews: paste owned YouTube videos, extract transcript/comments, and preview synthetic buyer reactions against the confirmed ICP rubric.
+
 ---
 
 ## Job Seeker Pipeline
@@ -43,6 +45,8 @@ Two entry points feed the same accounts table:
 
 Both score via `scoring-account.ts` against an `icpAccountAnalysisSchema`. Scored accounts appear in `/accounts` and are never auto-removed.
 
+Video ICP is a separate GTM workflow at `/video-icp`. It stores each YouTube review in `video_icp_reviews`, enqueues a `video-icp-review` background job, extracts a sanitized transcript plus raw top comments through the vendored yt-llm runtime, and asks Sonnet for a transcript-only synthetic ICP review. Comments are rendered raw for sanity-check and are not scored or included in the prompt.
+
 ---
 
 ## Pages
@@ -52,6 +56,7 @@ Both score via `scoring-account.ts` against an `icpAccountAnalysisSchema`. Score
 | **Today** (`/`)                          | Job Seeker | Daily review queue — approve/skip/flag opportunities, send emails                  |
 | **Accounts** (`/accounts`)               | GTM        | Pipeline-promoted accounts sorted by ICP score                                     |
 | **ICP** (`/icp`)                         | GTM        | Edit your ICP rubric — buyer personas, trigger signals, company criteria           |
+| **Video ICP** (`/video-icp`)             | GTM        | YouTube transcript review against the confirmed ICP rubric, with raw comments      |
 | **Analytics** (`/analytics`)             | Both       | Pipeline funnel + content performance charts                                       |
 | **History** (`/history`)                 | Job Seeker | All past opportunities filtered by status, company, score range                    |
 | **Watchlist** (`/watchlist`)             | Job Seeker | Monitored companies with Exa alerts for funding, hires, press                      |
@@ -139,6 +144,7 @@ After confirmation, the system writes memory documents, pipeline config, and a n
 - **Database**: Supabase (Postgres + Auth + RLS)
 - **AI**: Claude API (Opus for extraction/orchestration, Sonnet for scoring/drafting)
 - **Job Discovery**: JSearch API (job seeker), TheirStack webhook + Exa (GTM)
+- **Video Extraction**: Vendored yt-llm runtime backed by `ytdlp-nodejs`
 - **People/Email**: Exa Websets
 - **Email Send**: Gmail API (OAuth 2.0, PKCE, AES-256-GCM encrypted refresh tokens)
 - **Pipeline**: Vercel Workflow (durable, per-user)
@@ -169,6 +175,7 @@ After confirmation, the system writes memory documents, pipeline config, and a n
 | `user_scoring_profiles` | Derived scoring fields + user-editable weights. `icp_rubric` JSONB for GTM.           |
 | `onboarding_interviews` | Interview state, messages, extracted data, template + version stamp                   |
 | `onboarding_artifacts`  | User-uploaded URLs/files/text normalized to markdown                                  |
+| `video_icp_reviews`     | GTM-only YouTube transcript/comment extraction + synthetic ICP review output          |
 | `memory_documents`      | User profile, positioning, outreach style, dealbreakers, insights                     |
 | `gmail_credentials`     | Encrypted refresh tokens (service-role only)                                          |
 | `ai_calls`              | Best-effort capture of every model call for replay/inspection                         |
@@ -207,6 +214,7 @@ pnpm dev
 pnpm dev                # Start dev server
 pnpm build              # Production build
 pnpm test               # Run all test scripts in sequence
+pnpm test:video-icp-review-job  # Regression test for Video ICP job failure propagation
 pnpm onboard:reset      # Delete all onboarding data
 pnpm onboard:fixture    # Seed interview fixture (--state, --interview-state flags)
 ```
