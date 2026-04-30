@@ -13,6 +13,7 @@ import {
   computeNextKey,
   loadArtifactsForInterview,
 } from "@/lib/onboarding/orchestrator/run-helpers";
+import { markOrchestratorAnalysisFailed } from "@/lib/onboarding/orchestrator/run";
 import {
   emptyOrchestratorState,
   type OrchestratorState,
@@ -71,7 +72,11 @@ export async function POST(req: Request) {
     };
     const buffer = await file.arrayBuffer();
     const row = await ingestFile(buffer, file.name, file.type, opts, svc);
-    const orchestratorState = await maybeQueueAnalysis(svc, interviewId, user.id);
+    const orchestratorState = await maybeQueueAnalysis(
+      svc,
+      interviewId,
+      user.id,
+    );
     return Response.json({ artifact: row, orchestratorState });
   }
 
@@ -208,6 +213,7 @@ async function maybeQueueAnalysis(
       sourceType: a.source_type,
       sourceLabel: a.source_label ?? undefined,
       sourceUrl: a.source_url ?? undefined,
+      fileName: a.file_name ?? undefined,
       status: a.status,
       errorMessage: a.error_message ?? undefined,
     })),
@@ -241,48 +247,12 @@ async function maybeQueueAnalysis(
         },
       });
     } catch (err) {
-      await markQueuedAnalysisFailed(svc, interviewId, analysisRunId);
+      await markOrchestratorAnalysisFailed(svc, interviewId, analysisRunId);
       throw err;
     }
   }
 
   return next;
-}
-
-async function markQueuedAnalysisFailed(
-  svc: ReturnType<typeof createSupabaseServiceClient>,
-  interviewId: string,
-  analysisRunId: string,
-): Promise<void> {
-  const { data } = await svc
-    .from("onboarding_interviews")
-    .select("orchestrator_state")
-    .eq("id", interviewId)
-    .filter(
-      "orchestrator_state->metrics->>currentAnalysisRunId",
-      "eq",
-      analysisRunId,
-    )
-    .maybeSingle();
-
-  const state = data?.orchestrator_state as OrchestratorState | null;
-  if (!state) return;
-
-  await svc
-    .from("onboarding_interviews")
-    .update({
-      orchestrator_state: {
-        ...state,
-        status: "failed",
-      },
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", interviewId)
-    .filter(
-      "orchestrator_state->metrics->>currentAnalysisRunId",
-      "eq",
-      analysisRunId,
-    );
 }
 
 async function checkInterviewOwnership(

@@ -77,6 +77,7 @@ type ArtifactListItem = Pick<
   OnboardingArtifactRow,
   | "id"
   | "kind"
+  | "source_label"
   | "source_type"
   | "source_url"
   | "file_name"
@@ -111,6 +112,7 @@ function statusIcon(status: OnboardingArtifactStatus) {
 function artifactLabel(a: ArtifactListItem): string {
   if (a.source_url) return a.source_url;
   if (a.file_name) return a.file_name;
+  if (a.source_label) return a.source_label;
   return `${a.kind} (text)`;
 }
 
@@ -129,9 +131,10 @@ export function ArtifactInput({
       initialOrchestratorState?.artifacts.map((a) => ({
         id: a.id,
         kind: a.kind,
+        source_label: a.sourceLabel ?? null,
         source_type: a.sourceType,
         source_url: a.sourceUrl ?? null,
-        file_name: null,
+        file_name: a.fileName ?? null,
         status: a.status,
         error_message: a.errorMessage ?? null,
       })) ?? [],

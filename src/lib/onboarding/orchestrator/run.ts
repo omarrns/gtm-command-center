@@ -91,6 +91,7 @@ export async function analyzeArtifacts(
       sourceType: a.source_type,
       sourceLabel: a.source_label ?? undefined,
       sourceUrl: a.source_url ?? undefined,
+      fileName: a.file_name ?? undefined,
       status: a.status,
       errorMessage: a.error_message ?? undefined,
     })),
@@ -411,6 +412,42 @@ async function persistState(
   if (expectedAnalysisRunId && (!data || data.length === 0)) {
     throw new StaleOrchestratorAnalysisError(expectedAnalysisRunId);
   }
+}
+
+export async function markOrchestratorAnalysisFailed(
+  svc: SupabaseClient,
+  interviewId: string,
+  analysisRunId: string,
+): Promise<void> {
+  const { data } = await svc
+    .from("onboarding_interviews")
+    .select("orchestrator_state")
+    .eq("id", interviewId)
+    .filter(
+      "orchestrator_state->metrics->>currentAnalysisRunId",
+      "eq",
+      analysisRunId,
+    )
+    .maybeSingle();
+
+  const state = data?.orchestrator_state as OrchestratorState | null;
+  if (!state) return;
+
+  await svc
+    .from("onboarding_interviews")
+    .update({
+      orchestrator_state: {
+        ...state,
+        status: "failed",
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", interviewId)
+    .filter(
+      "orchestrator_state->metrics->>currentAnalysisRunId",
+      "eq",
+      analysisRunId,
+    );
 }
 
 export class StaleOrchestratorAnalysisError extends Error {

@@ -3,9 +3,9 @@ import type { JobRow } from "@/lib/supabase/types";
 import { getTemplate } from "@/lib/onboarding/templates";
 import {
   analyzeArtifacts,
+  markOrchestratorAnalysisFailed,
   StaleOrchestratorAnalysisError,
 } from "@/lib/onboarding/orchestrator/run";
-import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 import type { OnboardingArtifactAnalysisPayload } from "@/lib/jobs/onboarding-artifact-analysis";
 
 export async function runOnboardingArtifactAnalysisJob(
@@ -58,7 +58,11 @@ export async function runOnboardingArtifactAnalysisJob(
       };
     }
 
-    await markAnalysisFailed(svc, payload.interviewId, payload.analysisRunId);
+    await markOrchestratorAnalysisFailed(
+      svc,
+      payload.interviewId,
+      payload.analysisRunId,
+    );
     throw err;
   }
 }
@@ -74,40 +78,4 @@ function parsePayload(payload: Record<string, unknown>) {
     throw new Error("Invalid onboarding-artifact-analysis payload.");
   }
   return parsed as OnboardingArtifactAnalysisPayload;
-}
-
-async function markAnalysisFailed(
-  svc: SupabaseClient,
-  interviewId: string,
-  analysisRunId: string,
-) {
-  const { data } = await svc
-    .from("onboarding_interviews")
-    .select("orchestrator_state")
-    .eq("id", interviewId)
-    .filter(
-      "orchestrator_state->metrics->>currentAnalysisRunId",
-      "eq",
-      analysisRunId,
-    )
-    .maybeSingle();
-
-  const state = data?.orchestrator_state as OrchestratorState | null;
-  if (!state) return;
-
-  await svc
-    .from("onboarding_interviews")
-    .update({
-      orchestrator_state: {
-        ...state,
-        status: "failed",
-      },
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", interviewId)
-    .filter(
-      "orchestrator_state->metrics->>currentAnalysisRunId",
-      "eq",
-      analysisRunId,
-    );
 }

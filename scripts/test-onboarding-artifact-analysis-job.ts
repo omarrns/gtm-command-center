@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { markOrchestratorAnalysisFailed } from "../src/lib/onboarding/orchestrator/run";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -69,9 +70,17 @@ assert(
 
 assert(
   handler.includes("analyzeArtifacts") &&
-    handler.includes("markAnalysisFailed") &&
+    handler.includes("markOrchestratorAnalysisFailed") &&
+    !handler.includes("function markAnalysisFailed") &&
     handler.includes("StaleOrchestratorAnalysisError"),
   "job handler reuses analyzeArtifacts and handles failure/stale cases",
+);
+
+assert(
+  route.includes("markOrchestratorAnalysisFailed") &&
+    !route.includes("function markQueuedAnalysisFailed") &&
+    orchestrator.includes("markOrchestratorAnalysisFailed"),
+  "failure marking is shared with the orchestrator CAS helper",
 );
 
 assert(
@@ -89,9 +98,117 @@ assert(
   "artifact input polls interview state and gates chat entry",
 );
 
-if (failures > 0) {
-  console.error(`\n${failures} check(s) failed.`);
-  process.exit(1);
+type FailureMarkerCalls = {
+  tables: string[];
+  selectedFilter?: [string, string, string];
+  updatedPayload?: Record<string, unknown>;
+  updatedFilter?: [string, string, string];
+};
+
+function createFailureMarkerClient({
+  currentRunId,
+  state,
+}: {
+  currentRunId: string;
+  state: Record<string, unknown> | null;
+}) {
+  const calls: FailureMarkerCalls = { tables: [] };
+  const client = {
+    from(table: string) {
+      calls.tables.push(table);
+      return {
+        select() {
+          return {
+            eq() {
+              return {
+                filter(path: string, op: string, value: string) {
+                  calls.selectedFilter = [path, op, value];
+                  return {
+                    async maybeSingle() {
+                      return {
+                        data:
+                          state && value === currentRunId
+                            ? { orchestrator_state: state }
+                            : null,
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        },
+        update(payload: Record<string, unknown>) {
+          calls.updatedPayload = payload;
+          return {
+            eq() {
+              return {
+                filter(path: string, op: string, value: string) {
+                  calls.updatedFilter = [path, op, value];
+                  return Promise.resolve({ error: null });
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+  return { client, calls };
 }
 
-console.log("\nAll async artifact-analysis structural checks passed.");
+async function runBehavioralChecks() {
+  const failedState = {
+    version: 1,
+    templateId: "icp_definition",
+    status: "analyzing",
+    metrics: { currentAnalysisRunId: "run-current" },
+  };
+  const marker = createFailureMarkerClient({
+    currentRunId: "run-current",
+    state: failedState,
+  });
+  await markOrchestratorAnalysisFailed(
+    marker.client as never,
+    "interview-1",
+    "run-current",
+  );
+  assert(
+    marker.calls.tables.every((table) => table === "onboarding_interviews") &&
+    marker.calls.selectedFilter?.join("|") ===
+      "orchestrator_state->metrics->>currentAnalysisRunId|eq|run-current" &&
+      marker.calls.updatedFilter?.join("|") ===
+        "orchestrator_state->metrics->>currentAnalysisRunId|eq|run-current" &&
+      (marker.calls.updatedPayload?.orchestrator_state as { status?: string })
+        ?.status === "failed",
+    "failure helper marks matching analysis run failed with the CAS filter",
+  );
+
+  const staleMarker = createFailureMarkerClient({
+    currentRunId: "run-current",
+    state: null,
+  });
+  await markOrchestratorAnalysisFailed(
+    staleMarker.client as never,
+    "interview-1",
+    "run-current",
+  );
+  assert(
+    !staleMarker.calls.updatedPayload,
+    "failure helper does not update stale/missing analysis runs",
+  );
+}
+
+runBehavioralChecks()
+  .then(() => {
+    if (failures > 0) {
+      console.error(`\n${failures} check(s) failed.`);
+      process.exit(1);
+    }
+
+    console.log("\nAll async artifact-analysis structural checks passed.");
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

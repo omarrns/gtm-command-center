@@ -29,6 +29,7 @@ export interface OrchestratorArtifactRef {
   sourceType: ArtifactSourceType;
   sourceLabel?: string;
   sourceUrl?: string;
+  fileName?: string;
   status: ArtifactManifestStatus;
   errorMessage?: string;
 }
