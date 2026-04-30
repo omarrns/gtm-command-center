@@ -3,7 +3,8 @@
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { enqueueJob } from "@/lib/jobs/enqueue";
-import { MODELS, runClaudeJson } from "@/lib/ai/anthropic";
+import { MODELS } from "@/lib/ai/anthropic";
+import { runJsonWithFallback } from "@/lib/ai/json-with-fallback";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import {
@@ -30,7 +31,7 @@ export async function runJdRubricAction(formData: FormData) {
   const memory = formatMemoryForPrompt(ctx);
   const sender = extractSenderIdentity(ctx, ctx.displayName);
 
-  const result = await runClaudeJson({
+  const result = await runJsonWithFallback<Record<string, unknown>>({
     system: buildJdFitRubricSystem(sender),
     prompt: buildJdFitRubricPrompt({
       jobDescription,
@@ -38,9 +39,11 @@ export async function runJdRubricAction(formData: FormData) {
       roleTitle,
       memory,
     }),
-    model: MODELS.sonnet,
+    primaryModel: MODELS.analysisSynthesis,
+    fallbackModel: MODELS.sonnet,
     maxTokens: 4096,
     scope: { userId: user.id, callPurpose: "jd_fit_rubric" },
+    validate: validateJdFitRubricOutput,
   });
 
   // Save analysis record
@@ -63,6 +66,29 @@ export async function runJdRubricAction(formData: FormData) {
 
   if (error) return { error: error.message };
   return { analysisId: data.id, result };
+}
+
+function validateJdFitRubricOutput(value: Record<string, unknown>): string | null {
+  if (!isNonEmptyString(value.bottom_line)) {
+    return "bottom_line must be non-empty";
+  }
+  if (!Array.isArray(value.requirement_matches) || value.requirement_matches.length < 3) {
+    return "requirement_matches must include at least 3 entries";
+  }
+  if (
+    !Array.isArray(value.positioning_recommendations) ||
+    value.positioning_recommendations.filter(isNonEmptyString).length < 3
+  ) {
+    return "positioning_recommendations must include at least 3 entries";
+  }
+  if (!value.scorecard || typeof value.scorecard !== "object") {
+    return "scorecard must be an object";
+  }
+  return null;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 // -- Tier 2: Company fit analyzer (async) --

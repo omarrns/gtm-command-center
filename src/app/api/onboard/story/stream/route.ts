@@ -57,6 +57,9 @@ export async function POST(req: Request) {
   const transcript = formatTranscript(
     (interview.messages ?? []) as UIMessage[],
   );
+  const providerOptions = template.extractionModel.startsWith("anthropic/")
+    ? { anthropic: { structuredOutputMode: "jsonTool" as const } }
+    : undefined;
 
   const result = streamObject({
     model: gateway(template.extractionModel),
@@ -67,9 +70,7 @@ export async function POST(req: Request) {
     // Opt out of Anthropic's native structured-output path for parity
     // with runGenerateObject (src/lib/ai/calls.ts). See comment there
     // for the rationale.
-    providerOptions: {
-      anthropic: { structuredOutputMode: "jsonTool" },
-    },
+    providerOptions,
     onFinish: async ({ object }) => {
       if (!object) return;
 

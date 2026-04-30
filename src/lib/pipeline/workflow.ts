@@ -136,7 +136,7 @@ async function stepResearch(
   });
   log.info("starting");
   const svc = createSupabaseServiceClient();
-  const result = await runResearch(svc, userId);
+  const result = await runResearch(svc, userId, runId);
   log.info("done", {
     processed: result.processed,
     researched: result.researched,

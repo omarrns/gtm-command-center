@@ -348,6 +348,12 @@ export async function startAgenticInterviewAction(
       "Ask the first onboarding question now, following the instructions in your system prompt.",
     model: template.chatModel,
     maxTokens: template.chatMaxOutputTokens,
+    scope: {
+      userId: user.id,
+      scopeTable: "onboarding_interviews",
+      scopeId: interviewId,
+      callPurpose: "onboarding_initial_question",
+    },
   });
 
   const assistantMessage: UIMessage = {

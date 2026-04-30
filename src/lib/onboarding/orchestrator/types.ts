@@ -29,6 +29,7 @@ export interface OrchestratorArtifactRef {
   sourceType: ArtifactSourceType;
   sourceLabel?: string;
   sourceUrl?: string;
+  fileName?: string;
   status: ArtifactManifestStatus;
   errorMessage?: string;
 }
@@ -70,6 +71,7 @@ export interface OrchestratorMetrics {
   artifactSuccessCount: number;
   artifactFailureCount: number;
   reviewEdits: OrchestratorReviewEdit[];
+  currentAnalysisRunId?: string;
 }
 
 export interface OrchestratorState {

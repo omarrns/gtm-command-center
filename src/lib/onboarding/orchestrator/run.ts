@@ -43,7 +43,11 @@ export async function analyzeArtifacts(
   interviewId: string,
   svc: SupabaseClient,
   template: AgenticTemplate,
-  ctx: { isRefresh: boolean; existingProfile?: string },
+  ctx: {
+    isRefresh: boolean;
+    existingProfile?: string;
+    analysisRunId?: string;
+  },
 ): Promise<OrchestratorState> {
   const allArtifacts = await loadArtifactsForInterview(svc, interviewId);
   const succeeded = allArtifacts.filter((a) => a.status === "succeeded");
@@ -65,6 +69,15 @@ export async function analyzeArtifacts(
   const prior =
     (interviewRow.orchestrator_state as OrchestratorState | null) ??
     emptyOrchestratorState(template.id);
+  const metrics = {
+    ...prior.metrics,
+    artifactSuccessCount: succeeded.length,
+    artifactFailureCount: failed.length,
+    currentAnalysisRunId: ctx.analysisRunId,
+  };
+  if (!ctx.analysisRunId) {
+    delete metrics.currentAnalysisRunId;
+  }
 
   const next: OrchestratorState = {
     ...prior,
@@ -78,14 +91,11 @@ export async function analyzeArtifacts(
       sourceType: a.source_type,
       sourceLabel: a.source_label ?? undefined,
       sourceUrl: a.source_url ?? undefined,
+      fileName: a.file_name ?? undefined,
       status: a.status,
       errorMessage: a.error_message ?? undefined,
     })),
-    metrics: {
-      ...prior.metrics,
-      artifactSuccessCount: succeeded.length,
-      artifactFailureCount: failed.length,
-    },
+    metrics,
   };
 
   if (succeeded.length === 0) {
@@ -93,7 +103,7 @@ export async function analyzeArtifacts(
     // dimension. Failures are still in the manifest for UI visibility.
     next.status = "interviewing";
     next.nextDimensionKey = computeNextKey(next, template);
-    await persistState(svc, interviewId, next);
+    await persistState(svc, interviewId, next, ctx.analysisRunId);
     return next;
   }
 
@@ -209,7 +219,7 @@ export async function analyzeArtifacts(
   next.status = "interviewing";
   next.nextDimensionKey = computeNextKey(next, template);
 
-  await persistState(svc, interviewId, next);
+  await persistState(svc, interviewId, next, ctx.analysisRunId);
   return next;
 }
 
@@ -377,15 +387,72 @@ async function persistState(
   svc: SupabaseClient,
   interviewId: string,
   state: OrchestratorState,
+  expectedAnalysisRunId?: string,
 ): Promise<void> {
-  const { error } = await svc
+  let query = svc
     .from("onboarding_interviews")
     .update({
       orchestrator_state: state,
       updated_at: new Date().toISOString(),
     })
     .eq("id", interviewId);
+
+  if (expectedAnalysisRunId) {
+    query = query.filter(
+      "orchestrator_state->metrics->>currentAnalysisRunId",
+      "eq",
+      expectedAnalysisRunId,
+    );
+  }
+
+  const { data, error } = await query.select("id");
   if (error) {
     throw new Error(`Failed to persist orchestrator_state: ${error.message}`);
+  }
+  if (expectedAnalysisRunId && (!data || data.length === 0)) {
+    throw new StaleOrchestratorAnalysisError(expectedAnalysisRunId);
+  }
+}
+
+export async function markOrchestratorAnalysisFailed(
+  svc: SupabaseClient,
+  interviewId: string,
+  analysisRunId: string,
+): Promise<void> {
+  const { data } = await svc
+    .from("onboarding_interviews")
+    .select("orchestrator_state")
+    .eq("id", interviewId)
+    .filter(
+      "orchestrator_state->metrics->>currentAnalysisRunId",
+      "eq",
+      analysisRunId,
+    )
+    .maybeSingle();
+
+  const state = data?.orchestrator_state as OrchestratorState | null;
+  if (!state) return;
+
+  await svc
+    .from("onboarding_interviews")
+    .update({
+      orchestrator_state: {
+        ...state,
+        status: "failed",
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", interviewId)
+    .filter(
+      "orchestrator_state->metrics->>currentAnalysisRunId",
+      "eq",
+      analysisRunId,
+    );
+}
+
+export class StaleOrchestratorAnalysisError extends Error {
+  constructor(analysisRunId: string) {
+    super(`Stale orchestrator analysis skipped: ${analysisRunId}`);
+    this.name = "StaleOrchestratorAnalysisError";
   }
 }

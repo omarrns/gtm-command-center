@@ -13,6 +13,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { config } from "dotenv";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { __setRunGenerateObjectForTests } from "../src/lib/ai/calls";
 import { __setSupabaseServiceClientForTests } from "../src/lib/supabase/service";
@@ -22,6 +24,8 @@ config({ path: ".env.local" });
 process.env.RAPIDAPI_KEY ||= "test-fixture-key";
 process.env.ANTHROPIC_API_KEY ||= "test-fixture-key";
 process.env.EXA_API_KEY ||= "test-fixture-key";
+
+const ROOT = process.cwd();
 
 const JSEARCH_FIXTURE = [
   {
@@ -445,6 +449,36 @@ async function main() {
   assert(
     jsearchCallCount === 0,
     `gtm workflow made zero JSearch calls (got ${jsearchCallCount})`,
+  );
+
+  console.log("\n--- ai capture scope plumbing ---");
+  const workflowSource = readFileSync(
+    join(ROOT, "src/lib/pipeline/workflow.ts"),
+    "utf-8",
+  );
+  const researchSource = readFileSync(
+    join(ROOT, "src/lib/pipeline/steps/research.ts"),
+    "utf-8",
+  );
+  const peopleResearchJobSource = readFileSync(
+    join(ROOT, "src/lib/jobs/handlers/people-research.ts"),
+    "utf-8",
+  );
+  assert(
+    workflowSource.includes("runResearch(svc, userId, runId)"),
+    "workflow passes runId into the research step for ai_calls correlation",
+  );
+  assert(
+    researchSource.includes('callPurpose: "people_research"') &&
+      researchSource.includes('scopeTable: "opportunities"') &&
+      researchSource.includes("scopeId: opp.id"),
+    "pipeline people research scopes ai_calls to the opportunity row",
+  );
+  assert(
+    peopleResearchJobSource.includes('scopeTable: "research_reports"') &&
+      peopleResearchJobSource.includes("scopeId: report_id") &&
+      peopleResearchJobSource.includes('callPurpose: "people_research"'),
+    "background people research scopes ai_calls to the research report row",
   );
 
   globalThis.fetch = originalFetch;

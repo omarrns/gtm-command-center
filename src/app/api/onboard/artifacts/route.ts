@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import {
@@ -8,8 +9,16 @@ import {
   type IngestOptions,
 } from "@/lib/onboarding/artifacts/ingest";
 import { getTemplate } from "@/lib/onboarding/templates";
-import { analyzeArtifacts } from "@/lib/onboarding/orchestrator/run";
-import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
+import {
+  computeNextKey,
+  loadArtifactsForInterview,
+} from "@/lib/onboarding/orchestrator/run-helpers";
+import { markOrchestratorAnalysisFailed } from "@/lib/onboarding/orchestrator/run";
+import {
+  emptyOrchestratorState,
+  type OrchestratorState,
+} from "@/lib/onboarding/orchestrator/types";
+import { enqueueOnboardingArtifactAnalysisJob } from "@/lib/jobs/onboarding-artifact-analysis";
 
 export const maxDuration = 120;
 
@@ -63,15 +72,18 @@ export async function POST(req: Request) {
     };
     const buffer = await file.arrayBuffer();
     const row = await ingestFile(buffer, file.name, file.type, opts, svc);
-    const orchestratorState = await maybeAnalyze(svc, interviewId);
+    const orchestratorState = await maybeQueueAnalysis(
+      svc,
+      interviewId,
+      user.id,
+    );
     return Response.json({ artifact: row, orchestratorState });
   }
 
   const body = (await req.json()) as ArtifactRequestBody;
 
-  // Batch URL path: scrape N URLs in parallel, persist all, then run
-  // analyzeArtifacts exactly once so a 5-URL paste produces one Opus call
-  // instead of five racing ones.
+  // Batch URL path: scrape N URLs in parallel, persist all, then queue one
+  // async artifact-analysis job so the HTTP request doesn't wait on Opus.
   if (Array.isArray(body.urls) && body.urls.length > 0) {
     if (body.urls.some((u) => !u?.url || !u?.kind)) {
       return Response.json(
@@ -96,7 +108,11 @@ export async function POST(req: Request) {
       },
       svc,
     );
-    const orchestratorState = await maybeAnalyze(svc, body.interviewId ?? null);
+    const orchestratorState = await maybeQueueAnalysis(
+      svc,
+      body.interviewId ?? null,
+      user.id,
+    );
     return Response.json({ artifacts: rows, orchestratorState });
   }
 
@@ -120,13 +136,21 @@ export async function POST(req: Request) {
 
   if (body.url) {
     const row = await ingestUrl(body.url, opts, svc);
-    const orchestratorState = await maybeAnalyze(svc, opts.interviewId);
+    const orchestratorState = await maybeQueueAnalysis(
+      svc,
+      opts.interviewId,
+      user.id,
+    );
     return Response.json({ artifact: row, orchestratorState });
   }
 
   if (body.text) {
     const row = await ingestText(body.text, opts, svc);
-    const orchestratorState = await maybeAnalyze(svc, opts.interviewId);
+    const orchestratorState = await maybeQueueAnalysis(
+      svc,
+      opts.interviewId,
+      user.id,
+    );
     return Response.json({ artifact: row, orchestratorState });
   }
 
@@ -138,21 +162,22 @@ export async function POST(req: Request) {
 
 /**
  * After any artifact lands (succeeded OR failed), sync orchestrator_state.
- * Failed artifacts don't produce new dimension inferences — analyzeArtifacts
- * short-circuits the Opus call when zero-succeeded — but they DO need to
- * land in orchestrator_state.artifacts so the status panel (which reads
- * from saved state during the chat phase) stays visible.
+ * Succeeded artifacts queue the expensive Opus analysis in the worker so this
+ * route returns after scrape/persist. Failed-only batches still need a saved
+ * manifest so the UI can surface why nothing was read.
  */
-async function maybeAnalyze(
+async function maybeQueueAnalysis(
   svc: ReturnType<typeof createSupabaseServiceClient>,
   interviewId: string | null,
+  userId: string,
 ): Promise<OrchestratorState | null> {
   if (!interviewId) return null;
 
   const { data: interview } = await svc
     .from("onboarding_interviews")
-    .select("template_id, is_refresh")
+    .select("template_id, is_refresh, orchestrator_state")
     .eq("id", interviewId)
+    .eq("user_id", userId)
     .single();
 
   if (!interview) return null;
@@ -160,9 +185,74 @@ async function maybeAnalyze(
   const template = getTemplate(interview.template_id);
   if (!template.agenticMode) return null;
 
-  return analyzeArtifacts(interviewId, svc, template, {
-    isRefresh: interview.is_refresh,
-  });
+  const allArtifacts = await loadArtifactsForInterview(svc, interviewId);
+  const succeeded = allArtifacts.filter((a) => a.status === "succeeded");
+  const failed = allArtifacts.filter((a) => a.status === "failed");
+  const prior =
+    (interview.orchestrator_state as OrchestratorState | null) ??
+    emptyOrchestratorState(template.id);
+  const analysisRunId =
+    succeeded.length > 0 ? `artifact-analysis-${nanoid()}` : undefined;
+  const metrics = {
+    ...prior.metrics,
+    artifactSuccessCount: succeeded.length,
+    artifactFailureCount: failed.length,
+    currentAnalysisRunId: analysisRunId,
+  };
+  if (!analysisRunId) {
+    delete metrics.currentAnalysisRunId;
+  }
+
+  const next: OrchestratorState = {
+    ...prior,
+    templateId: template.id,
+    status: succeeded.length > 0 ? "analyzing" : "interviewing",
+    artifacts: allArtifacts.map((a) => ({
+      id: a.id,
+      kind: a.kind,
+      sourceType: a.source_type,
+      sourceLabel: a.source_label ?? undefined,
+      sourceUrl: a.source_url ?? undefined,
+      fileName: a.file_name ?? undefined,
+      status: a.status,
+      errorMessage: a.error_message ?? undefined,
+    })),
+    metrics,
+  };
+  if (succeeded.length === 0) {
+    next.nextDimensionKey = computeNextKey(next, template);
+  }
+
+  const { error } = await svc
+    .from("onboarding_interviews")
+    .update({
+      orchestrator_state: next,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", interviewId)
+    .eq("user_id", userId);
+  if (error) {
+    throw new Error(`Failed to sync artifact state: ${error.message}`);
+  }
+
+  if (analysisRunId) {
+    try {
+      await enqueueOnboardingArtifactAnalysisJob(svc, {
+        userId,
+        payload: {
+          interviewId,
+          templateId: template.id,
+          isRefresh: interview.is_refresh,
+          analysisRunId,
+        },
+      });
+    } catch (err) {
+      await markOrchestratorAnalysisFailed(svc, interviewId, analysisRunId);
+      throw err;
+    }
+  }
+
+  return next;
 }
 
 async function checkInterviewOwnership(

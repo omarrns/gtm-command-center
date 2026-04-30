@@ -182,7 +182,9 @@ export async function runGenerateObject<S extends z.ZodType>(
       schema: args.schema,
       maxOutputTokens: args.maxOutputTokens,
       providerOptions: {
-        anthropic: { structuredOutputMode },
+        ...(args.model.startsWith("anthropic/")
+          ? { anthropic: { structuredOutputMode } }
+          : {}),
         ...(gatewayProviderOptions ? { gateway: gatewayProviderOptions } : {}),
       },
     });
