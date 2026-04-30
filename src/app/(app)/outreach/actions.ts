@@ -61,6 +61,13 @@ export async function generateEmailDraftAction(formData: FormData) {
     }),
     model: MODELS.sonnet,
     maxTokens: 4096,
+    scope: {
+      userId: user.id,
+      ...(analysisId
+        ? { scopeTable: "analyses", scopeId: analysisId }
+        : {}),
+      callPurpose: "standalone_outreach_draft",
+    },
   });
 
   if (!result.subject || !result.body) {

@@ -13,6 +13,15 @@ export async function runPeopleResearchJob(job: JobRow, svc: SupabaseClient) {
     company_name,
     role_title,
     job.user_id,
+    svc,
+    {
+      scope: {
+        userId: job.user_id,
+        scopeTable: "research_reports",
+        scopeId: report_id,
+        callPurpose: "people_research",
+      },
+    },
   );
 
   await svc

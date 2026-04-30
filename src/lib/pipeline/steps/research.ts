@@ -28,6 +28,7 @@ export interface ResearchResult {
 export async function runResearch(
   svc: SupabaseClient,
   userId: string,
+  runId?: string,
 ): Promise<ResearchResult> {
   const opportunities = await getOpportunitiesByStage(
     svc,
@@ -49,7 +50,7 @@ export async function runResearch(
       if (!claimed) continue;
 
       result.processed++;
-      await processOneResearch(svc, userId, opp);
+      await processOneResearch(svc, userId, opp, runId);
 
       const { data: updated } = await svc
         .from("opportunities")
@@ -81,12 +82,22 @@ async function processOneResearch(
   svc: SupabaseClient,
   userId: string,
   opp: OpportunityRow,
+  runId?: string,
 ): Promise<void> {
   const research = await researchPeople(
     opp.company_name,
     opp.role_title ?? "",
     userId,
     svc,
+    {
+      scope: {
+        userId,
+        runId,
+        scopeTable: "opportunities",
+        scopeId: opp.id,
+        callPurpose: "people_research",
+      },
+    },
   );
 
   // Create research_reports row
