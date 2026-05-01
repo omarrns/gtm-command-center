@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" role="img" aria-labelledby="title desc">
+  <title id="title">Searchcraft logo</title>
+  <desc id="desc">Searchcraft wordmark with a compact search and compass mark.</desc>
+  <rect width="260" height="64" rx="12" fill="none"/>
+  <g>
+    <rect x="8" y="8" width="48" height="48" rx="11" fill="#f8f8f8"/>
+    <circle cx="30" cy="30" r="11" fill="none" stroke="#171717" stroke-width="4" stroke-linecap="round"/>
+    <path d="M38 38l8 8" fill="none" stroke="#171717" stroke-width="4" stroke-linecap="round"/>
+    <path d="M30 23.5l3.5 9-9-3.5 4-1.5z" fill="#1e63ff"/>
+    <path d="M24 41h8c2 0 4-2 4-4v-3" fill="none" stroke="#737373" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+  <text x="72" y="40" fill="#171717" font-family="Geist, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" font-weight="600" letter-spacing="-0.2">Searchcraft</text>
+</svg>

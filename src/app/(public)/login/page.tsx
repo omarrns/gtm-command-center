@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { BrandLogo } from "@/components/brand-logo";
 import { Card } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
 
 export const metadata = {
-  title: "Sign in · GTM Command Center",
+  title: "Sign in · Searchcraft",
 };
 
 type SearchParams = Promise<{ next?: string; error?: string }>;
@@ -23,9 +24,7 @@ export default async function LoginPage({
     <div className="w-full max-w-md">
       <Card className="gap-0 p-8 shadow-sm">
         <div className="mb-8">
-          <div className="text-xs uppercase tracking-[0.18em] text-[var(--color-text-subtle)] mb-2">
-            GTM Command Center
-          </div>
+          <BrandLogo className="mb-4" />
           <h1 className="text-3xl font-bold tracking-tight leading-tight">
             Sign in to continue
           </h1>

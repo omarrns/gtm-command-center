@@ -24,6 +24,7 @@ import {
   useReducedMotion,
 } from "motion/react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-logo";
 import { signOutAction } from "@/app/(public)/login/actions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { UserType } from "@/lib/supabase/types";
@@ -96,13 +97,15 @@ function SidebarContent({
 
   return (
     <>
-      {/* Logo region */}
       <div
         className={cn(
           "pt-4 pb-3 px-3 flex",
-          collapsed ? "justify-center" : "justify-end",
+          collapsed
+            ? "flex-col items-center gap-2"
+            : "items-center justify-between gap-2",
         )}
       >
+        <BrandLogo collapsed={collapsed} className={collapsed ? "" : "px-1"} />
         {onToggleCollapsed && (
           <button
             type="button"

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — GTM Command Center",
+  title: "Privacy Policy — Searchcraft",
 };
 
 export default function PrivacyPage() {
@@ -16,9 +16,9 @@ export default function PrivacyPage() {
         <section className="space-y-3 text-sm leading-relaxed text-[var(--color-text)]">
           <h2 className="text-lg font-semibold">What This App Does</h2>
           <p>
-            GTM Command Center is a single-user tool that helps manage job
-            search outreach. When you connect your Gmail account, it sends
-            emails on your behalf using the Gmail API.
+            Searchcraft is a single-user tool that helps manage job-search
+            outreach. When you connect your Gmail account, it sends emails on
+            your behalf using the Gmail API.
           </p>
 
           <h2 className="text-lg font-semibold">Data We Access</h2>

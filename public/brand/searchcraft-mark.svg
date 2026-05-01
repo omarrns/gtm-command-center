@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Searchcraft mark</title>
+  <desc id="desc">A restrained search and compass mark for Searchcraft.</desc>
+  <rect width="64" height="64" rx="14" fill="#f8f8f8"/>
+  <circle cx="29" cy="29" r="15" fill="none" stroke="#171717" stroke-width="5" stroke-linecap="round"/>
+  <path d="M40 40l10 10" fill="none" stroke="#171717" stroke-width="5" stroke-linecap="round"/>
+  <path d="M29 21l4.5 12-12-4.5 5.4-2.1z" fill="#1e63ff"/>
+  <path d="M21 44h10c3 0 5-2 5-5v-4" fill="none" stroke="#737373" stroke-width="3" stroke-linecap="round"/>
+</svg>

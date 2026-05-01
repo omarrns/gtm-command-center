@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { AnalysisDetail } from "./analysis-detail";
 
-export const metadata = { title: "Analysis Detail · GTM Command Center" };
+export const metadata = { title: "Analysis Detail · Searchcraft" };
 
 type Props = { params: Promise<{ id: string }> };
 

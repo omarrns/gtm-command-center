@@ -41,7 +41,7 @@ export function TopBar({ onMenuClick, userType }: TopBarProps) {
   // because that's what the homepage renders for them; job_seeker
   // and null keep "Today". Other titles are persona-agnostic.
   const personaFallback =
-    userType === "job_seeker" ? "Job Search" : "GTM Command Center";
+    userType === "job_seeker" ? "Job Search" : "Searchcraft";
   const baseTitle = key ? TITLES[key] : personaFallback;
   const isSignalBase = key === "/" && userType === "gtm";
   const title = isSignalBase ? "SignalBase" : baseTitle;
