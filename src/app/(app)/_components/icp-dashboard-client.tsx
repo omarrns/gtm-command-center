@@ -49,39 +49,41 @@ export function IcpDashboardClient({
   }
 
   return (
-    <div className="mx-auto max-w-xl px-6 py-12">
-      <header className="mb-10 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Your ICP</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-2">
-            Synthesized from your exemplars, buyer personas, and product
-            context. Click any field to refine.
-          </p>
-        </div>
-        <Link
-          href={REFRESH_HREF}
-          className={buttonVariants({ variant: "ghost", size: "sm" })}
-        >
-          <RefreshCw size={14} />
-          Refresh ICP
-        </Link>
-      </header>
+    <div className="mx-auto max-w-3xl px-6 pb-12">
+      <div className="sticky top-0 z-20 -mx-6 mb-8 border-b border-[var(--color-border)] bg-[var(--color-bg)]/95 px-6 py-4 backdrop-blur">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Your ICP</h1>
+            <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
+              Synthesized from your exemplars, buyer personas, and product
+              context. Click any field to refine.
+            </p>
+          </div>
+          <Link
+            href={REFRESH_HREF}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+          >
+            <RefreshCw size={14} />
+            Refresh ICP
+          </Link>
+        </header>
 
-      <div className="mb-8 inline-flex rounded-lg bg-muted p-1">
-        <button
-          type="button"
-          onClick={() => setActiveView("rubric")}
-          className={viewButtonClass(activeView === "rubric")}
-        >
-          Rubric
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveView("narrative")}
-          className={viewButtonClass(activeView === "narrative")}
-        >
-          Narrative
-        </button>
+        <div className="mt-5 inline-flex rounded-lg bg-muted p-1">
+          <button
+            type="button"
+            onClick={() => setActiveView("rubric")}
+            className={viewButtonClass(activeView === "rubric")}
+          >
+            Rubric
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView("narrative")}
+            className={viewButtonClass(activeView === "narrative")}
+          >
+            Narrative
+          </button>
+        </div>
       </div>
 
       {activeView === "rubric" ? (
