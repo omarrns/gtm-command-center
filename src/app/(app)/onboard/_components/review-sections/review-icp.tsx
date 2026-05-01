@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import {
-  ArrowLeft,
-} from "@phosphor-icons/react/ssr";
+import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -132,17 +130,41 @@ export function ReviewIcp({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="mx-auto max-w-xl px-6 py-12"
+      className="mx-auto max-w-3xl px-6 pb-12"
     >
-      <header className="mb-10">
-        <h1 className="text-xl font-semibold tracking-tight">
-          Review your ICP
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-2">
-          Synthesized from your exemplars, buyer personas, and product context.
-          Edit anything that doesn&apos;t look right, then I&apos;ll write you
-          the arc.
-        </p>
+      <header className="sticky top-0 z-20 -mx-6 mb-8 border-b border-[var(--color-border)] bg-[var(--color-bg)]/95 px-6 py-4 backdrop-blur">
+        <div>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">
+              Review your ICP
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
+              Synthesized from your exemplars, buyer personas, and product
+              context. Edit anything that doesn&apos;t look right, then
+              I&apos;ll write you the arc.
+            </p>
+          </div>
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              disabled={isPending}
+            >
+              <ArrowLeft size={14} />
+              Back to interview
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleContinueToStory}
+              disabled={isPending}
+            >
+              {isPending ? "Starting..." : "Continue to narrative arc"}
+            </Button>
+          </div>
+        </div>
       </header>
 
       <ExemplarScarcityBanner positiveExemplarCount={positiveExemplarCount} />
@@ -202,25 +224,7 @@ export function ReviewIcp({
 
       <PerExemplarBreakdown orchestratorState={orchestratorState} />
 
-      <div className="mt-12 flex items-center justify-between border-t border-[var(--color-border-strong)] pt-6">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleBack}
-          disabled={isPending}
-        >
-          <ArrowLeft size={14} />
-          Back to interview
-        </Button>
-        <Button
-          type="button"
-          onClick={handleContinueToStory}
-          disabled={isPending}
-        >
-          {isPending ? "Starting..." : "Continue to narrative arc"}
-        </Button>
-      </div>
+      <div className="mt-12 border-t border-[var(--color-border-strong)]" />
     </motion.div>
   );
 }

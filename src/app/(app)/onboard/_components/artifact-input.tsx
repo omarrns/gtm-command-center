@@ -372,13 +372,12 @@ export function ArtifactInput({
         ];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 py-12">
-      {/* Hero heading */}
-      <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold tracking-tight mb-3">
+    <div className="flex min-h-[52vh] flex-col items-center justify-center px-4 py-8">
+      <div className="mb-6 text-center">
+        <h1 className="mb-2 text-xl font-semibold tracking-tight">
           {copy.heroTitle}
         </h1>
-        <p className="text-sm text-[var(--color-text-muted)] max-w-sm leading-relaxed">
+        <p className="max-w-md text-sm leading-relaxed text-[var(--color-text-muted)]">
           {copy.heroSubtitle}
         </p>
       </div>
@@ -387,25 +386,27 @@ export function ArtifactInput({
         <CyclicLoader messages={copy.cyclicMessages} className="mb-3" />
       )}
       {analysisError && (
-        <div className="mb-3 flex max-w-lg items-center gap-2 rounded-md border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/5 px-3 py-2 text-sm text-[var(--color-danger)]">
+        <div className="mb-3 flex w-full max-w-3xl items-center gap-2 rounded-md border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/5 px-3 py-2 text-sm text-[var(--color-danger)]">
           <WarningCircle size={14} className="shrink-0" />
           <span>{analysisError}</span>
         </div>
       )}
 
-      {/* Artifact chips */}
       {artifacts.length > 0 && (
-        <div className="w-full max-w-lg mb-3">
+        <div className="mb-3 w-full max-w-3xl">
           <div className="flex flex-wrap gap-2">
             {artifacts.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center gap-1.5 text-xs bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-full px-3 py-1.5 max-w-[280px]"
+                className="flex max-w-[280px] items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2.5 py-1.5 text-xs"
               >
                 {statusIcon(a.status)}
+                <span className="shrink-0 rounded-full bg-[var(--color-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
+                  {humanizeKind(a.kind)}
+                </span>
                 <span className="truncate">{artifactLabel(a)}</span>
                 {a.status === "failed" && a.error_message && (
-                  <span className="text-[var(--color-danger)] ml-1 truncate">
+                  <span className="ml-1 truncate text-[var(--color-danger)]">
                     — {a.error_message}
                   </span>
                 )}
@@ -413,21 +414,14 @@ export function ArtifactInput({
             ))}
           </div>
           {hasLinkedInFailure && (
-            <p className="text-xs text-[var(--color-text-muted)] mt-2">
+            <p className="mt-2 text-xs text-[var(--color-text-muted)]">
               {copy.linkedInFailureHint}
-            </p>
-          )}
-          {kindOverride && (
-            <p className="text-xs text-[var(--color-blue)] mt-2">
-              Next submission will be tagged as{" "}
-              <strong>{humanizeKind(kindOverride)}</strong>.
             </p>
           )}
         </div>
       )}
 
-      {/* Unified input box */}
-      <div className="w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm focus-within:border-[var(--color-blue)] transition-colors">
+      <div className="w-full max-w-3xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors focus-within:border-[var(--color-blue)]">
         <textarea
           ref={textareaRef}
           value={inputValue}
@@ -446,7 +440,7 @@ export function ArtifactInput({
             type="button"
             onClick={() => fileRef.current?.click()}
             title="Upload PDF"
-            className="p-1.5 rounded-lg text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] transition-colors"
+            className="rounded-md p-1.5 text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
           >
             <Paperclip size={16} />
           </button>
@@ -455,7 +449,7 @@ export function ArtifactInput({
             onClick={submit}
             disabled={!inputValue.trim() || isBusy}
             className={cn(
-              "p-1.5 rounded-lg transition-colors",
+              "rounded-md p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
               inputValue.trim() && !isBusy
                 ? "bg-[var(--color-blue)] text-white hover:opacity-90"
                 : "bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] cursor-not-allowed",
@@ -470,7 +464,6 @@ export function ArtifactInput({
         </div>
       </div>
 
-      {/* Hidden file input */}
       <input
         ref={fileRef}
         type="file"
@@ -483,8 +476,7 @@ export function ArtifactInput({
         }}
       />
 
-      {/* Quick action pills */}
-      <div className="flex items-center gap-2 mt-6 flex-wrap justify-center">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
         {pills.map((pill) => (
           <button
             key={pill.label}
@@ -505,7 +497,12 @@ export function ArtifactInput({
                 textareaRef.current?.focus();
               }
             }}
-            className="text-xs px-3 py-1.5 rounded-full border border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-blue)] hover:text-[var(--color-blue)] transition-colors"
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
+              pill.kindOverride && kindOverride === pill.kindOverride
+                ? "border-[var(--color-blue)] bg-[var(--color-blue)]/5 text-[var(--color-blue)]"
+                : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-blue)] hover:text-[var(--color-blue)]",
+            )}
           >
             {pill.label}
           </button>
@@ -533,9 +530,9 @@ interface InputCopy {
 function buildCopy(templateId: InterviewTemplateId): InputCopy {
   if (templateId === "icp_definition") {
     return {
-      heroTitle: "Let's find you customers",
+      heroTitle: "Build your ICP",
       heroSubtitle:
-        "Drop customers you'd clone, bad-fit examples, or your product context. The more exemplars I see, the sharper the ICP rubric gets before the first question.",
+        "Drop customer examples, bad fits, buyer context, or product notes. I’ll turn them into a sharper rubric before the first question.",
       placeholder:
         "Paste a customer URL, a buyer's LinkedIn, or describe your product and target accounts…",
       cyclicMessages: [

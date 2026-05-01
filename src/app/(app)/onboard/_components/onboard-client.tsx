@@ -193,7 +193,7 @@ export function OnboardClient({
       : "Save & Continue";
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-3xl p-6">
       <div className="mb-6">
         <h1 className="text-xl font-bold tracking-tight">
           {isRefresh ? "Profile Refresh" : "Set up your pipeline"}
