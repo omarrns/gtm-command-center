@@ -1,6 +1,6 @@
 import {
-  Envelope as Mail,
-  ArrowSquareOut as ExternalLink,
+  Envelope,
+  ArrowSquareOut,
 } from "@phosphor-icons/react/ssr";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,7 +18,7 @@ export function StepGmail({ gmailConnected, isRefresh }: StepGmailProps) {
     <div className="space-y-5">
       <Card className="gap-4 p-5">
         <div className="flex items-center gap-2">
-          <Mail size={16} />
+          <Envelope size={16} />
           <h3 className="text-sm font-semibold">Gmail Integration</h3>
         </div>
 
@@ -35,7 +35,7 @@ export function StepGmail({ gmailConnected, isRefresh }: StepGmailProps) {
               Settings.
             </p>
             <a href={authHref} className={buttonVariants()}>
-              <ExternalLink size={13} />
+              <ArrowSquareOut size={13} />
               Connect Gmail
             </a>
           </div>

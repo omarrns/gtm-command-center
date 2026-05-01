@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  ArrowsClockwise as RefreshCw,
+  ArrowsClockwise,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
@@ -63,12 +63,12 @@ export function IcpDashboardClient({
             href={REFRESH_HREF}
             className={buttonVariants({ variant: "ghost", size: "sm" })}
           >
-            <RefreshCw size={14} />
+            <ArrowsClockwise size={14} />
             Refresh ICP
           </Link>
         </header>
 
-        <div className="mt-5 inline-flex rounded-lg bg-muted p-1">
+        <div className="mt-5 inline-flex rounded-lg bg-[var(--color-surface-muted)] p-1">
           <button
             type="button"
             onClick={() => setActiveView("rubric")}
@@ -94,6 +94,7 @@ export function IcpDashboardClient({
         />
       ) : (
         <IcpNarrativePanel
+          // Remount when a generated narrative first arrives so parsed local state refreshes.
           key={narrativeArc ?? "empty-narrative"}
           narrativeArc={narrativeArc}
         />
@@ -115,7 +116,7 @@ function viewButtonClass(isActive: boolean): string {
   return [
     "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
     isActive
-      ? "bg-background text-foreground shadow-sm"
-      : "text-muted-foreground hover:text-foreground",
+      ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
+      : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
   ].join(" ");
 }

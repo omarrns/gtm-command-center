@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { FadeIn } from "@/components/ui/fade-in";
 import {
-  ArrowSquareOut as ExternalLink,
-  UserCircleGear as UserPen,
-  UserCircle as UserRound,
+  ArrowSquareOut,
+  UserCircleGear,
+  UserCircle,
 } from "@phosphor-icons/react/ssr";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -63,7 +63,7 @@ export function SettingsClient({
 
       <Card className="gap-3 p-5">
         <div className="flex items-center gap-2">
-          <UserPen size={16} />
+          <UserCircleGear size={16} />
           <h2 className="text-sm font-semibold">{profileTitle}</h2>
         </div>
         <p className="text-sm text-[var(--color-text-muted)]">
@@ -74,7 +74,7 @@ export function SettingsClient({
             href={profileHref}
             className={buttonVariants({ variant: "ghost" })}
           >
-            <ExternalLink size={13} />
+            <ArrowSquareOut size={13} />
             {profileLinkLabel}
           </Link>
           {!isGtm && (
@@ -82,7 +82,7 @@ export function SettingsClient({
               href="/profile"
               className={buttonVariants({ variant: "outline" })}
             >
-              <UserRound size={13} />
+              <UserCircle size={13} />
               View Profile
             </Link>
           )}

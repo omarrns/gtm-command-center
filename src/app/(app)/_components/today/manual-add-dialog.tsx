@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
-  Spinner as Loader2,
+  Spinner,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,7 @@ export function ManualAddDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isPending || !jobUrl.trim()}>
-            {isPending && <Loader2 size={14} className="animate-spin" />}
+            {isPending && <Spinner size={14} className="animate-spin" />}
             {isPending ? "Scoring…" : "Score & Add"}
           </Button>
         </DialogFooter>

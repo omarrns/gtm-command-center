@@ -3,16 +3,16 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Buildings as Building2,
+  Buildings,
   Users,
-  TrendUp as TrendingUp,
-  Globe as Globe2,
+  TrendUp,
+  Globe,
   Clock,
   Radio,
   Moon,
   X,
-  MagnifyingGlass as Search,
-  CaretDown as ChevronDown,
+  MagnifyingGlass,
+  CaretDown,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -302,7 +302,7 @@ export function AccountCard({
                       ? `${contacts.length} contact${contacts.length === 1 ? "" : "s"}`
                       : "Draft"}
                 </span>
-                <ChevronDown
+                <CaretDown
                   size={10}
                   aria-hidden="true"
                   className={cn(
@@ -364,13 +364,13 @@ export function AccountCard({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)] mt-3">
         {roleTitle && (
           <span className="inline-flex items-center gap-1">
-            <Building2 size={12} />
+            <Buildings size={12} />
             Hiring: {roleTitle}
           </span>
         )}
         {fundingStage && (
           <span className="inline-flex items-center gap-1">
-            <TrendingUp size={12} />
+            <TrendUp size={12} />
             {fundingStage}
           </span>
         )}
@@ -382,7 +382,7 @@ export function AccountCard({
         )}
         {industry && (
           <span className="inline-flex items-center gap-1">
-            <Globe2 size={12} />
+            <Globe size={12} />
             {industry}
           </span>
         )}
@@ -402,7 +402,7 @@ export function AccountCard({
           )}
         >
           <div className="overflow-hidden min-h-0">
-            <div className="mt-3 pt-3 border-t border-[var(--border)]">
+            <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
               {contacts.length > 0 && (
                 <ContactPanel
                   contacts={contacts}
@@ -440,7 +440,7 @@ export function AccountCard({
             }}
             disabled={isPending || contactJob.isLoading}
           >
-            <Search size={13} />
+            <MagnifyingGlass size={13} />
             Find contacts
           </Button>
         </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowSquareOut as ExternalLink, Gear as Settings, UserCircleGear as UserPen } from "@phosphor-icons/react/ssr";
+import { ArrowSquareOut, Gear, UserCircleGear } from "@phosphor-icons/react/ssr";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -50,14 +50,14 @@ export function ProfileContent({
           href="/onboard?mode=refresh&template=job_search"
           className={buttonVariants({ variant: "default" })}
         >
-          <UserPen size={14} />
+          <UserCircleGear size={14} />
           Edit Profile
         </Link>
         <Link
           href="/settings"
           className={buttonVariants({ variant: "outline" })}
         >
-          <Settings size={14} />
+          <Gear size={14} />
           Settings
         </Link>
       </PageHeader>
@@ -71,7 +71,7 @@ export function ProfileContent({
             href="/onboard?mode=refresh&template=job_search"
             className={buttonVariants({ variant: "outline" })}
           >
-            <ExternalLink size={14} />
+            <ArrowSquareOut size={14} />
             Edit Profile
           </Link>
         </EmptyState>

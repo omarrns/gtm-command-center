@@ -2,7 +2,9 @@ This file is the canonical design-language document for `gtm-command-center`.
 
 It defines the product's design intent: brand personality, visual language, typography, motion, color usage, composition heuristics, and anti-patterns to avoid.
 
-Implementation details like tokens, component classes, and shared UI conventions belong in `CLAUDE.md` and `globals.css`.
+Default to this document for all UI and front-end work. Before designing, reviewing, or changing a user-facing surface, use this file as the source of truth for what the interface should feel like and how design tradeoffs should be judged. If implementation guidance conflicts with this file, align the implementation guidance to this file rather than drifting the design language.
+
+Implementation details like tokens, component classes, and shared UI conventions belong in `AGENTS.md`, `docs/agent-reference.md`, and `globals.css`; they should encode this file's design direction, not redefine it.
 
 ## Design Context
 

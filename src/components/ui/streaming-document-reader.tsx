@@ -47,7 +47,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   ArrowLeft,
-  Warning as AlertTriangle,
+  Warning,
 } from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -212,7 +212,7 @@ export function StreamingDocumentReader<T extends Record<string, unknown>>({
 
       {error && (
         <Alert className="mb-6">
-          <AlertTriangle size={14} />
+          <Warning size={14} />
           <div className="text-xs">
             <p className="font-medium">Couldn&apos;t finish.</p>
             <p className="text-[var(--color-text-muted)]">

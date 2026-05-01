@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
-  PencilSimple as Pencil,
+  PencilSimple,
   X,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
@@ -71,7 +71,7 @@ export function EmailVariantPicker({
                   disabled={isPending}
                   aria-label="Edit draft"
                 >
-                  <Pencil size={12} />
+                  <PencilSimple size={12} />
                 </Button>
               </div>
             )}

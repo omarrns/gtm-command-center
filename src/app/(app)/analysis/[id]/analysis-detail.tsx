@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowsClockwise as RefreshCw,
+  ArrowsClockwise,
 } from "@phosphor-icons/react/ssr";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { formatRelativeTime } from "@/lib/utils";
@@ -57,7 +57,7 @@ export function AnalysisDetail({
 
       {isRunning && (
         <Alert className="mb-6">
-          <RefreshCw className="animate-spin text-[var(--color-blue)]" />
+          <ArrowsClockwise className="animate-spin text-[var(--color-blue)]" />
           <AlertTitle>Analysis running…</AlertTitle>
           <AlertDescription>
             Researching company and synthesizing results. This usually takes

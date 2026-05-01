@@ -1,7 +1,7 @@
 "use client";
 import {
-  CaretDown as ChevronDown,
-  CaretUp as ChevronUp,
+  CaretDown,
+  CaretUp,
 } from "@phosphor-icons/react/ssr";
 
 interface SectionHeaderProps {
@@ -23,9 +23,9 @@ export function SectionHeader({
     >
       <h3 className="text-sm font-semibold">{title}</h3>
       {isExpanded ? (
-        <ChevronUp size={14} className="text-[var(--color-text-subtle)]" />
+        <CaretUp size={14} className="text-[var(--color-text-subtle)]" />
       ) : (
-        <ChevronDown size={14} className="text-[var(--color-text-subtle)]" />
+        <CaretDown size={14} className="text-[var(--color-text-subtle)]" />
       )}
     </button>
   );

@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import {
-  ArrowSquareOut as ExternalLink,
-  ArrowsClockwise as RefreshCw,
+  ArrowSquareOut,
+  ArrowsClockwise,
 } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
@@ -68,7 +68,7 @@ export function ResearchDetail({
 
       {showRunning && (
         <Alert className="mb-6">
-          <RefreshCw className="animate-spin text-[var(--color-blue)]" />
+          <ArrowsClockwise className="animate-spin text-[var(--color-blue)]" />
           <AlertTitle>Research running…</AlertTitle>
           <AlertDescription>
             Querying Exa and synthesizing. Usually completes within 120 seconds.
@@ -189,7 +189,7 @@ function PersonCard({
               className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
               aria-label={`${person.name} LinkedIn profile`}
             >
-              <ExternalLink size={14} />
+              <ArrowSquareOut size={14} />
             </a>
           )}
         </div>

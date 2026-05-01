@@ -6,7 +6,7 @@ import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
-  X as XIcon,
+  X,
 } from "@phosphor-icons/react/ssr";
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
@@ -72,7 +72,7 @@ function SheetContent({
               />
             }
           >
-            <XIcon
+            <X
             />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>

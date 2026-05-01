@@ -1,8 +1,8 @@
 "use client";
 import {
-  Spinner as Loader2,
+  Spinner,
   Play,
-  Gear as Settings,
+  Gear,
 } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -68,7 +68,7 @@ export function ActivationEmptyState({
           onClick={onAdjustSettings}
           disabled={isPending}
         >
-          <Settings size={14} />
+          <Gear size={14} />
           Adjust Settings
         </Button>
         <div className="flex items-center gap-2">
@@ -79,7 +79,7 @@ export function ActivationEmptyState({
               disabled={isPending}
             >
               {isPending ? (
-                <Loader2 size={14} className="animate-spin" />
+                <Spinner size={14} className="animate-spin" />
               ) : (
                 <Play size={14} />
               )}

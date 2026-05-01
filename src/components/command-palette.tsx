@@ -8,10 +8,10 @@ import {
   CalendarCheck,
   Clock,
   Eye,
-  MagnifyingGlass as Search,
-  Gear as Settings,
-  UserCircle as UserRound,
-  VideoCamera as Video,
+  MagnifyingGlass,
+  Gear,
+  UserCircle,
+  VideoCamera,
 } from "@phosphor-icons/react/ssr";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,7 @@ function buildItems(userType: UserType | null): PaletteItem[] {
       id: "settings",
       label: "Go to Settings",
       href: "/settings",
-      icon: Settings,
+      icon: Gear,
     },
   ];
 
@@ -53,7 +53,7 @@ function buildItems(userType: UserType | null): PaletteItem[] {
         id: "video-icp",
         label: "Go to Video ICP",
         href: "/video-icp",
-        icon: Video,
+        icon: VideoCamera,
       },
       ...baseItems.slice(1),
     ];
@@ -65,7 +65,7 @@ function buildItems(userType: UserType | null): PaletteItem[] {
       id: "profile",
       label: "Go to Profile",
       href: "/profile",
-      icon: UserRound,
+      icon: UserCircle,
     },
     ...baseItems.slice(1),
   ];
@@ -191,7 +191,7 @@ export function CommandPalette({ userType }: CommandPaletteProps) {
             className="w-full max-w-xl overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-2xl"
           >
             <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3">
-              <Search
+              <MagnifyingGlass
                 size={16}
                 className="shrink-0 text-[var(--color-text-muted)]"
               />

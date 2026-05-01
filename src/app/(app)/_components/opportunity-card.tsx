@@ -3,13 +3,13 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  CaretDown as ChevronDown,
-  PaperPlaneTilt as Send,
-  PencilSimple as Pencil,
+  CaretDown,
+  PaperPlaneTilt,
+  PencilSimple,
   SkipForward,
   Flag,
-  Checks as CheckCheck,
-  ArrowSquareOut as ExternalLink,
+  Checks,
+  ArrowSquareOut,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -176,7 +176,7 @@ export function OpportunityCard({
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
                 )}
               >
-                View job <ExternalLink size={10} aria-hidden="true" />
+                View job <ArrowSquareOut size={10} aria-hidden="true" />
               </a>
             )}
           </div>
@@ -205,7 +205,7 @@ export function OpportunityCard({
               aria-label={isExpanded ? "Collapse details" : "Expand details"}
               aria-expanded={isExpanded}
             >
-              <ChevronDown
+              <CaretDown
                 size={14}
                 aria-hidden="true"
                 className={cn(
@@ -243,7 +243,7 @@ export function OpportunityCard({
           {isActionable && stage === "queued" && (
             <>
               <Button size="sm" onClick={handleApprove} disabled={isPending}>
-                <Send size={13} />
+                <PaperPlaneTilt size={13} />
                 Approve
               </Button>
               {!isExpanded && (
@@ -253,7 +253,7 @@ export function OpportunityCard({
                   onClick={handleEditAndApprove}
                   disabled={isPending}
                 >
-                  <Pencil size={13} />
+                  <PencilSimple size={13} />
                   Edit & Approve
                 </Button>
               )}
@@ -290,7 +290,7 @@ export function OpportunityCard({
               disabled={isPending}
               className="text-[var(--color-text-subtle)] hover:text-[var(--color-success)] hover:bg-[var(--color-success)]/5"
             >
-              <CheckCheck size={13} />
+              <Checks size={13} />
               Applied
             </Button>
           )}
@@ -317,7 +317,7 @@ export function OpportunityCard({
           )}
         >
           <div className="overflow-hidden min-h-0">
-            <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-3">
+            <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-3">
               {(researchSummary || opportunity.research_id) && (
                 <div>
                   <div className="flex items-center justify-between mb-1">

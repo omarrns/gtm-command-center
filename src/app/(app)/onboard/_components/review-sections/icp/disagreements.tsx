@@ -1,6 +1,6 @@
 "use client";
 import {
-  Warning as AlertTriangle,
+  Warning,
 } from "@phosphor-icons/react/ssr";
 import { Alert } from "@/components/ui/alert";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
@@ -35,7 +35,7 @@ export function Disagreements({ disagreements }: DisagreementsProps) {
             key={d.dimensionKey}
             variant={d.severity === "high" ? "destructive" : "default"}
           >
-            <AlertTriangle size={14} />
+            <Warning size={14} />
             <div className="text-xs space-y-1">
               <div className="flex items-center gap-2">
                 <p className="font-medium">{d.label}</p>

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   X,
-  Sparkle as Sparkles,
+  Sparkle,
   ArrowUp,
 } from "@phosphor-icons/react/ssr";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -68,7 +68,7 @@ export function MultiChatModal({ calls, onClose }: MultiChatModalProps) {
         <div className="px-6 pt-5 pb-4 border-b border-[var(--color-border)] shrink-0">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles
+              <Sparkle
                 size={14}
                 className="text-[var(--color-blue)] shrink-0"
               />
@@ -108,7 +108,7 @@ export function MultiChatModal({ calls, onClose }: MultiChatModalProps) {
         <div ref={threadRef} className="flex-1 overflow-y-auto px-6 py-6">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <Sparkles
+              <Sparkle
                 size={32}
                 className="text-[var(--color-text-subtle)] mb-3"
               />
@@ -185,7 +185,7 @@ function MessageBubble({ message }: { message: Message }) {
   return (
     <div className="flex items-start gap-2.5">
       <div className="shrink-0 mt-0.5 h-6 w-6 rounded-full bg-[var(--color-surface-muted)] flex items-center justify-center">
-        <Sparkles size={12} className="text-[var(--color-blue)]" />
+        <Sparkle size={12} className="text-[var(--color-blue)]" />
       </div>
       <div className="flex-1 max-w-[80%] text-sm text-[var(--color-text)] leading-relaxed pt-0.5">
         {message.content}

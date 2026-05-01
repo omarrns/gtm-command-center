@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Warning as AlertTriangle,
+  Warning,
 } from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -235,7 +235,7 @@ export function ReviewJobSearch({
 
       {lowConfidenceDimensions.length > 0 && (
         <Alert className="mb-8">
-          <AlertTriangle size={14} />
+          <Warning size={14} />
           <div className="text-xs space-y-1">
             <p className="font-medium">
               Double-check these — the agent wasn&apos;t sure.

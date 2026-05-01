@@ -1,7 +1,7 @@
 "use client";
 import {
-  Spinner as Loader2,
-  MagnifyingGlass as Search,
+  Spinner,
+  MagnifyingGlass,
 } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,7 +93,7 @@ export function QueueFilterBar({
           Company
         </label>
         <div className="relative">
-          <Search
+          <MagnifyingGlass
             size={13}
             aria-hidden="true"
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
@@ -111,7 +111,7 @@ export function QueueFilterBar({
 
       {onApply && (
         <Button type="submit" size="sm" disabled={applyPending}>
-          {applyPending && <Loader2 size={14} className="animate-spin" />}
+          {applyPending && <Spinner size={14} className="animate-spin" />}
           {applyPending ? "Filtering…" : "Apply"}
         </Button>
       )}

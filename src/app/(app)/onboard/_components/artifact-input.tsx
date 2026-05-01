@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
-  CheckCircle as CheckCircle2,
-  WarningCircle as AlertCircle,
+  CheckCircle,
+  WarningCircle,
   Paperclip,
   ArrowUp,
-  Spinner as Loader2,
+  Spinner,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -92,17 +92,17 @@ type ArtifactListItem = Pick<
 function statusIcon(status: OnboardingArtifactStatus) {
   if (status === "succeeded")
     return (
-      <CheckCircle2
+      <CheckCircle
         size={12}
         className="text-[var(--color-success)] shrink-0"
       />
     );
   if (status === "failed")
     return (
-      <AlertCircle size={12} className="text-[var(--color-danger)] shrink-0" />
+      <WarningCircle size={12} className="text-[var(--color-danger)] shrink-0" />
     );
   return (
-    <Loader2
+    <Spinner
       size={12}
       className="animate-spin text-[var(--color-blue)] shrink-0"
     />
@@ -388,7 +388,7 @@ export function ArtifactInput({
       )}
       {analysisError && (
         <div className="mb-3 flex max-w-lg items-center gap-2 rounded-md border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/5 px-3 py-2 text-sm text-[var(--color-danger)]">
-          <AlertCircle size={14} className="shrink-0" />
+          <WarningCircle size={14} className="shrink-0" />
           <span>{analysisError}</span>
         </div>
       )}
@@ -400,7 +400,7 @@ export function ArtifactInput({
             {artifacts.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center gap-1.5 text-xs bg-[var(--color-surface-muted)] border border-[var(--border)] rounded-full px-3 py-1.5 max-w-[280px]"
+                className="flex items-center gap-1.5 text-xs bg-[var(--color-surface-muted)] border border-[var(--color-border)] rounded-full px-3 py-1.5 max-w-[280px]"
               >
                 {statusIcon(a.status)}
                 <span className="truncate">{artifactLabel(a)}</span>
@@ -427,7 +427,7 @@ export function ArtifactInput({
       )}
 
       {/* Unified input box */}
-      <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--color-surface)] shadow-sm focus-within:border-[var(--color-blue)] transition-colors">
+      <div className="w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm focus-within:border-[var(--color-blue)] transition-colors">
         <textarea
           ref={textareaRef}
           value={inputValue}
@@ -462,7 +462,7 @@ export function ArtifactInput({
             )}
           >
             {isBusy ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Spinner size={16} className="animate-spin" />
             ) : (
               <ArrowUp size={16} />
             )}
@@ -505,7 +505,7 @@ export function ArtifactInput({
                 textareaRef.current?.focus();
               }
             }}
-            className="text-xs px-3 py-1.5 rounded-full border border-[var(--border)] text-[var(--color-text-muted)] hover:border-[var(--color-blue)] hover:text-[var(--color-blue)] transition-colors"
+            className="text-xs px-3 py-1.5 rounded-full border border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-blue)] hover:text-[var(--color-blue)] transition-colors"
           >
             {pill.label}
           </button>

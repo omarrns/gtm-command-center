@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import {
   X,
-  CaretLeft as ChevronLeft,
-  CaretRight as ChevronRight,
-  Sparkle as Sparkles,
+  CaretLeft,
+  CaretRight,
+  Sparkle,
   FileText,
-  ArrowsClockwise as RefreshCw,
+  ArrowsClockwise,
 } from "@phosphor-icons/react/ssr";
 import { motion, AnimatePresence } from "motion/react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -119,7 +119,7 @@ function AnalysisTab({ call }: { call: SalesCall }) {
 function ChatTab() {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <Sparkles size={28} className="text-[var(--color-text-subtle)] mb-3" />
+      <Sparkle size={28} className="text-[var(--color-text-subtle)] mb-3" />
       <p className="text-sm font-medium text-[var(--color-text)]">
         Chat with this call
       </p>
@@ -220,7 +220,7 @@ export function CallDetailModal({
                 )}
               >
                 {tab.id === "chat" && (
-                  <Sparkles size={10} className="inline mr-1 mb-px" />
+                  <Sparkle size={10} className="inline mr-1 mb-px" />
                 )}
                 {tab.label}
                 {activeTab === tab.id && (
@@ -266,7 +266,7 @@ export function CallDetailModal({
               onClick={onPrev}
               disabled={callIndex === 0}
             >
-              <ChevronLeft size={12} />
+              <CaretLeft size={12} />
             </Button>
             <Button
               variant="ghost"
@@ -274,12 +274,12 @@ export function CallDetailModal({
               onClick={onNext}
               disabled={callIndex === totalCalls - 1}
             >
-              <ChevronRight size={12} />
+              <CaretRight size={12} />
             </Button>
           </div>
           <div className="flex items-center gap-1.5">
             <Button size="sm" variant="ghost">
-              <RefreshCw size={12} />
+              <ArrowsClockwise size={12} />
               Re-analyze
             </Button>
             <Button
@@ -291,7 +291,7 @@ export function CallDetailModal({
               View Transcript
             </Button>
             <Button size="sm" onClick={() => setActiveTab("chat")}>
-              <Sparkles size={12} />
+              <Sparkle size={12} />
               Chat
             </Button>
           </div>

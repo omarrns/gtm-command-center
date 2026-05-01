@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  MagnifyingGlass as Search,
-  Sparkle as Sparkles,
+  MagnifyingGlass,
+  Sparkle,
 } from "@phosphor-icons/react/ssr";
 import { AnimatePresence, motion } from "motion/react";
 import { Input } from "@/components/ui/input";
@@ -133,7 +133,7 @@ export function CallsClient() {
       {/* Filters */}
       <div className="flex items-center gap-2 mb-5">
         <div className="relative flex-1 max-w-sm">
-          <Search
+          <MagnifyingGlass
             size={14}
             className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
           />
@@ -201,7 +201,7 @@ export function CallsClient() {
                 </button>
               </div>
               <Button size="sm" onClick={() => setChatOpen(true)}>
-                <Sparkles size={12} />
+                <Sparkle size={12} />
                 Chat with {selectedIds.size} transcript
                 {selectedIds.size === 1 ? "" : "s"}
               </Button>

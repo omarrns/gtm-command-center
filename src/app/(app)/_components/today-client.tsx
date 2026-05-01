@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Play,
-  Spinner as Loader2,
+  Spinner,
   Plus,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
@@ -126,7 +126,7 @@ export function TodayClient({
         </Button>
         <Button onClick={handleRunPipeline} disabled={isPending}>
           {isPending ? (
-            <Loader2 size={14} className="animate-spin" />
+            <Spinner size={14} className="animate-spin" />
           ) : (
             <Play size={14} />
           )}

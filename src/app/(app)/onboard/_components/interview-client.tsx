@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
-import { Spinner as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react/ssr";
+import { Spinner, ArrowsClockwise } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import {
   Conversation,
@@ -185,7 +185,7 @@ function AgenticInterview({
   if (isExtracting) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Loader2 size={24} className="animate-spin text-[var(--color-blue)]" />
+        <Spinner size={24} className="animate-spin text-[var(--color-blue)]" />
         <p className="text-sm text-[var(--color-text-muted)]">
           Preparing your review…
         </p>
@@ -249,7 +249,7 @@ function GeneratingFirstQuestion({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-4">
-      <RefreshCw size={20} className="animate-spin text-[var(--color-blue)]" />
+      <ArrowsClockwise size={20} className="animate-spin text-[var(--color-blue)]" />
       <p className="text-sm text-[var(--color-text-muted)]">{note}</p>
     </div>
   );
@@ -390,7 +390,7 @@ function AgenticChat({
                 disabled={isStreaming}
                 className="bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0"
               />
-              <PromptInputFooter className="bg-[var(--color-surface-muted)] border-t border-[var(--border)]">
+              <PromptInputFooter className="bg-[var(--color-surface-muted)] border-t border-[var(--color-border)]">
                 <PromptInputSubmit
                   status={status}
                   disabled={!input.trim() || isStreaming}
@@ -498,7 +498,7 @@ function LegacyInterview({
   if (isExtracting) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Loader2 size={24} className="animate-spin text-[var(--color-blue)]" />
+        <Spinner size={24} className="animate-spin text-[var(--color-blue)]" />
         <p className="text-sm text-[var(--color-text-muted)]">
           Preparing your profile summary...
         </p>
@@ -508,7 +508,7 @@ function LegacyInterview({
 
   return (
     <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-0 max-w-2xl mx-auto w-full">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)] shrink-0">
         {clientTemplate.topics.map((topic) => {
           const covered = topicsCovered.includes(topic);
           return (
@@ -575,7 +575,7 @@ function LegacyInterview({
             disabled={isStreaming}
             className="bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0"
           />
-          <PromptInputFooter className="bg-[var(--color-surface-muted)] border-t border-[var(--border)]">
+          <PromptInputFooter className="bg-[var(--color-surface-muted)] border-t border-[var(--color-border)]">
             <PromptInputSubmit
               status={status}
               disabled={!input.trim() || isStreaming}

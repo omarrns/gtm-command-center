@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import {
-  List as Menu,
+  List,
   Moon,
   Sun,
 } from "@phosphor-icons/react/ssr";
@@ -55,7 +55,7 @@ export function TopBar({ onMenuClick, userType }: TopBarProps) {
           className="md:hidden p-1.5 rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] transition-colors"
           aria-label="Open navigation"
         >
-          <Menu size={18} />
+          <List size={18} />
         </button>
         <h1
           className={

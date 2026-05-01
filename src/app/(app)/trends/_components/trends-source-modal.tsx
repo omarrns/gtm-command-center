@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import {
   X,
-  ArrowSquareOut as ExternalLink,
+  ArrowSquareOut,
 } from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { OutcomeBadge } from "@/app/(app)/calls/_components/outcome-badge";
@@ -91,7 +91,7 @@ export function TrendsSourceModal({
                   className="flex items-center gap-1 text-xs text-[var(--color-blue)] hover:underline"
                 >
                   Listen
-                  <ExternalLink size={11} />
+                  <ArrowSquareOut size={11} />
                 </a>
               </div>
             </div>

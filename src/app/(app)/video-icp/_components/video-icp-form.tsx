@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import {
-  Spinner as Loader2,
+  Spinner,
   Play,
 } from "@phosphor-icons/react/ssr";
 import { useFormStatus } from "react-dom";
@@ -47,7 +47,7 @@ function SubmitButton() {
       className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[var(--color-blue)] px-4 text-sm font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? (
-        <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+        <Spinner size={14} className="animate-spin" aria-hidden="true" />
       ) : (
         <Play size={14} aria-hidden="true" />
       )}

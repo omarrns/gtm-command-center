@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import {
-  CaretDown as ChevronDown,
-  CaretUp as ChevronUp,
+  CaretDown,
+  CaretUp,
   FileText,
   Globe,
   User,
@@ -85,12 +85,12 @@ export function PerExemplarBreakdown({
                   </div>
                 </div>
                 {isOpen ? (
-                  <ChevronUp
+                  <CaretUp
                     size={14}
                     className="text-[var(--color-text-subtle)]"
                   />
                 ) : (
-                  <ChevronDown
+                  <CaretDown
                     size={14}
                     className="text-[var(--color-text-subtle)]"
                   />

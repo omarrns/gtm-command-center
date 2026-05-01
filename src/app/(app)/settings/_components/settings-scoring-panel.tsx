@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
-  FloppyDisk as Save,
+  FloppyDisk,
   SlidersHorizontal,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
@@ -148,7 +148,7 @@ export function SettingsScoringPanel({
         onClick={handleSaveWeights}
         disabled={!isWeightsDirty || isSavingWeights}
       >
-        <Save size={14} />
+        <FloppyDisk size={14} />
         {isSavingWeights ? "Saving..." : "Save Weights"}
       </Button>
     </Card>
