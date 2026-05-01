@@ -2,7 +2,9 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight } from "lucide-react";
+import {
+  ArrowsLeftRight as ArrowLeftRight,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
 import { switchPersonaAction } from "../switch-persona";

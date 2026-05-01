@@ -3,17 +3,17 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Building2,
+  Buildings as Building2,
   Users,
-  TrendingUp,
-  Globe2,
+  TrendUp as TrendingUp,
+  Globe as Globe2,
   Clock,
   Radio,
   Moon,
   X,
-  Search,
-  ChevronDown,
-} from "lucide-react";
+  MagnifyingGlass as Search,
+  CaretDown as ChevronDown,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,38 +24,22 @@ import { ContactPanel, type Contact } from "@/components/contact-panel";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { skipOpportunityAction } from "../actions";
 import { findContactsForAccountAction } from "../accounts/actions";
+import { AccountCardDraftSection } from "./account-card-draft-section";
+import {
+  contactJobLabel,
+  formatElapsed,
+  formatEmployees,
+  tierVariant,
+  verdictColor,
+  whyNowLine,
+  type AccountResearchSummary,
+} from "./account-card-helpers";
 
 // Shared card for GTM account rows. /activate renders a live preview
 // via AccountActivationResult; /accounts renders persisted pipeline
 // output projected from OpportunityRow + analyses.result. Both flows
 // feed the same flat prop shape so the visual stays consistent and
 // adding a third consumer (e.g. watchlist detail) is a drop-in.
-
-// Slim projection of GtmAccountResearch (research-account.ts) — we keep
-// the shape duplicated here so this client component never imports
-// from a server-only file. /accounts maps the parsed research_reports
-// row into this shape; /activate's preview omits it entirely (research
-// only runs at the researched stage).
-export interface AccountResearchSummary {
-  recentNews: Array<{
-    headline: string;
-    relevance: string;
-    published_at: string | null;
-  }>;
-  recentFunding: {
-    stage: string;
-    amount_usd: number | null;
-    closed_at: string | null;
-    investors: string[];
-  } | null;
-  hiringTrajectory: {
-    trend: "accelerating" | "steady" | "slowing";
-    signal_roles: string[];
-    net_30d: number | null;
-  } | null;
-  competitorMentions: Array<{ competitor: string; context: string }>;
-  techStackGaps: string[];
-}
 
 export interface AccountCardProps {
   companyName: string;
@@ -80,74 +64,10 @@ export interface AccountCardProps {
   canSkip?: boolean;
   contacts?: Contact[];
   research?: AccountResearchSummary;
-}
-
-function whyNowLine(research: AccountResearchSummary | undefined): {
-  text: string;
-  timestamp: string | null;
-} | null {
-  if (!research) return null;
-  const news = research.recentNews?.[0];
-  if (news?.headline) {
-    const text = news.relevance
-      ? `${news.headline} — ${news.relevance}`
-      : news.headline;
-    return { text, timestamp: news.published_at ?? null };
-  }
-  const funding = research.recentFunding;
-  if (funding?.stage) {
-    const amount = funding.amount_usd
-      ? ` $${Math.round(funding.amount_usd / 1_000_000)}M`
-      : "";
-    const investor = funding.investors?.[0]
-      ? ` led by ${funding.investors[0]}`
-      : "";
-    return {
-      text: `${funding.stage}${amount}${investor}`,
-      timestamp: funding.closed_at,
-    };
-  }
-  const hiring = research.hiringTrajectory;
-  if (hiring?.trend === "accelerating" && hiring.signal_roles?.length) {
-    return {
-      text: `Hiring accelerating: ${hiring.signal_roles.slice(0, 2).join(", ")}`,
-      timestamp: null,
-    };
-  }
-  return null;
-}
-
-function tierVariant(
-  tier: "A" | "B" | "C",
-): "default" | "secondary" | "outline" {
-  if (tier === "A") return "default";
-  if (tier === "B") return "secondary";
-  return "outline";
-}
-
-function verdictColor(verdict: "Pursue" | "Worth exploring" | "Skip") {
-  if (verdict === "Pursue") return "var(--color-success)";
-  if (verdict === "Worth exploring") return "var(--color-warning)";
-  return "var(--color-text-subtle)";
-}
-
-function formatEmployees(n: number | null): string | null {
-  if (n == null) return null;
-  if (n >= 1000) return `${Math.round(n / 100) / 10}k employees`;
-  return `${n} employees`;
-}
-
-function formatElapsed(ms: number): string {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-function contactJobLabel(status: string | undefined): string {
-  if (status === "pending") return "Queued";
-  if (status === "running") return "Researching contacts";
-  return "Starting";
+  latestDraft?: {
+    subject: string;
+    body: string;
+  };
 }
 
 export function AccountCard({
@@ -168,6 +88,7 @@ export function AccountCard({
   canSkip,
   contacts = [],
   research,
+  latestDraft,
 }: AccountCardProps) {
   const router = useRouter();
   const whyNow = whyNowLine(research);
@@ -189,7 +110,7 @@ export function AccountCard({
         contacts.some((contact) => contact.email == null)));
   // Find-contacts is now a persistent bottom-right CTA, not hidden behind
   // the expand toggle, so it no longer counts as expandable content.
-  const hasExpandableContent = contacts.length > 0;
+  const hasExpandableContent = contacts.length > 0 || !!latestDraft;
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -377,7 +298,9 @@ export function AccountCard({
                 <span>
                   {isExpanded
                     ? "Hide"
-                    : `${contacts.length} contact${contacts.length === 1 ? "" : "s"}`}
+                    : contacts.length > 0
+                      ? `${contacts.length} contact${contacts.length === 1 ? "" : "s"}`
+                      : "Draft"}
                 </span>
                 <ChevronDown
                   size={10}
@@ -480,22 +403,27 @@ export function AccountCard({
         >
           <div className="overflow-hidden min-h-0">
             <div className="mt-3 pt-3 border-t border-[var(--border)]">
-              <ContactPanel
-                contacts={contacts}
-                verbose={isExpanded}
-                context={{
-                  companyName,
-                  roleTitle,
-                  reasonToBelieve,
-                  fundingStage,
-                  industry,
-                  recentNews: research?.recentNews,
-                  recentFunding: research?.recentFunding,
-                  hiringTrajectory: research?.hiringTrajectory,
-                  competitorMentions: research?.competitorMentions,
-                  techStackGaps: research?.techStackGaps,
-                }}
-              />
+              {contacts.length > 0 && (
+                <ContactPanel
+                  contacts={contacts}
+                  verbose={isExpanded}
+                  context={{
+                    companyName,
+                    roleTitle,
+                    reasonToBelieve,
+                    fundingStage,
+                    industry,
+                    recentNews: research?.recentNews,
+                    recentFunding: research?.recentFunding,
+                    hiringTrajectory: research?.hiringTrajectory,
+                    competitorMentions: research?.competitorMentions,
+                    techStackGaps: research?.techStackGaps,
+                  }}
+                />
+              )}
+              {latestDraft && (
+                <AccountCardDraftSection latestDraft={latestDraft} />
+              )}
             </div>
           </div>
         </div>

@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import {
+  Spinner as Loader2,
+} from "@phosphor-icons/react/ssr";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 
 export function ReviewPoller({ jobId }: { jobId: string | null }) {

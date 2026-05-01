@@ -4,13 +4,13 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   User,
-  Search,
-  MessageSquare,
-  Mail,
-  ChevronRight,
-  ChevronLeft,
+  MagnifyingGlass as Search,
+  ChatCircle as MessageSquare,
+  Envelope as Mail,
+  CaretRight as ChevronRight,
+  CaretLeft as ChevronLeft,
   Check,
-} from "lucide-react";
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

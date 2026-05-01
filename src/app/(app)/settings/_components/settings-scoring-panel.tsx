@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Save, SlidersHorizontal } from "lucide-react";
+import {
+  FloppyDisk as Save,
+  SlidersHorizontal,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

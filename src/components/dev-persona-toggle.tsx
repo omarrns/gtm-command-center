@@ -2,7 +2,9 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight } from "lucide-react";
+import {
+  ArrowsLeftRight as ArrowLeftRight,
+} from "@phosphor-icons/react/ssr";
 import { setUserTypeAction } from "@/app/(app)/dev-actions";
 import type { UserType } from "@/lib/supabase/types";
 

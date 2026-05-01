@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useTransition, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ExternalLink, Play, Mail } from "lucide-react";
+import {
+  Spinner as Loader2,
+  ArrowSquareOut as ExternalLink,
+  Play,
+  Envelope as Mail,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

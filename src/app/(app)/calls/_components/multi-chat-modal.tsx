@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Sparkles, ArrowUp } from "lucide-react";
+import {
+  X,
+  Sparkle as Sparkles,
+  ArrowUp,
+} from "@phosphor-icons/react/ssr";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

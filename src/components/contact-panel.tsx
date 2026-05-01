@@ -1,6 +1,11 @@
 "use client";
-
-import { AtSign, ExternalLink, Mail, MapPin, UserRound } from "lucide-react";
+import {
+  At as AtSign,
+  ArrowSquareOut as ExternalLink,
+  Envelope as Mail,
+  MapPin,
+  UserCircle as UserRound,
+} from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import type { WebsetMatchReason } from "@/lib/supabase/types";
 

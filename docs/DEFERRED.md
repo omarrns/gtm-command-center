@@ -260,7 +260,7 @@ Items that started on this list and have since shipped. Populate as we go.
 
 ### Video ICP Loop 1 synthetic review (2026-04-30)
 
-**What shipped.** GTM-only `/video-icp` flow that accepts a YouTube URL, extracts a sanitized transcript plus raw top comments through the vendored yt-llm runtime, runs a transcript-only Sonnet review against the confirmed ICP rubric, and renders persona reactions, timeline annotations, recommended edits, and raw comments.
+**What shipped.** GTM-only `/video-icp` flow that accepts a YouTube URL, extracts a sanitized transcript plus raw top comments through the vendored yt-llm runtime, runs a transcript-only Gemini 3 Flash review against the confirmed ICP rubric with Sonnet fallback, and renders persona reactions, timeline annotations, recommended edits, and raw comments.
 
 **Still deferred.** Commenter ICP-fit scoring, opportunity seeding, competitor/category aggregation, sharing/export, and collaboration remain out of scope. See "ICP-shaped comment mining for published video content (yt-llm Loop 2)" above.
 

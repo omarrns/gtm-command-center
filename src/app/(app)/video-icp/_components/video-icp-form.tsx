@@ -1,7 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
-import { Loader2, Play } from "lucide-react";
+import {
+  Spinner as Loader2,
+  Play,
+} from "@phosphor-icons/react/ssr";
 import { useFormStatus } from "react-dom";
 import {
   createVideoIcpReviewAction,

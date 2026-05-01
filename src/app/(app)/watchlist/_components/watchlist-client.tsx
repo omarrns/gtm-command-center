@@ -1,7 +1,13 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import { ChevronDown, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import {
+  CaretDown as ChevronDown,
+  Plus,
+  Trash as Trash2,
+  ArrowSquareOut as ExternalLink,
+  Spinner as Loader2,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Badge, type badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

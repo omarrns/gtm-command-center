@@ -1,17 +1,15 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+} from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  confirmInterviewAction,
-  backToInterviewAction,
-} from "../../interview-actions";
+import { backToInterviewAction } from "../../interview-actions";
+import { startIcpNarrativeAction } from "../../story-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
-import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 import { icpEditsSchema, type IcpEdits } from "@/lib/onboarding/icp-schemas";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 import { detectIcpDisagreements } from "@/lib/onboarding/orchestrator/icp-disagreements";
@@ -31,11 +29,6 @@ import { ProofPointsCalibration } from "./icp/proof-points-calibration";
 // wrote the unified `extracted` JSONB; we hydrate the form from there
 // and let the user tune leaves before confirm.
 //
-// No story phase — icp_definition's template lacks an insightsSchema
-// so review → confirm goes directly. Routing on success: refresh →
-// /settings, first-time → / (Phase 6 will branch on user_type to show
-// <IcpDashboard> there).
-
 const EMPTY_EDITS: IcpEdits = {
   product: { category: "", core_jtbd: "", wedge: "", delivery_model: "" },
   icp: {
@@ -82,18 +75,15 @@ function countSucceededPositives(state: OrchestratorState | null): number {
 
 interface ReviewIcpProps {
   interview: OnboardingInterviewRow;
-  clientTemplate: ClientInterviewTemplate;
-  isRefresh: boolean;
   onBackToInterview: (interview: OnboardingInterviewRow) => void;
+  onContinueToStory: (interview: OnboardingInterviewRow) => void;
 }
 
 export function ReviewIcp({
   interview,
-  clientTemplate: _clientTemplate,
-  isRefresh,
   onBackToInterview,
+  onContinueToStory,
 }: ReviewIcpProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const orchestratorState =
@@ -111,15 +101,14 @@ export function ReviewIcp({
     [orchestratorState],
   );
 
-  function handleConfirm() {
+  function handleContinueToStory() {
     startTransition(async () => {
-      const result = await confirmInterviewAction(interview.id, edits);
+      const result = await startIcpNarrativeAction(interview.id, edits);
       if (!result.ok) {
-        toast.error(result.error ?? "Confirmation failed");
+        toast.error(result.error ?? "Could not start narrative arc");
         return;
       }
-      toast.success("ICP saved!");
-      router.push(isRefresh ? "/settings" : "/icp");
+      onContinueToStory(result.interview);
     });
   }
 
@@ -151,7 +140,8 @@ export function ReviewIcp({
         </h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-2">
           Synthesized from your exemplars, buyer personas, and product context.
-          Edit anything that doesn&apos;t look right, then confirm.
+          Edit anything that doesn&apos;t look right, then I&apos;ll write you
+          the arc.
         </p>
       </header>
 
@@ -223,8 +213,12 @@ export function ReviewIcp({
           <ArrowLeft size={14} />
           Back to interview
         </Button>
-        <Button type="button" onClick={handleConfirm} disabled={isPending}>
-          {isPending ? "Saving..." : "Confirm & Continue"}
+        <Button
+          type="button"
+          onClick={handleContinueToStory}
+          disabled={isPending}
+        >
+          {isPending ? "Starting..." : "Continue to narrative arc"}
         </Button>
       </div>
     </motion.div>

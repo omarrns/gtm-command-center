@@ -1,9 +1,6 @@
-// SPEC-3 Phase 6.d: persona switch placeholder. The full
-// download-my-data + destructive reset infra is deferred to a
-// follow-up SPEC (see docs/DEFERRED.md). For v1 this card surfaces
-// the current persona and tells the user how to reset.
-
-import { Users } from "lucide-react";
+import {
+  Users,
+} from "@phosphor-icons/react/ssr";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";

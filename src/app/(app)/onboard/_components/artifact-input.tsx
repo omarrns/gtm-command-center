@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
-  CheckCircle2,
-  AlertCircle,
+  CheckCircle as CheckCircle2,
+  WarningCircle as AlertCircle,
   Paperclip,
   ArrowUp,
-  Loader2,
-} from "lucide-react";
+  Spinner as Loader2,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CyclicLoader } from "@/components/ui/cyclic-loader";

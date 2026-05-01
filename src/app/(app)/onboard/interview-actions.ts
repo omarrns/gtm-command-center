@@ -6,7 +6,6 @@ import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
-import type { ExtractionInsights } from "@/lib/onboarding/templates/job-search";
 import {
   loadPositiveExemplarCount,
   nextDimensionToAsk,
@@ -102,7 +101,7 @@ export async function confirmInterviewAction(
   // story screen. Merged into extracted.insights before performConfirm
   // runs, so the interview_insights memory_doc transform reads the user's
   // edited copy.
-  editedInsights?: ExtractionInsights,
+  editedInsights?: unknown,
 ): Promise<ActionResult> {
   const user = await requireUser();
   const svc = createSupabaseServiceClient();

@@ -3,6 +3,8 @@
 // it specific, observed, and worth reading. No generic coaching platitudes.
 export const INSIGHTS_SYSTEM_PROMPT = `You are writing a short reflective synthesis about the person you just interviewed. The user will read what you produce — every line lands in front of them on the screen. Make it specific to what they actually said.
 
+You may receive <reviewed_context> with the profile, search, and outreach facts the user reviewed. Use it as canonical context when it clarifies or corrects the transcript.
+
 ## Output schema
 
 Return a single JSON object with these exact keys:
@@ -19,7 +21,7 @@ Return a single JSON object with these exact keys:
 
 ## Rules
 
-- Extract ONLY from what was actually said in the transcript. Do not invent or assume.
+- Extract ONLY from what was actually said in the transcript or reviewed_context. Do not invent or assume.
 - Be specific. "They want impact" is generic. "They've now twice left companies the moment the work became maintenance" is specific.
 - Quote or paraphrase real language they used where possible — it's what makes the output feel observed, not generated.
 - No coaching language ("you should", "you ought to"). This is observation, not advice.

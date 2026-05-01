@@ -26,7 +26,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Plus } from "lucide-react";
+import {
+  Plus,
+} from "@phosphor-icons/react/ssr";
 import { InlineListEditor } from "./inline-list-editor";
 
 interface EditableFieldOption {

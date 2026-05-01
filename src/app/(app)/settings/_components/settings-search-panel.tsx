@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Clock, Save } from "lucide-react";
+import {
+  Clock,
+  FloppyDisk as Save,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { TagInput } from "@/components/tag-input";
 import { Button } from "@/components/ui/button";

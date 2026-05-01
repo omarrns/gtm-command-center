@@ -7,6 +7,11 @@ import {
 import { researchOneGtmAccount } from "@/lib/pipeline/steps/research-account";
 import { discoverContactsForAccount } from "@/lib/pipeline/steps/discover-contacts-account";
 import { enrichContactsForAccount } from "@/lib/pipeline/steps/enrich-contacts-account";
+import {
+  draftOneGtmAccount,
+  type DraftAccountResult,
+} from "@/lib/pipeline/steps/draft-gtm";
+import { createLogger } from "@/lib/logger";
 
 export interface ProcessAccountAfterScoreOptions {
   skipThreshold?: boolean;
@@ -49,9 +54,43 @@ export async function processAccountAfterScore(
     );
     const contacts = await discoverContactsForAccount(svc, userId, opportunityId);
     const enrich = await enrichContactsForAccount(svc, userId, opportunityId);
-    return { research, contacts, enrich };
+    const draft = await tryDraftAccount(svc, userId, opportunityId, options.runId);
+    return { research, contacts, enrich, draft };
   } finally {
     await releaseOpportunity(svc, opportunityId, userId);
+  }
+}
+
+async function tryDraftAccount(
+  svc: SupabaseClient,
+  userId: string,
+  opportunityId: string,
+  runId?: string,
+): Promise<DraftAccountResult | { error: string }> {
+  try {
+    return await draftOneGtmAccount(svc, userId, opportunityId, runId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    createLogger({
+      runId,
+      userId,
+      opportunityId,
+      scope: "process-account-after-score",
+    }).error("draft tail failed", err);
+    const { error: updateError } = await svc
+      .from("opportunities")
+      .update({ last_error: message })
+      .eq("id", opportunityId)
+      .eq("user_id", userId);
+    if (updateError) {
+      createLogger({
+        runId,
+        userId,
+        opportunityId,
+        scope: "process-account-after-score",
+      }).error("failed to persist draft error", updateError);
+    }
+    return { error: message };
   }
 }
 

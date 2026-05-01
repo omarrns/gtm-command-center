@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Warning as AlertTriangle,
+} from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/alert";

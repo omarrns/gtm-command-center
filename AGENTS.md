@@ -12,7 +12,7 @@ A browser-based autonomous job-search agent. It discovers roles, scores them, re
 - **Deployment**: Vercel
 - **AI**: Vercel AI SDK v6 + Vercel AI Gateway routing to Claude models
 - **Font**: Geist (via next/font/google)
-- **Icons**: Lucide React (14-16px standard sizes)
+- **Icons**: Phosphor Icons for app-owned UI via `@phosphor-icons/react/ssr` (14-16px standard sizes; regular default, fill for selected/high-emphasis states)
 
 ## Reference Docs
 

@@ -22,7 +22,7 @@ Single user: Omar Nasser, a GTM Engineer running his job search pipeline. He use
 - **Theme:** Light + dark mode (pure white/OKLch neutrals in light, deep-neutral backgrounds with alpha-based borders in dark)
 - **Palette:** Pure-neutral base (`oklch(1 0 0)` light / `oklch(0.145 0 0)` dark), blue accent (`#1e63ff` light / `#4d8aff` dark) reserved for interaction, semantic greens/oranges/reds for status. Destructive follows adapt-signal's warm-red OKLch.
 - **Typography:** Geist (sans) + Geist Mono via `next/font/google`, with system fallbacks. Tight hierarchy — `text-xl` page titles, `text-sm` body, `text-xs` metadata
-- **Icons:** Lucide React, 14-16px standard sizes, muted color unless interactive
+- **Icons:** Phosphor Icons for app-owned UI, imported from `@phosphor-icons/react/ssr`, 14-16px standard sizes, regular weight by default, muted color unless interactive; selected/high-emphasis states may use fill weight
 
 ### Design Principles
 

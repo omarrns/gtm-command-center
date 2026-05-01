@@ -56,14 +56,16 @@ export async function POST(req: Request) {
   const transcript = formatTranscript(
     (interview.messages ?? []) as UIMessage[],
   );
-  const providerOptions = template.extractionModel.startsWith("anthropic/")
+  const extractedContext = JSON.stringify(interview.extracted ?? {}, null, 2);
+  const model = template.insightsModel ?? template.extractionModel;
+  const providerOptions = model.startsWith("anthropic/")
     ? { anthropic: { structuredOutputMode: "jsonTool" as const } }
     : undefined;
 
   const result = streamObject({
-    model: gateway(template.extractionModel),
+    model: gateway(model),
     system: template.insightsSystemPrompt,
-    prompt: `<transcript>\n${transcript}\n</transcript>\n\nWrite the reflective synthesis now. Return JSON matching the schema in your system prompt.`,
+    prompt: `<transcript>\n${transcript}\n</transcript>\n\n<reviewed_context>\n${extractedContext}\n</reviewed_context>\n\nWrite the reflective synthesis now. Return JSON matching the schema in your system prompt.`,
     schema: template.insightsSchema,
     maxOutputTokens: template.extractionMaxOutputTokens,
     // Opt out of Anthropic's native structured-output path for parity

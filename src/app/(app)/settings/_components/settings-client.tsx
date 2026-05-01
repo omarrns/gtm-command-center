@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { FadeIn } from "@/components/ui/fade-in";
-import { ExternalLink, UserPen, UserRound } from "lucide-react";
+import {
+  ArrowSquareOut as ExternalLink,
+  UserCircleGear as UserPen,
+  UserCircle as UserRound,
+} from "@phosphor-icons/react/ssr";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { UserScoringProfileRow, UserType } from "@/lib/supabase/types";

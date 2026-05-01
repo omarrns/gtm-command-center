@@ -45,7 +45,7 @@ Two entry points feed the same accounts table:
 
 Both score via `scoring-account.ts` against an `icpAccountAnalysisSchema`. Scored accounts appear in `/accounts` and are never auto-removed.
 
-Video ICP is a separate GTM workflow at `/video-icp`. It stores each YouTube review in `video_icp_reviews`, enqueues a `video-icp-review` background job, extracts a sanitized transcript plus raw top comments through the vendored yt-llm runtime, and asks Sonnet for a transcript-only synthetic ICP review. Comments are rendered raw for sanity-check and are not scored or included in the prompt.
+Video ICP is a separate GTM workflow at `/video-icp`. It stores each YouTube review in `video_icp_reviews`, enqueues a `video-icp-review` background job, extracts a sanitized transcript plus raw top comments through the vendored yt-llm runtime, and asks Gemini 3 Flash for a transcript-only synthetic ICP review with Sonnet fallback. Comments are rendered raw for sanity-check and are not scored or included in the prompt.
 
 ---
 
@@ -142,7 +142,7 @@ After confirmation, the system writes memory documents, pipeline config, and a n
 - **Framework**: Next.js 16 (App Router) + React 19
 - **Styling**: Tailwind CSS v4 (CSS-based config) + shadcn/ui
 - **Database**: Supabase (Postgres + Auth + RLS)
-- **AI**: Claude API (Opus for extraction/orchestration, Sonnet for scoring/drafting)
+- **AI**: Vercel AI Gateway (Claude and Gemini model tiers)
 - **Job Discovery**: JSearch API (job seeker), TheirStack webhook + Exa (GTM)
 - **Video Extraction**: Vendored yt-llm runtime backed by `ytdlp-nodejs`
 - **People/Email**: Exa Websets
@@ -198,7 +198,7 @@ pnpm dev
 | `NEXT_PUBLIC_SUPABASE_URL`             | Auth + DB                       |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Auth (client)                   |
 | `SUPABASE_SERVICE_ROLE_KEY`            | Pipeline + server actions       |
-| `ANTHROPIC_API_KEY`                    | Scoring, drafting, extraction   |
+| `AI_GATEWAY_API_KEY`                   | AI Gateway model calls          |
 | `EXA_API_KEY`                          | Research, enrichment, watchlist |
 | `RAPIDAPI_KEY`                         | JSearch API via RapidAPI        |
 | `CRON_SECRET`                          | Bearer token for cron endpoints |
@@ -215,6 +215,8 @@ pnpm dev                # Start dev server
 pnpm build              # Production build
 pnpm test               # Run all test scripts in sequence
 pnpm test:video-icp-review-job  # Regression test for Video ICP job failure propagation
+pnpm test:video-icp-model-selection  # Regression test for Video ICP model fallback
+pnpm check:ai-gateway-video-icp-models # Verify Video ICP Gateway model availability/pricing
 pnpm onboard:reset      # Delete all onboarding data
 pnpm onboard:fixture    # Seed interview fixture (--state, --interview-state flags)
 ```

@@ -3,12 +3,12 @@
 import { useTheme } from "@/components/theme-provider";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import {
-  CircleCheckIcon,
-  InfoIcon,
-  TriangleAlertIcon,
-  OctagonXIcon,
-  Loader2Icon,
-} from "lucide-react";
+  CheckCircle as CircleCheckIcon,
+  Info as InfoIcon,
+  Warning as TriangleAlertIcon,
+  WarningOctagon as OctagonXIcon,
+  Spinner as Loader2Icon,
+} from "@phosphor-icons/react/ssr";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
