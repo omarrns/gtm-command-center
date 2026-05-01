@@ -39,6 +39,7 @@
     "test:icp-narrative-formatter": "tsx src/lib/onboarding/templates/icp-definition/__tests__/narrative-formatter.test.ts",
     "test:icp-account-outreach": "tsx scripts/test-icp-account-outreach.ts",
     "test:gtm-send-path": "tsx scripts/test-gtm-send-path.ts",
+    "test:outreach-performance-memory": "tsx scripts/test-outreach-performance-memory.ts",
     "test:job-scoring-retry": "tsx scripts/test-job-scoring-retry.ts",
     "test:artifact-persistence": "tsx scripts/test-artifact-persistence.ts",
     "test:persona-switch-artifact-retention": "tsx scripts/test-persona-switch-artifact-retention.ts",
