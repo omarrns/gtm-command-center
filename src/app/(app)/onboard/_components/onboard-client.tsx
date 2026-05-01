@@ -4,11 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   User,
-  MagnifyingGlass as Search,
-  ChatCircle as MessageSquare,
-  Envelope as Mail,
-  CaretRight as ChevronRight,
-  CaretLeft as ChevronLeft,
+  MagnifyingGlass,
+  ChatCircle,
+  Envelope,
+  CaretRight,
+  CaretLeft,
   Check,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
@@ -48,9 +48,9 @@ interface OnboardClientProps {
 
 const STEPS = [
   { label: "About You", icon: User },
-  { label: "Search Prefs", icon: Search },
-  { label: "Outreach", icon: MessageSquare },
-  { label: "Gmail", icon: Mail },
+  { label: "Search Prefs", icon: MagnifyingGlass },
+  { label: "Outreach", icon: ChatCircle },
+  { label: "Gmail", icon: Envelope },
 ] as const;
 
 export function OnboardClient({
@@ -193,7 +193,7 @@ export function OnboardClient({
       : "Save & Continue";
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-3xl p-6">
       <div className="mb-6">
         <h1 className="text-xl font-bold tracking-tight">
           {isRefresh ? "Profile Refresh" : "Set up your pipeline"}
@@ -287,10 +287,10 @@ export function OnboardClient({
           <StepGmail gmailConnected={gmailConnected} isRefresh={isRefresh} />
         )}
 
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-[var(--border)]">
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-[var(--color-border)]">
           {step > 1 ? (
             <Button type="button" variant="ghost" size="sm" onClick={goBack}>
-              <ChevronLeft size={14} />
+              <CaretLeft size={14} />
               Back
             </Button>
           ) : (
@@ -303,7 +303,7 @@ export function OnboardClient({
             ) : (
               <>
                 {nextLabel}
-                {!isLastStep && <ChevronRight size={14} />}
+                {!isLastStep && <CaretRight size={14} />}
               </>
             )}
           </Button>

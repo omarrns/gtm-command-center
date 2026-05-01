@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import {
-  CheckCircle as CheckCircle2,
-  WarningCircle as AlertCircle,
+  CheckCircle,
+  WarningCircle,
   Circle,
-  Question as HelpCircle,
-  Spinner as Loader2,
+  Question,
+  Spinner,
 } from "@phosphor-icons/react/ssr";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -86,7 +86,7 @@ export function OrchestratorStatusPanel({
   }, [inferred.length]);
 
   return (
-    <aside className="border border-[var(--border)] bg-[var(--color-surface-muted)] flex flex-col overflow-hidden h-full">
+    <aside className="border border-[var(--color-border)] bg-[var(--color-surface-muted)] flex flex-col overflow-hidden h-full">
       <div className="px-4 py-3 shrink-0 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="text-xs font-semibold text-[var(--color-text)]">
@@ -94,7 +94,7 @@ export function OrchestratorStatusPanel({
           </h3>
           {state?.status === "analyzing" && (
             <p className="text-[10px] text-[var(--color-text-subtle)] mt-1 flex items-center gap-1">
-              <Loader2 size={10} className="animate-spin" /> reading your
+              <Spinner size={10} className="animate-spin" /> reading your
               artifacts
             </p>
           )}
@@ -121,12 +121,12 @@ export function OrchestratorStatusPanel({
                 {artifacts.map((a) => (
                   <li key={a.id} className="flex items-start gap-1.5 text-xs">
                     {a.status === "succeeded" ? (
-                      <CheckCircle2
+                      <CheckCircle
                         size={12}
                         className="text-[var(--color-success)] shrink-0 mt-0.5"
                       />
                     ) : (
-                      <AlertCircle
+                      <WarningCircle
                         size={12}
                         className="text-[var(--color-danger)] shrink-0 mt-0.5"
                       />
@@ -188,7 +188,7 @@ export function OrchestratorStatusPanel({
                     <li key={x.key} className="text-xs">
                       <div className="flex items-center gap-1.5">
                         {confident ? (
-                          <CheckCircle2
+                          <CheckCircle
                             size={12}
                             className="text-[var(--color-success)] shrink-0"
                           />
@@ -264,7 +264,7 @@ export function OrchestratorStatusPanel({
                   key={x.key}
                   className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]"
                 >
-                  <HelpCircle
+                  <Question
                     size={12}
                     className="text-[var(--color-text-subtle)] shrink-0"
                   />

@@ -45,10 +45,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import {
-  ArrowLeft,
-  Warning as AlertTriangle,
-} from "@phosphor-icons/react/ssr";
+import { ArrowLeft, Warning } from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { experimental_useObject as useObject } from "@ai-sdk/react";
@@ -201,18 +198,48 @@ export function StreamingDocumentReader<T extends Record<string, unknown>>({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="mx-auto max-w-xl px-6 py-12"
+      className="mx-auto max-w-3xl px-6 pb-12"
     >
-      <header className="mb-10">
-        <h1 className="text-xl font-semibold tracking-tight">{headerTitle}</h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-2">
-          {allReady ? headerSubtitleReady : headerSubtitleStreaming}
-        </p>
+      <header className="sticky top-0 z-20 -mx-6 mb-8 border-b border-[var(--color-border)] bg-[var(--color-bg)]/95 px-6 py-4 backdrop-blur">
+        <div>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">
+              {headerTitle}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
+              {allReady ? headerSubtitleReady : headerSubtitleStreaming}
+            </p>
+          </div>
+          <div className="mt-5 flex items-center justify-between gap-3">
+            {onBack ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+                disabled={isPending}
+              >
+                <ArrowLeft size={14} />
+                {backLabel}
+              </Button>
+            ) : (
+              <div />
+            )}
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSave}
+              disabled={!allReady || isPending}
+            >
+              {isPending ? "Saving…" : saveLabel}
+            </Button>
+          </div>
+        </div>
       </header>
 
       {error && (
         <Alert className="mb-6">
-          <AlertTriangle size={14} />
+          <Warning size={14} />
           <div className="text-xs">
             <p className="font-medium">Couldn&apos;t finish.</p>
             <p className="text-[var(--color-text-muted)]">
@@ -254,29 +281,7 @@ export function StreamingDocumentReader<T extends Record<string, unknown>>({
         </div>
       )}
 
-      <div className="mt-12 flex items-center justify-between border-t border-[var(--color-border-strong)] pt-6">
-        {onBack ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            disabled={isPending}
-          >
-            <ArrowLeft size={14} />
-            {backLabel}
-          </Button>
-        ) : (
-          <div />
-        )}
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={!allReady || isPending}
-        >
-          {isPending ? "Saving…" : saveLabel}
-        </Button>
-      </div>
+      <div className="mt-12 border-t border-[var(--color-border-strong)]" />
     </motion.div>
   );
 }

@@ -3,11 +3,11 @@
 import { useTheme } from "@/components/theme-provider";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import {
-  CheckCircle as CircleCheckIcon,
-  Info as InfoIcon,
-  Warning as TriangleAlertIcon,
-  WarningOctagon as OctagonXIcon,
-  Spinner as Loader2Icon,
+  CheckCircle,
+  Info,
+  Warning,
+  WarningOctagon,
+  Spinner,
 } from "@phosphor-icons/react/ssr";
 
 const Toaster = ({ ...props }: ToasterProps) => {
@@ -18,11 +18,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
-        success: <CircleCheckIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <TriangleAlertIcon className="size-4" />,
-        error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />,
+        success: <CheckCircle className="size-4" />,
+        info: <Info className="size-4" />,
+        warning: <Warning className="size-4" />,
+        error: <WarningOctagon className="size-4" />,
+        loading: <Spinner className="size-4 animate-spin" />,
       }}
       style={
         {

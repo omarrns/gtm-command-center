@@ -75,7 +75,7 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
 
   if (!rubric) {
     return (
-      <div className="mx-auto max-w-xl px-6 py-12">
+      <div className="mx-auto max-w-3xl px-6 py-12">
         <header className="mb-10">
           <h1 className="text-xl font-semibold tracking-tight">Your ICP</h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-2">

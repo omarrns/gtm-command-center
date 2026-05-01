@@ -2,11 +2,11 @@
 
 import { useId, useState, useTransition } from "react";
 import {
-  CaretDown as ChevronDown,
+  CaretDown,
   Plus,
-  Trash as Trash2,
-  ArrowSquareOut as ExternalLink,
-  Spinner as Loader2,
+  Trash,
+  ArrowSquareOut,
+  Spinner,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Badge, type badgeVariants } from "@/components/ui/badge";
@@ -106,7 +106,7 @@ export function WatchlistClient({ entries }: { entries: WatchlistEntry[] }) {
           disabled={isPending || !companyName.trim()}
         >
           {isPending ? (
-            <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+            <Spinner size={14} className="animate-spin" aria-hidden="true" />
           ) : (
             <Plus size={14} aria-hidden="true" />
           )}
@@ -215,7 +215,7 @@ function WatchlistCard({ entry }: { entry: WatchlistEntry }) {
             aria-label={`Remove ${entry.company_name}`}
             className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
           >
-            <Trash2 size={14} aria-hidden="true" />
+            <Trash size={14} aria-hidden="true" />
           </Button>
 
           {alertCount > 0 && (
@@ -232,7 +232,7 @@ function WatchlistCard({ entry }: { entry: WatchlistEntry }) {
               aria-controls={alertsPanelId}
               aria-label={`${isExpanded ? "Collapse" : "Expand"} alerts for ${entry.company_name}`}
             >
-              <ChevronDown
+              <CaretDown
                 size={14}
                 aria-hidden="true"
                 className={cn(
@@ -257,7 +257,7 @@ function WatchlistCard({ entry }: { entry: WatchlistEntry }) {
           )}
         >
           <div className="overflow-hidden min-h-0">
-            <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-2">
+            <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-2">
               {entry.alerts.map((alert) => (
                 <AlertCard key={alert.id} alert={alert} />
               ))}
@@ -303,7 +303,7 @@ function AlertCard({ alert }: { alert: WatchlistAlertRow }) {
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-1",
           )}
         >
-          Source <ExternalLink size={11} aria-hidden="true" />
+          Source <ArrowSquareOut size={11} aria-hidden="true" />
         </a>
       )}
     </Card>

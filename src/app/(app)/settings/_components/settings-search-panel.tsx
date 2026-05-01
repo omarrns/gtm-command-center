@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import {
   Clock,
-  FloppyDisk as Save,
+  FloppyDisk,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { TagInput } from "@/components/tag-input";
@@ -150,7 +150,7 @@ export function SettingsSearchPanel({
         onClick={handleSave}
         disabled={!isDirty || isSaving}
       >
-        <Save size={14} />
+        <FloppyDisk size={14} />
         {isSaving ? "Saving..." : "Save Changes"}
       </Button>
     </Card>

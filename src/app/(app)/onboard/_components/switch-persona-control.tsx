@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowsLeftRight as ArrowLeftRight,
+  ArrowsLeftRight,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
@@ -75,7 +75,7 @@ export function SwitchPersonaControl({
       disabled={isPending}
       className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
     >
-      <ArrowLeftRight size={12} />
+      <ArrowsLeftRight size={12} />
       {isPending ? "Switching…" : `Switch to ${targetLabel}`}
     </button>
   );

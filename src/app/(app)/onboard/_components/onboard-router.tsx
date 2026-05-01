@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from "react";
 import {
-  Spinner as Loader2,
+  Spinner,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { InterviewClient } from "./interview-client";
@@ -85,7 +85,6 @@ export function OnboardRouter({
       return;
     }
     autoStartTriggered.current = true;
-    setStartError(null);
     startTransition(async () => {
       const result = await getOrCreateInterviewAction(isRefresh, templateId);
       if (result.ok) {
@@ -121,7 +120,7 @@ export function OnboardRouter({
   if (interview && (interview.status === "extracting" || needsAutoExtract)) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Loader2 size={24} className="animate-spin text-[var(--color-blue)]" />
+        <Spinner size={24} className="animate-spin text-[var(--color-blue)]" />
         <p className="text-sm text-[var(--color-text-muted)]">
           Preparing your profile summary...
         </p>
@@ -211,7 +210,7 @@ export function OnboardRouter({
 
   return (
     <div className="mx-auto flex min-h-[75vh] flex-col items-center justify-center gap-3 p-6">
-      <Loader2 size={20} className="animate-spin text-[var(--color-blue)]" />
+      <Spinner size={20} className="animate-spin text-[var(--color-blue)]" />
     </div>
   );
 }

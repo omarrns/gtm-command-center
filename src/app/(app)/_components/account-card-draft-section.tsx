@@ -9,7 +9,7 @@ export function AccountCardDraftSection({
   latestDraft,
 }: AccountCardDraftSectionProps) {
   return (
-    <div className="mt-3 pt-3 border-t border-[var(--border)]">
+    <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
       <h4 className="text-xs font-semibold text-[var(--color-text-muted)] mb-2">
         Draft email
       </h4>

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Spinner as Loader2,
+  Spinner,
 } from "@phosphor-icons/react/ssr";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 
@@ -30,7 +30,7 @@ export function ReviewPoller({ jobId }: { jobId: string | null }) {
 
   return (
     <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-      {isLoading && <Loader2 size={14} className="animate-spin" />}
+      {isLoading && <Spinner size={14} className="animate-spin" />}
       <span>
         {pollingStopped
           ? "Polling stopped. Refresh to check the review."

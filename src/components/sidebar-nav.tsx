@@ -6,16 +6,16 @@ import {
   CalendarCheck,
   Clock,
   Eye,
-  Gear as Settings,
+  Gear,
   Power,
-  ChartBar as BarChart2,
-  ChatText as MessageSquare,
+  ChartBar,
+  ChatText,
   SidebarSimple,
   Phone,
-  TrendUp as TrendingUp,
-  Tray as Inbox,
-  UserCircle as UserRound,
-  VideoCamera as Video,
+  TrendUp,
+  Tray,
+  UserCircle,
+  VideoCamera,
 } from "@phosphor-icons/react/ssr";
 import {
   AnimatePresence,
@@ -24,6 +24,7 @@ import {
   useReducedMotion,
 } from "motion/react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-logo";
 import { signOutAction } from "@/app/(public)/login/actions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { UserType } from "@/lib/supabase/types";
@@ -42,22 +43,22 @@ interface NavItem {
 function buildNav(userType: UserType | null): NavItem[] {
   if (userType === "gtm") {
     return [
-      { href: "/icp", label: "ICP System Prompt", icon: CalendarCheck },
-      { href: "/video-icp", label: "Video ICP", icon: Video },
-      { href: "/accounts", label: "Accounts", icon: Inbox },
-      { href: "/messaging", label: "Messaging", icon: MessageSquare },
+      { href: "/icp", label: "Your ICP", icon: CalendarCheck },
+      { href: "/video-icp", label: "Video ICP", icon: VideoCamera },
+      { href: "/accounts", label: "Accounts", icon: Tray },
+      { href: "/messaging", label: "Messaging", icon: ChatText },
       { href: "/calls", label: "Calls", icon: Phone, badge: "POC" },
-      { href: "/trends", label: "Trends", icon: TrendingUp, badge: "POC" },
-      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/trends", label: "Trends", icon: TrendUp, badge: "POC" },
+      { href: "/settings", label: "Settings", icon: Gear },
     ];
   }
   return [
     { href: "/", label: "Today", icon: CalendarCheck },
-    { href: "/profile", label: "Profile", icon: UserRound },
+    { href: "/profile", label: "Profile", icon: UserCircle },
     { href: "/history", label: "History", icon: Clock },
     { href: "/watchlist", label: "Watchlist", icon: Eye },
-    { href: "/analytics", label: "Analytics", icon: BarChart2 },
-    { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/analytics", label: "Analytics", icon: ChartBar },
+    { href: "/settings", label: "Settings", icon: Gear },
   ];
 }
 
@@ -96,13 +97,15 @@ function SidebarContent({
 
   return (
     <>
-      {/* Logo region */}
       <div
         className={cn(
           "pt-4 pb-3 px-3 flex",
-          collapsed ? "justify-center" : "justify-end",
+          collapsed
+            ? "flex-col items-center gap-2"
+            : "items-center justify-between gap-2",
         )}
       >
+        <BrandLogo collapsed={collapsed} className={collapsed ? "" : "px-1"} />
         {onToggleCollapsed && (
           <button
             type="button"
@@ -193,7 +196,7 @@ function SidebarContent({
       {/* Footer */}
       <div
         className={cn(
-          "pb-3 pt-2 border-t border-[var(--border)]",
+          "pb-3 pt-2 border-t border-[var(--color-border)]",
           collapsed ? "px-2" : "px-3",
         )}
       >

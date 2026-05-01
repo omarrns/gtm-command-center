@@ -2,10 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Warning as AlertTriangle,
-} from "@phosphor-icons/react/ssr";
+import { ArrowLeft, Warning } from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/alert";
@@ -221,21 +218,51 @@ export function ReviewJobSearch({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="mx-auto max-w-xl px-6 py-12"
+      className="mx-auto max-w-3xl px-6 pb-12"
     >
-      <header className="mb-10">
-        <h1 className="text-xl font-semibold tracking-tight">
-          Review your profile
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-2">
-          Here&apos;s what we captured from the interview. Click any field to
-          edit, then confirm.
-        </p>
+      <header className="sticky top-0 z-20 -mx-6 mb-8 border-b border-[var(--color-border)] bg-[var(--color-bg)]/95 px-6 py-4 backdrop-blur">
+        <div>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">
+              Review your profile
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
+              Here&apos;s what we captured from the interview. Click any field
+              to edit, then confirm.
+            </p>
+          </div>
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              disabled={isPending}
+            >
+              <ArrowLeft size={14} />
+              Back to interview
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handlePrimary}
+              disabled={isPending}
+            >
+              {isPending
+                ? clientTemplate.agenticMode
+                  ? "Continuing..."
+                  : "Saving..."
+                : clientTemplate.agenticMode
+                  ? "Continue to story"
+                  : "Confirm & Continue"}
+            </Button>
+          </div>
+        </div>
       </header>
 
       {lowConfidenceDimensions.length > 0 && (
         <Alert className="mb-8">
-          <AlertTriangle size={14} />
+          <Warning size={14} />
           <div className="text-xs space-y-1">
             <p className="font-medium">
               Double-check these — the agent wasn&apos;t sure.
@@ -284,27 +311,7 @@ export function ReviewJobSearch({
 
       <ReviewSectionInsights insights={extractedInsights} />
 
-      <div className="mt-12 flex items-center justify-between border-t border-[var(--color-border-strong)] pt-6">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleBack}
-          disabled={isPending}
-        >
-          <ArrowLeft size={14} />
-          Back to interview
-        </Button>
-        <Button type="button" onClick={handlePrimary} disabled={isPending}>
-          {isPending
-            ? clientTemplate.agenticMode
-              ? "Continuing..."
-              : "Saving..."
-            : clientTemplate.agenticMode
-              ? "Continue to story"
-              : "Confirm & Continue"}
-        </Button>
-      </div>
+      <div className="mt-12 border-t border-[var(--color-border-strong)]" />
     </motion.div>
   );
 }

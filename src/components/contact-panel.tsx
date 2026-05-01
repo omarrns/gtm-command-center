@@ -1,10 +1,10 @@
 "use client";
 import {
-  At as AtSign,
-  ArrowSquareOut as ExternalLink,
-  Envelope as Mail,
+  At,
+  ArrowSquareOut,
+  Envelope,
   MapPin,
-  UserCircle as UserRound,
+  UserCircle,
 } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import type { WebsetMatchReason } from "@/lib/supabase/types";
@@ -210,7 +210,7 @@ export function ContactPanel({
         return (
           <div
             key={`${contact.role}-${contact.name}`}
-            className="space-y-1.5 border-t border-[var(--border)] pt-2 text-xs text-[var(--color-text-subtle)] first:border-t-0 first:pt-0"
+            className="space-y-1.5 border-t border-[var(--color-border)] pt-2 text-xs text-[var(--color-text-subtle)] first:border-t-0 first:pt-0"
           >
             <div className="flex min-w-0 items-center gap-2">
               {contact.pictureUrl ? (
@@ -222,14 +222,14 @@ export function ContactPanel({
                 />
               ) : (
                 <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-muted)]">
-                  <UserRound size={12} aria-hidden="true" />
+                  <UserCircle size={12} aria-hidden="true" />
                 </span>
               )}
               <span className="min-w-0 truncate">
                 <span className="text-[var(--color-text)]">{contact.name}</span>
                 {contact.title && ` · ${contact.title}`}
               </span>
-              <span className="shrink-0 rounded-sm border border-[var(--border)] px-1 py-0 text-[10px] uppercase tracking-normal">
+              <span className="shrink-0 rounded-sm border border-[var(--color-border)] px-1 py-0 text-[10px] uppercase tracking-normal">
                 {label}
               </span>
               {contact.email && (
@@ -239,7 +239,7 @@ export function ContactPanel({
                   className="shrink-0 rounded-sm hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]"
                   aria-label={`Email ${contact.name}`}
                 >
-                  <Mail size={12} aria-hidden="true" />
+                  <Envelope size={12} aria-hidden="true" />
                 </a>
               )}
               {contact.linkedinUrl && (
@@ -251,7 +251,7 @@ export function ContactPanel({
                   className="shrink-0 rounded-sm hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]"
                   aria-label={`${contact.name} profile`}
                 >
-                  <ExternalLink size={12} aria-hidden="true" />
+                  <ArrowSquareOut size={12} aria-hidden="true" />
                 </a>
               )}
               {contact.xUrl && (
@@ -263,7 +263,7 @@ export function ContactPanel({
                   className="shrink-0 rounded-sm hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)]"
                   aria-label={`${contact.name} X profile`}
                 >
-                  <AtSign size={12} aria-hidden="true" />
+                  <At size={12} aria-hidden="true" />
                 </a>
               )}
             </div>

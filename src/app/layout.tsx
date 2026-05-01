@@ -11,9 +11,9 @@ const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "GTM Command Center",
+  title: "Searchcraft",
   description:
-    "Autonomous job search agent — discover, score, research, draft, and send.",
+    "Searchcraft discovers, scores, researches, drafts, and sends job-search outreach.",
 };
 
 export default function RootLayout({

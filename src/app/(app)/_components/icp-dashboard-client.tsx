@@ -2,9 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import {
-  ArrowsClockwise as RefreshCw,
-} from "@phosphor-icons/react/ssr";
+import { ArrowsClockwise } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
@@ -49,39 +47,49 @@ export function IcpDashboardClient({
   }
 
   return (
-    <div className="mx-auto max-w-xl px-6 py-12">
-      <header className="mb-10 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Your ICP</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-2">
-            Synthesized from your exemplars, buyer personas, and product
-            context. Click any field to refine.
-          </p>
-        </div>
-        <Link
-          href={REFRESH_HREF}
-          className={buttonVariants({ variant: "ghost", size: "sm" })}
-        >
-          <RefreshCw size={14} />
-          Refresh ICP
-        </Link>
-      </header>
+    <div className="mx-auto max-w-3xl px-6 pb-12">
+      <div className="sticky top-0 z-20 -mx-6 mb-8 border-b border-[var(--color-border)] bg-[var(--color-bg)]/95 px-6 py-4 backdrop-blur">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Your ICP</h1>
+            <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
+              Synthesized from your exemplars, buyer personas, and product
+              context. Click any field to refine.
+            </p>
+          </div>
+          <Link
+            href={REFRESH_HREF}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+          >
+            <ArrowsClockwise size={14} />
+            Refresh ICP
+          </Link>
+        </header>
 
-      <div className="mb-8 inline-flex rounded-lg bg-muted p-1">
-        <button
-          type="button"
-          onClick={() => setActiveView("rubric")}
-          className={viewButtonClass(activeView === "rubric")}
-        >
-          Rubric
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveView("narrative")}
-          className={viewButtonClass(activeView === "narrative")}
-        >
-          Narrative
-        </button>
+        <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
+          <div className="inline-flex rounded-lg bg-[var(--color-surface-muted)] p-1">
+            <button
+              type="button"
+              onClick={() => setActiveView("rubric")}
+              className={viewButtonClass(activeView === "rubric")}
+            >
+              Rubric
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView("narrative")}
+              className={viewButtonClass(activeView === "narrative")}
+            >
+              Narrative
+            </button>
+          </div>
+          <Link
+            href={activationCompleted ? "/accounts" : "/activate"}
+            className={buttonVariants()}
+          >
+            {activationCompleted ? "View Accounts" : "Find My Accounts"}
+          </Link>
+        </div>
       </div>
 
       {activeView === "rubric" ? (
@@ -91,17 +99,12 @@ export function IcpDashboardClient({
           artifacts={artifacts}
         />
       ) : (
-        <IcpNarrativePanel narrativeArc={narrativeArc} />
+        <IcpNarrativePanel
+          // Remount when a generated narrative first arrives so parsed local state refreshes.
+          key={narrativeArc ?? "empty-narrative"}
+          narrativeArc={narrativeArc}
+        />
       )}
-
-      <div className="mt-10 pt-6 border-t border-[var(--color-border-strong)] flex justify-end">
-        <Link
-          href={activationCompleted ? "/accounts" : "/activate"}
-          className={buttonVariants()}
-        >
-          {activationCompleted ? "View Accounts" : "Find my accounts"}
-        </Link>
-      </div>
     </div>
   );
 }
@@ -110,7 +113,7 @@ function viewButtonClass(isActive: boolean): string {
   return [
     "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
     isActive
-      ? "bg-background text-foreground shadow-sm"
-      : "text-muted-foreground hover:text-foreground",
+      ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
+      : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
   ].join(" ");
 }

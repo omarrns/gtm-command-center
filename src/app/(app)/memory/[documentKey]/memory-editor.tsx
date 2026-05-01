@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
-  FloppyDisk as Save,
+  FloppyDisk,
   Check,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ export function MemoryEditor({ doc }: { doc: MemoryDocumentRow }) {
         subtitle={`${doc.document_key} · ${doc.origin}`}
       >
         <Button type="button" onClick={onSave} disabled={isPending}>
-          {saved ? <Check size={14} /> : <Save size={14} />}
+          {saved ? <Check size={14} /> : <FloppyDisk size={14} />}
           {isPending ? "Saving…" : saved ? "Saved" : "Save"}
         </Button>
       </DetailHeader>

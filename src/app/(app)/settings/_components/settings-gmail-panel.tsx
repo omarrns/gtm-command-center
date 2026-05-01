@@ -2,9 +2,9 @@
 
 import { useTransition } from "react";
 import {
-  Envelope as Mail,
-  LinkBreak as MailX,
-  ArrowSquareOut as ExternalLink,
+  Envelope,
+  LinkBreak,
+  ArrowSquareOut,
 } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export function SettingsGmailPanel({
   return (
     <Card className="gap-4 p-5">
       <div className="flex items-center gap-2">
-        <Mail size={16} />
+        <Envelope size={16} />
         <h2 className="text-sm font-semibold">Gmail Integration</h2>
       </div>
 
@@ -57,7 +57,7 @@ export function SettingsGmailPanel({
             disabled={isPending}
             className="text-[var(--color-danger)]"
           >
-            <MailX size={13} />
+            <LinkBreak size={13} />
             {isPending ? "Disconnecting..." : "Disconnect Gmail"}
           </Button>
         </div>
@@ -68,7 +68,7 @@ export function SettingsGmailPanel({
             from the pipeline.
           </p>
           <a href="/api/auth/gmail" className={buttonVariants()}>
-            <ExternalLink size={13} />
+            <ArrowSquareOut size={13} />
             Connect Gmail
           </a>
         </div>

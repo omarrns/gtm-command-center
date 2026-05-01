@@ -324,15 +324,17 @@ The streaming chat route still serves both modes — agentic templates get a `sy
 
 ## Design System
 
-Implementation companion to `DESIGN.md` (design language, personality, principles).
+Implementation companion to `DESIGN.md` (design language, personality, principles). `DESIGN.md` is the design authority; this section records implementation rules that encode that direction.
 
 ### Tokens (in `globals.css`)
 
-**App tokens** (via `var()`): `--color-text`, `--color-text-muted`, `--color-text-subtle`, `--color-surface`, `--color-surface-muted`, `--color-blue`, `--color-blue-muted`, `--color-success`, `--color-warning`, `--color-danger`, `--color-border-strong`.
+**App tokens** (via `var()`): `--color-bg`, `--color-text`, `--color-text-muted`, `--color-text-subtle`, `--color-surface`, `--color-surface-muted`, `--color-border`, `--color-border-strong`, `--color-blue`, `--color-blue-muted`, `--color-success`, `--color-warning`, `--color-danger`.
 
 **shadcn tokens** (via Tailwind): `--background`, `--foreground`, `--card`, `--muted`, `--primary`, `--border`, etc.
 
-Both respond to `.dark` class. **Never use `--color-accent` for blue** — that's shadcn's hover state token. Our blue is `--color-blue`.
+Use the hybrid rule: custom app-owned layouts use app `--color-*` variables; shadcn primitives and primitive-style variants may use semantic Tailwind tokens like `bg-muted`, `bg-card`, `text-muted-foreground`, and `border-border`. Do not use raw `var(--border)` in TSX; use app border variables for custom layouts or `border-border` for primitive-style surfaces.
+
+Both token families respond to `.dark` class. **Never use `--color-accent` for blue** — that's shadcn's hover state token. Our blue is `--color-blue`.
 
 ### Component Classes (globals.css)
 
