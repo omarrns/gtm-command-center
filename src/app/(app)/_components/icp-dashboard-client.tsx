@@ -13,21 +13,27 @@ import {
   IcpDashboardFields,
   type ArtifactSummary,
 } from "./icp-dashboard-fields";
+import { IcpNarrativePanel } from "./icp-narrative-panel";
 
 const REFRESH_HREF = "/onboard?mode=refresh&template=icp_definition";
 
 interface IcpDashboardClientProps {
   initialRubric: IcpRubric;
+  narrativeArc: string | null;
   artifacts: ArtifactSummary[];
   activationCompleted: boolean;
 }
 
 export function IcpDashboardClient({
   initialRubric,
+  narrativeArc,
   artifacts,
   activationCompleted,
 }: IcpDashboardClientProps) {
   const [rubric, setRubric] = useState<IcpRubric>(initialRubric);
+  const [activeView, setActiveView] = useState<"rubric" | "narrative">(
+    "rubric",
+  );
   const [, startTransition] = useTransition();
 
   // Every commit fires a full-rubric upsert. The server preserves evidence
@@ -61,11 +67,32 @@ export function IcpDashboardClient({
         </Link>
       </header>
 
-      <IcpDashboardFields
-        rubric={rubric}
-        onRubricChange={persist}
-        artifacts={artifacts}
-      />
+      <div className="mb-8 inline-flex rounded-lg bg-muted p-1">
+        <button
+          type="button"
+          onClick={() => setActiveView("rubric")}
+          className={viewButtonClass(activeView === "rubric")}
+        >
+          Rubric
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveView("narrative")}
+          className={viewButtonClass(activeView === "narrative")}
+        >
+          Narrative
+        </button>
+      </div>
+
+      {activeView === "rubric" ? (
+        <IcpDashboardFields
+          rubric={rubric}
+          onRubricChange={persist}
+          artifacts={artifacts}
+        />
+      ) : (
+        <IcpNarrativePanel narrativeArc={narrativeArc} />
+      )}
 
       <div className="mt-10 pt-6 border-t border-[var(--color-border-strong)] flex justify-end">
         <Link
@@ -77,4 +104,13 @@ export function IcpDashboardClient({
       </div>
     </div>
   );
+}
+
+function viewButtonClass(isActive: boolean): string {
+  return [
+    "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+    isActive
+      ? "bg-background text-foreground shadow-sm"
+      : "text-muted-foreground hover:text-foreground",
+  ].join(" ");
 }

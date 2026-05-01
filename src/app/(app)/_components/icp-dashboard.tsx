@@ -39,7 +39,7 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
     .limit(1)
     .maybeSingle();
 
-  const [scoringRes, artifactsRes, configRes] = await Promise.all([
+  const [scoringRes, artifactsRes, configRes, narrativeRes] = await Promise.all([
     svc
       .from("user_scoring_profiles")
       .select("icp_rubric")
@@ -57,6 +57,12 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
       .select("activation_completed_at")
       .eq("user_id", userId)
       .maybeSingle(),
+    svc
+      .from("memory_documents")
+      .select("content")
+      .eq("user_id", userId)
+      .eq("document_key", "icp_narrative_arc")
+      .maybeSingle(),
   ]);
 
   const rawRubric = scoringRes.data?.icp_rubric ?? null;
@@ -65,6 +71,7 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
     parsedRubric?.success === true ? parsedRubric.data : null;
   const artifacts = (artifactsRes.data ?? []) as ArtifactSummary[];
   const activationCompleted = !!configRes.data?.activation_completed_at;
+  const narrativeArc = narrativeRes.data?.content?.trim() || null;
 
   if (!rubric) {
     return (
@@ -91,6 +98,7 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
   return (
     <IcpDashboardClient
       initialRubric={rubric}
+      narrativeArc={narrativeArc}
       artifacts={artifacts}
       activationCompleted={activationCompleted}
     />
