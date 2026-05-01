@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GenerateIcpNarrativeButton } from "./generate-icp-narrative-button";
 
 const REFRESH_HREF = "/onboard?mode=refresh&template=icp_definition";
 
@@ -24,14 +25,20 @@ export function IcpNarrativePanel({ narrativeArc }: IcpNarrativePanelProps) {
             <h2 className="text-lg font-semibold tracking-tight">
               Narrative arc not generated yet
             </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-              Finish the narrative step after ICP review to create the buyer
-              story that powers messaging and outreach.
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+              Your ICP rubric exists, but the buyer story is missing. Generate
+              it from your saved ICP so messaging and outreach can use it.
             </p>
           </div>
-          <Link href={REFRESH_HREF} className={buttonVariants({ size: "sm" })}>
-            Continue onboarding
-          </Link>
+          <div className="flex flex-wrap justify-center gap-2">
+            <GenerateIcpNarrativeButton />
+            <Link
+              href={REFRESH_HREF}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Refresh ICP
+            </Link>
+          </div>
         </CardContent>
       </Card>
     );

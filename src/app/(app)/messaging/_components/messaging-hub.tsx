@@ -9,8 +9,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
+import { GenerateIcpNarrativeButton } from "../../_components/generate-icp-narrative-button";
 import type { IcpRubric } from "@/lib/onboarding/icp-schemas";
 import { cn } from "@/lib/utils";
+import { MessagingEmptyState } from "./messaging-empty-state";
 import {
   deriveAdConceptSeed,
   deriveColdEmailOpener,
@@ -32,12 +34,14 @@ type MemoryDocKey =
 interface MessagingHubProps {
   memoryDocs: Partial<Record<MemoryDocKey, string>>;
   rubric: IcpRubric | null;
+  hasActiveIcpReview: boolean;
   hasError: boolean;
 }
 
 export function MessagingHub({
   memoryDocs,
   rubric,
+  hasActiveIcpReview,
   hasError,
 }: MessagingHubProps) {
   const arcMarkdown = memoryDocs.icp_narrative_arc?.trim() ?? "";
@@ -70,7 +74,10 @@ export function MessagingHub({
       )}
 
       {!hasAnyMessagingDoc ? (
-        <EmptyMessagingSystem />
+        <MessagingEmptyState
+          hasRubric={Boolean(rubric)}
+          hasActiveIcpReview={hasActiveIcpReview}
+        />
       ) : (
         <>
           <HooksSection arcBeats={arcBeats} rubric={rubric} />
@@ -86,9 +93,13 @@ export function MessagingHub({
               description="Why this buyer is in pain now."
               content={memoryDocs.icp_narrative_arc}
               empty={
-                <RefreshPlaceholder>
-                  Generate your buyer narrative arc to populate this section.
-                </RefreshPlaceholder>
+                rubric ? (
+                  <GenerateIcpNarrativeButton variant="outline" />
+                ) : (
+                  <RefreshPlaceholder>
+                    Generate your buyer narrative arc to populate this section.
+                  </RefreshPlaceholder>
+                )
               }
             />
             <DocumentPanel
@@ -105,39 +116,6 @@ export function MessagingHub({
         </>
       )}
     </div>
-  );
-}
-
-function EmptyMessagingSystem() {
-  return (
-    <Card className="border-dashed bg-muted/40 py-10">
-      <CardContent className="mx-auto max-w-xl space-y-4 text-center">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">
-            No messaging system generated yet
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            This page fills in after GTM onboarding writes your ICP, proof,
-            disqualifiers, and buyer narrative arc. Right now there is nothing
-            useful to summarize.
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Link
-            href="/onboard?mode=refresh&template=icp_definition"
-            className={cn(buttonVariants({ size: "sm" }))}
-          >
-            Refresh onboarding
-          </Link>
-          <Link
-            href="/icp"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
-            View ICP
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -255,9 +233,13 @@ function HooksSection({
           <CardTitle>Hooks by channel</CardTitle>
         </CardHeader>
         <CardContent>
-          <RefreshPlaceholder>
-            Generate your buyer narrative arc to populate channel hooks.
-          </RefreshPlaceholder>
+          {rubric ? (
+            <GenerateIcpNarrativeButton variant="outline" />
+          ) : (
+            <RefreshPlaceholder>
+              Generate your buyer narrative arc to populate channel hooks.
+            </RefreshPlaceholder>
+          )}
         </CardContent>
       </Card>
     );

@@ -29,7 +29,7 @@ export default async function MessagingPage() {
     redirect("/");
   }
 
-  const [memoryRes, scoringRes] = await Promise.all([
+  const [memoryRes, scoringRes, interviewRes] = await Promise.all([
     svc
       .from("memory_documents")
       .select("document_key, content")
@@ -39,6 +39,15 @@ export default async function MessagingPage() {
       .from("user_scoring_profiles")
       .select("icp_rubric")
       .eq("user_id", user.id)
+      .maybeSingle(),
+    svc
+      .from("onboarding_interviews")
+      .select("status")
+      .eq("user_id", user.id)
+      .eq("template_id", "icp_definition")
+      .in("status", ["review", "story_review"])
+      .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle(),
   ]);
 
@@ -51,6 +60,10 @@ export default async function MessagingPage() {
     hasError = true;
     log.error("user_scoring_profiles lookup failed", scoringRes.error);
   }
+  if (interviewRes.error) {
+    hasError = true;
+    log.error("onboarding_interviews lookup failed", interviewRes.error);
+  }
 
   const memoryDocs: Partial<Record<MemoryDocKey, string>> = {};
   for (const row of memoryRes.data ?? []) {
@@ -62,7 +75,12 @@ export default async function MessagingPage() {
   const rubric = parseRubricOrNull(scoringRes.data?.icp_rubric ?? null, log);
 
   return (
-    <MessagingHub memoryDocs={memoryDocs} rubric={rubric} hasError={hasError} />
+    <MessagingHub
+      memoryDocs={memoryDocs}
+      rubric={rubric}
+      hasActiveIcpReview={Boolean(interviewRes.data)}
+      hasError={hasError}
+    />
   );
 }
 
