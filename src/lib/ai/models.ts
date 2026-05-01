@@ -20,6 +20,8 @@ export const MODELS = {
   videoIcpReview: "google/gemini-3-flash",
   /** Video ICP synthetic review fallback. */
   videoIcpReviewFallback: "anthropic/claude-sonnet-4.6",
+  /** Buyer narrative synthesis candidate. */
+  deepseekNarrative: "deepseek/deepseek-v4-pro",
 } as const;
 
 export type ModelId = (typeof MODELS)[keyof typeof MODELS];

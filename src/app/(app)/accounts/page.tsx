@@ -15,8 +15,8 @@ import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
 import { createLogger } from "@/lib/logger";
 import {
   type AccountCardProps,
-  type AccountResearchSummary,
 } from "../_components/account-card";
+import type { AccountResearchSummary } from "../_components/account-card-helpers";
 import { FadeIn } from "@/components/ui/fade-in";
 import { AccountsList } from "./_components/accounts-list";
 import type { Contact } from "@/components/contact-panel";
@@ -88,9 +88,14 @@ export default async function AccountsPage() {
   const researchIds = opps
     .map((o) => o.research_id)
     .filter((id): id is string => !!id);
+  const opportunityIds = opps.map((o) => o.id);
 
   const reasonById = new Map<string, string>();
   const researchById = new Map<string, AccountResearchSummary>();
+  const latestDraftByOpportunityId = new Map<
+    string,
+    { subject: string; body: string }
+  >();
 
   if (analysisIds.length > 0) {
     const { data: analyses, error: analysesError } = await svc
@@ -152,6 +157,36 @@ export default async function AccountsPage() {
     }
   }
 
+  if (opportunityIds.length > 0) {
+    const { data: drafts, error: draftsError } = await svc
+      .from("email_drafts")
+      .select("opportunity_id, subject, body")
+      .eq("user_id", user.id)
+      .eq("draft_type", "icp-account-outreach")
+      .eq("status", "draft")
+      .in("opportunity_id", opportunityIds);
+
+    if (draftsError) {
+      const log = createLogger({ scope: "accounts.page", userId: user.id });
+      log.error("draft lookup failed; rendering without drafts", draftsError);
+    }
+
+    for (const draft of drafts ?? []) {
+      const opportunityId = draft.opportunity_id as string | null;
+      if (
+        !opportunityId ||
+        !draft.subject ||
+        !draft.body
+      ) {
+        continue;
+      }
+      latestDraftByOpportunityId.set(opportunityId, {
+        subject: draft.subject,
+        body: draft.body,
+      });
+    }
+  }
+
   if (opps.length === 0) {
     return (
       <div className="space-y-6">
@@ -187,6 +222,7 @@ export default async function AccountsPage() {
 
     const reason = o.analysis_id ? (reasonById.get(o.analysis_id) ?? "") : "";
     const research = o.research_id ? researchById.get(o.research_id) : undefined;
+    const latestDraft = latestDraftByOpportunityId.get(o.id);
     const candidates: Contact[] = [
       {
         role: "primary",
@@ -241,6 +277,7 @@ export default async function AccountsPage() {
       >,
       contacts,
       research,
+      latestDraft,
     };
   });
 

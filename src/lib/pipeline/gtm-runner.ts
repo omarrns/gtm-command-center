@@ -5,8 +5,8 @@
  *   Phase 2: runDiscoverAccounts  (TheirStack → opportunities)
  *   Phase 3: runScoreAccounts     (Exa + generateObject → analyses, stage advance)
  *
- * research/enrich/draft stay at zero counts until the GTM outbound
- * surface lands — contact enrichment is deferred to a later phase.
+ * Research/contact enrichment happen in the live account worker path.
+ * The batch runner now picks up already-enriched GTM accounts for drafting.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -16,6 +16,8 @@ import { runDiscoverAccounts } from "@/lib/pipeline/steps/discover-accounts";
 import { runScoreAccounts } from "@/lib/pipeline/steps/score-accounts";
 import type { DiscoverResult } from "@/lib/pipeline/steps/discover";
 import type { ScoreResult } from "@/lib/pipeline/steps/score";
+import type { DraftResult } from "@/lib/pipeline/steps/draft";
+import { runDraftGtm } from "@/lib/pipeline/steps/draft-gtm";
 import { safeParseIcpRubric } from "@/lib/onboarding/icp-schemas";
 import { createLogger, newRunId } from "@/lib/logger";
 
@@ -85,6 +87,14 @@ export async function runGtmPipeline(
     log.error("score-accounts failed", err);
   }
 
+  let draft: DraftResult = { processed: 0, drafted: 0, errors: 0 };
+  try {
+    draft = await runDraftGtm(svc, userId, runId);
+  } catch (err) {
+    pipelineError = `draft-gtm: ${err instanceof Error ? err.message : String(err)}`;
+    log.error("draft-gtm failed", err);
+  }
+
   return {
     userId,
     startedAt,
@@ -99,7 +109,7 @@ export async function runGtmPipeline(
       needsContact: 0,
       errors: 0,
     },
-    draft: { processed: 0, drafted: 0, errors: 0 },
+    draft,
     queuedRecovery: 0,
     error: pipelineError,
   };

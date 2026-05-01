@@ -6,6 +6,8 @@ import {
   ICP_ORCHESTRATOR_SYSTEM_PROMPT,
   buildIcpInterviewerSystemPrompt,
 } from "@/lib/onboarding/icp-prompts";
+import { ICP_NARRATIVE_SYSTEM_PROMPT } from "@/lib/onboarding/icp-narrative-prompt";
+import { icpNarrativeArcSchema } from "@/lib/onboarding/icp-narrative-schema";
 import {
   CORE_ICP_DIMENSION_KEYS,
   ICP_DIMENSIONS,
@@ -23,6 +25,7 @@ import {
   hasMeaningfulHypothesisValue,
   renderDimensionValue,
 } from "@/lib/onboarding/templates/icp-definition/dimension-renderers";
+import { formatIcpNarrativeAsMarkdown } from "@/lib/onboarding/templates/icp-definition/narrative-formatter";
 import type {
   ArtifactKindContract,
   CompletionStatus,
@@ -157,6 +160,19 @@ const outputs: readonly OutputMapping<IcpEdits, IcpExtraction>[] = [
     key: "icp_disqualifiers",
     title: "ICP Disqualifiers",
     transform: ({ edits }) => renderDisqualifiers(edits),
+  },
+  {
+    type: "memory_doc",
+    key: "icp_narrative_arc",
+    title: "ICP Narrative Arc",
+    transform: ({ extraction }) => {
+      const raw = (extraction as unknown as Record<string, unknown> | undefined)
+        ?.insights;
+      if (!raw) return null;
+      const parsed = icpNarrativeArcSchema.safeParse(raw);
+      if (!parsed.success) return null;
+      return formatIcpNarrativeAsMarkdown(parsed.data);
+    },
   },
   {
     type: "pipeline_config",
@@ -352,6 +368,9 @@ export const ICP_DEFINITION_TEMPLATE: InterviewTemplate<
   extractionSystemPrompt: ICP_EXTRACTION_SYSTEM_PROMPT,
   extractionModel: MODELS.opus,
   extractionMaxOutputTokens: 4096,
+  insightsSchema: icpNarrativeArcSchema,
+  insightsSystemPrompt: ICP_NARRATIVE_SYSTEM_PROMPT,
+  insightsModel: MODELS.deepseekNarrative,
 
   editsSchema: icpEditsSchema,
   outputs,

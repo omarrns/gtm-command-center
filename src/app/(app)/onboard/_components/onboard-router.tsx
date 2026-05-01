@@ -7,6 +7,7 @@ import { InterviewClient } from "./interview-client";
 import { ReviewClient } from "./review-client";
 import { OnboardClient } from "./onboard-client";
 import { StoryClient } from "./story-client";
+import { IcpNarrativeClient } from "./icp-narrative-client";
 import { getOrCreateInterviewAction } from "../interview-actions";
 import { extractAndReviewAction } from "../extraction-actions";
 import type { OnboardingInterviewRow } from "@/lib/supabase/types";
@@ -128,6 +129,9 @@ export function OnboardRouter({
 
   // ── Story phase (agentic-only intermediate between review and confirmed) ──
   if (interview && interview.status === "story_review") {
+    if (interview.template_id === "icp_definition") {
+      return <IcpNarrativeClient interview={interview} isRefresh={isRefresh} />;
+    }
     return <StoryClient interview={interview} isRefresh={isRefresh} />;
   }
 

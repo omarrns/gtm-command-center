@@ -44,9 +44,8 @@ export function ReviewClient({
     return (
       <ReviewIcp
         interview={interview}
-        clientTemplate={clientTemplate}
-        isRefresh={isRefresh}
         onBackToInterview={onBackToInterview}
+        onContinueToStory={onContinueToStory}
       />
     );
   }

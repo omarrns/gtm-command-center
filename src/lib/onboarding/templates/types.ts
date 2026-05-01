@@ -187,6 +187,7 @@ export type InterviewTemplate<E = unknown, X = unknown> =
       // story phase and route review → confirmed directly.
       insightsSchema?: z.ZodType<unknown, z.ZodTypeDef, unknown>;
       insightsSystemPrompt?: string;
+      insightsModel?: string;
     });
 
 // Client-safe projection. Client components cannot receive zod schemas,
