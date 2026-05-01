@@ -1,6 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EditableProseSection } from "@/components/ui/editable-prose-section";
+import type { IcpNarrativeArc } from "@/lib/onboarding/icp-narrative-schema";
+import { parseIcpNarrativeMarkdown } from "@/lib/onboarding/templates/icp-definition/narrative-formatter";
+import { updateIcpNarrativeArcAction } from "../_actions/update-icp-narrative";
 import { GenerateIcpNarrativeButton } from "./generate-icp-narrative-button";
 
 const REFRESH_HREF = "/onboard?mode=refresh&template=icp_definition";
@@ -9,106 +16,126 @@ interface IcpNarrativePanelProps {
   narrativeArc: string | null;
 }
 
-interface NarrativeBlock {
-  title: string;
-  body: string;
-}
+type TextKey = "trigger" | "stakes" | "identity_shift";
+type ListKey = "failed_workarounds" | "aha" | "decision_criteria";
 
 export function IcpNarrativePanel({ narrativeArc }: IcpNarrativePanelProps) {
-  const blocks = parseNarrativeBlocks(narrativeArc);
+  const [arc, setArc] = useState(() => parseIcpNarrativeMarkdown(narrativeArc));
+  const [, startTransition] = useTransition();
 
-  if (blocks.length === 0) {
-    return (
-      <Card className="border-dashed bg-muted/40 py-10">
-        <CardContent className="space-y-4 text-center">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">
-              Narrative arc not generated yet
-            </h2>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-              Your ICP rubric exists, but the buyer story is missing. Generate
-              it from your saved ICP so messaging and outreach can use it.
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            <GenerateIcpNarrativeButton />
-            <Link
-              href={REFRESH_HREF}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              Refresh ICP
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    );
+  function persist(next: IcpNarrativeArc) {
+    setArc(next);
+    startTransition(async () => {
+      const result = await updateIcpNarrativeArcAction(next);
+      if (!result.ok) {
+        toast.error(result.error ?? "Save failed");
+      }
+    });
+  }
+
+  if (!narrativeArc?.trim()) {
+    return <NarrativeEmptyState />;
   }
 
   return (
-    <div className="space-y-4">
-      {blocks.map((block) => (
-        <Card key={block.title}>
-          <CardHeader>
-            <CardTitle>{block.title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <NarrativeBody value={block.body} />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <>
+      <NarrativeTextSection
+        title="Trigger"
+        value={arc.trigger}
+        onCommit={(trigger) => persist({ ...arc, trigger })}
+      />
+      <NarrativeListSection
+        title="Failed Workarounds"
+        value={arc.failed_workarounds}
+        onCommit={(failed_workarounds) =>
+          persist({ ...arc, failed_workarounds })
+        }
+      />
+      <NarrativeTextSection
+        title="Stakes"
+        value={arc.stakes}
+        onCommit={(stakes) => persist({ ...arc, stakes })}
+      />
+      <NarrativeListSection
+        title="Aha"
+        value={arc.aha}
+        onCommit={(aha) => persist({ ...arc, aha })}
+      />
+      <NarrativeListSection
+        title="Decision Criteria"
+        value={arc.decision_criteria}
+        onCommit={(decision_criteria) =>
+          persist({ ...arc, decision_criteria })
+        }
+      />
+      <NarrativeTextSection
+        title="Identity Shift"
+        value={arc.identity_shift}
+        onCommit={(identity_shift) => persist({ ...arc, identity_shift })}
+      />
+    </>
   );
 }
 
-function parseNarrativeBlocks(content: string | null): NarrativeBlock[] {
-  const markdown = content?.trim() ?? "";
-  if (!markdown) return [];
-
-  const headings = [...markdown.matchAll(/^##\s+(.+)$/gm)];
-  if (headings.length === 0) {
-    return [{ title: "Narrative", body: markdown }];
-  }
-
-  return headings
-    .map((heading, index) => {
-      const next = headings[index + 1];
-      const start = (heading.index ?? 0) + heading[0].length;
-      const end = next?.index ?? markdown.length;
-      return {
-        title: heading[1]?.trim() ?? "Narrative",
-        body: markdown.slice(start, end).replace(/\n---\s*$/g, "").trim(),
-      };
-    })
-    .filter((block) => block.body);
+function NarrativeEmptyState() {
+  return (
+    <section className="mb-8">
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+        Narrative Arc
+      </h2>
+      <p className="mb-4 text-sm leading-relaxed text-[var(--color-text-muted)]">
+        Your ICP rubric exists, but the buyer story is missing. Generate it
+        from your saved ICP so messaging and outreach can use it.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <GenerateIcpNarrativeButton />
+        <Link
+          href={REFRESH_HREF}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Refresh ICP
+        </Link>
+      </div>
+    </section>
+  );
 }
 
-function NarrativeBody({ value }: { value: string }) {
-  const lines = value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => line !== "---");
-
+function NarrativeTextSection({
+  title,
+  value,
+  onCommit,
+}: {
+  title: string;
+  value: IcpNarrativeArc[TextKey];
+  onCommit: (next: string) => void;
+}) {
   return (
-    <div className="space-y-2">
-      {lines.map((line, index) =>
-        line.startsWith("- ") ? (
-          <div
-            key={`${line}-${index}`}
-            className="flex gap-2 text-sm leading-relaxed text-[var(--color-text)]"
-          >
-            <span className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground/30" />
-            <span>{line.slice(2)}</span>
-          </div>
-        ) : (
-          <p
-            key={`${line}-${index}`}
-            className="text-sm leading-relaxed text-[var(--color-text)]"
-          >
-            {line}
-          </p>
-        ),
-      )}
-    </div>
+    <EditableProseSection
+      title={title}
+      kind="text"
+      value={value}
+      onCommit={onCommit}
+      editable
+    />
+  );
+}
+
+function NarrativeListSection({
+  title,
+  value,
+  onCommit,
+}: {
+  title: string;
+  value: IcpNarrativeArc[ListKey];
+  onCommit: (next: string[]) => void;
+}) {
+  return (
+    <EditableProseSection
+      title={title}
+      kind="list"
+      value={value}
+      onCommit={onCommit}
+      editable
+    />
   );
 }

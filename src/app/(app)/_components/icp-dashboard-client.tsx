@@ -91,7 +91,10 @@ export function IcpDashboardClient({
           artifacts={artifacts}
         />
       ) : (
-        <IcpNarrativePanel narrativeArc={narrativeArc} />
+        <IcpNarrativePanel
+          key={narrativeArc ?? "empty-narrative"}
+          narrativeArc={narrativeArc}
+        />
       )}
 
       <div className="mt-10 pt-6 border-t border-[var(--color-border-strong)] flex justify-end">

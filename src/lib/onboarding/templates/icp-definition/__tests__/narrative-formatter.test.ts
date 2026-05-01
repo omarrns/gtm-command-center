@@ -1,5 +1,8 @@
 import { strict as assert } from "node:assert";
-import { formatIcpNarrativeAsMarkdown } from "../narrative-formatter";
+import {
+  formatIcpNarrativeAsMarkdown,
+  parseIcpNarrativeMarkdown,
+} from "../narrative-formatter";
 import type { IcpNarrativeArc } from "@/lib/onboarding/icp-narrative-schema";
 
 const EMPTY_ARC: IcpNarrativeArc = {
@@ -17,6 +20,10 @@ function arc(overrides: Partial<IcpNarrativeArc>): IcpNarrativeArc {
 
 function assertEqual(actual: string | null, expected: string | null) {
   assert.equal(actual, expected);
+}
+
+function assertArcEqual(actual: IcpNarrativeArc, expected: IcpNarrativeArc) {
+  assert.deepEqual(actual, expected);
 }
 
 assertEqual(
@@ -95,6 +102,60 @@ assertEqual(
     }),
   ),
   null,
+);
+
+const fullArc = arc({
+  trigger: "A new VP Sales inherited a stalled outbound motion.",
+  failed_workarounds: ["Added more SDR meetings", "Stretched Salesforce"],
+  stakes: "Missed pipeline targets are now visible to the board.",
+  aha: ["The team sees this as a workflow problem"],
+  decision_criteria: ["Fast setup", "Fits the current sales stack"],
+  identity_shift: "The buyer becomes the revenue leader who fixed pipeline quality.",
+});
+assertArcEqual(
+  parseIcpNarrativeMarkdown(formatIcpNarrativeAsMarkdown(fullArc)),
+  fullArc,
+);
+
+assertArcEqual(
+  parseIcpNarrativeMarkdown(
+    [
+      "## Trigger\n\nGrowth goals outpaced the team's manual research capacity.",
+      "## Stakes\n\nEvery missed account delays the pipeline plan.",
+      "## Identity Shift\n\nThe buyer becomes a more precise GTM operator.",
+    ].join("\n\n---\n\n"),
+  ),
+  arc({
+    trigger: "Growth goals outpaced the team's manual research capacity.",
+    stakes: "Every missed account delays the pipeline plan.",
+    identity_shift: "The buyer becomes a more precise GTM operator.",
+  }),
+);
+
+assertArcEqual(
+  parseIcpNarrativeMarkdown(
+    [
+      "## Failed Workarounds",
+      "",
+      "- Spreadsheet queues",
+      "* More manual list building",
+      "",
+      "---",
+      "",
+      "## Decision Criteria",
+      "",
+      "- Evidence quality",
+    ].join("\n"),
+  ),
+  arc({
+    failed_workarounds: ["Spreadsheet queues", "More manual list building"],
+    decision_criteria: ["Evidence quality"],
+  }),
+);
+
+assertArcEqual(
+  parseIcpNarrativeMarkdown("Legacy prose without headings."),
+  arc({ trigger: "Legacy prose without headings." }),
 );
 
 console.log("PASS: narrative formatter");
