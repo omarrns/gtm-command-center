@@ -1,6 +1,8 @@
 "use client";
-
-import { ChevronDown, ChevronUp } from "lucide-react";
+import {
+  CaretDown as ChevronDown,
+  CaretUp as ChevronUp,
+} from "@phosphor-icons/react/ssr";
 
 interface SectionHeaderProps {
   title: string;

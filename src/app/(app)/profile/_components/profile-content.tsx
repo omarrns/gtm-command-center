@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, Settings, UserPen } from "lucide-react";
+import { ArrowSquareOut as ExternalLink, Gear as Settings, UserCircleGear as UserPen } from "@phosphor-icons/react/ssr";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";

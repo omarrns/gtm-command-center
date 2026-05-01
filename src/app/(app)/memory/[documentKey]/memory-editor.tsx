@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Save, Check } from "lucide-react";
+import {
+  FloppyDisk as Save,
+  Check,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { saveMemoryDocumentAction } from "./actions";
 import { Button } from "@/components/ui/button";

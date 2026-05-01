@@ -1,6 +1,7 @@
 "use client";
-
-import { Info } from "lucide-react";
+import {
+  Info,
+} from "@phosphor-icons/react/ssr";
 import { Alert } from "@/components/ui/alert";
 
 // SPEC-3 Phase 5.c: shown above the ICP review when positive-exemplar

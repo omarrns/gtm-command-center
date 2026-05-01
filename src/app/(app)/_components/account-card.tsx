@@ -3,17 +3,17 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Building2,
+  Buildings as Building2,
   Users,
-  TrendingUp,
-  Globe2,
+  TrendUp as TrendingUp,
+  Globe as Globe2,
   Clock,
   Radio,
   Moon,
   X,
-  Search,
-  ChevronDown,
-} from "lucide-react";
+  MagnifyingGlass as Search,
+  CaretDown as ChevronDown,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

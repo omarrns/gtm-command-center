@@ -5,6 +5,7 @@
  *   - owned files exceeding 400 lines (or their grandfathered baseline count)
  *   - imports of `@/lib/pipeline/runner` outside of runner.ts and the regression test
  *   - any import of `@ai-sdk/anthropic` (must route through Vercel AI Gateway)
+ *   - imports of `lucide-react` outside vendored AI Elements
  *
  * Owned scope: `src/**` and `scripts/**`, excluding vendored `src/components/ai-elements/**`.
  */
@@ -39,6 +40,13 @@ const FORBIDDEN_IMPORTS: Array<{
     exempt: (rel) =>
       rel === "src/lib/pipeline/runner.ts" ||
       rel === "scripts/test-pipeline-regression.ts",
+  },
+  {
+    pattern:
+      /from\s+["']lucide-react["']|require\(["']lucide-react["']\)/,
+    message:
+      "imports lucide-react — use @phosphor-icons/react for app-owned UI",
+    exempt: () => false,
   },
 ];
 

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import {
+  ArrowSquareOut as ExternalLink,
+  ArrowsClockwise as RefreshCw,
+} from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { formatRelativeTime } from "@/lib/utils";

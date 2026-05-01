@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Copy, Check } from "lucide-react";
+import {
+  Copy,
+  Check,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { saveEmailDraftAction } from "../actions";
 import { cn } from "@/lib/utils";

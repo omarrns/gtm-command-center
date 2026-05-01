@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import {
   X,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
+  CaretLeft as ChevronLeft,
+  CaretRight as ChevronRight,
+  Sparkle as Sparkles,
   FileText,
-  RefreshCw,
-} from "lucide-react";
+  ArrowsClockwise as RefreshCw,
+} from "@phosphor-icons/react/ssr";
 import { motion, AnimatePresence } from "motion/react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";

@@ -1,7 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
-import { Mail, MailX, ExternalLink } from "lucide-react";
+import {
+  Envelope as Mail,
+  LinkBreak as MailX,
+  ArrowSquareOut as ExternalLink,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

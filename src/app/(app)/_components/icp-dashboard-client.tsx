@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { RefreshCw } from "lucide-react";
+import {
+  ArrowsClockwise as RefreshCw,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import type { IcpRubric } from "@/lib/onboarding/icp-schemas";

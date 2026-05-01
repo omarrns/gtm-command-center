@@ -3,14 +3,14 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  ChevronDown,
-  Send,
-  Pencil,
+  CaretDown as ChevronDown,
+  PaperPlaneTilt as Send,
+  PencilSimple as Pencil,
   SkipForward,
   Flag,
-  CheckCheck,
-  ExternalLink,
-} from "lucide-react";
+  Checks as CheckCheck,
+  ArrowSquareOut as ExternalLink,
+} from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

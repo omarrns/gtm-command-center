@@ -45,7 +45,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Warning as AlertTriangle,
+} from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { experimental_useObject as useObject } from "@ai-sdk/react";

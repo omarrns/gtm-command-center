@@ -1,6 +1,8 @@
 "use client";
-
-import { Loader2, Search } from "lucide-react";
+import {
+  Spinner as Loader2,
+  MagnifyingGlass as Search,
+} from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

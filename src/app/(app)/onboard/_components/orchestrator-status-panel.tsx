@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import {
-  CheckCircle2,
-  AlertCircle,
+  CheckCircle as CheckCircle2,
+  WarningCircle as AlertCircle,
   Circle,
-  HelpCircle,
-  Loader2,
-} from "lucide-react";
+  Question as HelpCircle,
+  Spinner as Loader2,
+} from "@phosphor-icons/react/ssr";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {

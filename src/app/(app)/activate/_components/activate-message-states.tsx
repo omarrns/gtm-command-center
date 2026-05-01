@@ -1,6 +1,9 @@
 "use client";
-
-import { Loader2, Play, Settings } from "lucide-react";
+import {
+  Spinner as Loader2,
+  Play,
+  Gear as Settings,
+} from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { UserType } from "@/lib/supabase/types";

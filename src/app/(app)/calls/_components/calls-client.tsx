@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Search, Sparkles } from "lucide-react";
+import {
+  MagnifyingGlass as Search,
+  Sparkle as Sparkles,
+} from "@phosphor-icons/react/ssr";
 import { AnimatePresence, motion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

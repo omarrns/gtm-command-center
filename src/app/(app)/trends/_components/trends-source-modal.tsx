@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { X, ExternalLink } from "lucide-react";
+import {
+  X,
+  ArrowSquareOut as ExternalLink,
+} from "@phosphor-icons/react/ssr";
 import { motion } from "motion/react";
 import { OutcomeBadge } from "@/app/(app)/calls/_components/outcome-badge";
 import type { SalesCall } from "@/lib/calls/types";

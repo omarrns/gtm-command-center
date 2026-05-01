@@ -1,4 +1,7 @@
-import { Mail, ExternalLink } from "lucide-react";
+import {
+  Envelope as Mail,
+  ArrowSquareOut as ExternalLink,
+} from "@phosphor-icons/react/ssr";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 

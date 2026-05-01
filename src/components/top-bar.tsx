@@ -2,7 +2,11 @@
 
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
-import { Menu, Moon, Sun } from "lucide-react";
+import {
+  List as Menu,
+  Moon,
+  Sun,
+} from "@phosphor-icons/react/ssr";
 import { AnimatePresence, motion } from "motion/react";
 import { DevPersonaToggle } from "@/components/dev-persona-toggle";
 import type { UserType } from "@/lib/supabase/types";

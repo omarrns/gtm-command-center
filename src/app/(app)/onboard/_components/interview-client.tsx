@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Spinner as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react/ssr";
 import { toast } from "sonner";
 import {
   Conversation,

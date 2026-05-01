@@ -8,12 +8,12 @@ import {
   CalendarCheck,
   Clock,
   Eye,
-  Search,
-  Settings,
-  UserRound,
-  Video,
-  type LucideIcon,
-} from "lucide-react";
+  MagnifyingGlass as Search,
+  Gear as Settings,
+  UserCircle as UserRound,
+  VideoCamera as Video,
+} from "@phosphor-icons/react/ssr";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { UserType } from "@/lib/supabase/types";
 
@@ -21,7 +21,7 @@ type PaletteItem = {
   id: string;
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
 };
 
 // SPEC-3 polish: persona drives the / label. GTM gets "Go to ICP"

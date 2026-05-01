@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, FileText, Globe, User } from "lucide-react";
+import {
+  CaretDown as ChevronDown,
+  CaretUp as ChevronUp,
+  FileText,
+  Globe,
+  User,
+} from "@phosphor-icons/react/ssr";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { OrchestratorState } from "@/lib/onboarding/orchestrator/types";
 

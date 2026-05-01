@@ -6,17 +6,17 @@ import {
   CalendarCheck,
   Clock,
   Eye,
-  Settings,
+  Gear as Settings,
   Power,
-  BarChart2,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChartBar as BarChart2,
+  ChatText as MessageSquare,
+  SidebarSimple,
   Phone,
-  TrendingUp,
-  Inbox,
-  UserRound,
-  Video,
-} from "lucide-react";
+  TrendUp as TrendingUp,
+  Tray as Inbox,
+  UserCircle as UserRound,
+  VideoCamera as Video,
+} from "@phosphor-icons/react/ssr";
 import {
   AnimatePresence,
   LayoutGroup,
@@ -45,6 +45,7 @@ function buildNav(userType: UserType | null): NavItem[] {
       { href: "/icp", label: "ICP System Prompt", icon: CalendarCheck },
       { href: "/video-icp", label: "Video ICP", icon: Video },
       { href: "/accounts", label: "Accounts", icon: Inbox },
+      { href: "/messaging", label: "Messaging", icon: MessageSquare },
       { href: "/calls", label: "Calls", icon: Phone, badge: "POC" },
       { href: "/trends", label: "Trends", icon: TrendingUp, badge: "POC" },
       { href: "/settings", label: "Settings", icon: Settings },
@@ -110,11 +111,7 @@ function SidebarContent({
             aria-label={`${collapsed ? "Expand" : "Collapse"} sidebar`}
             className="h-7 w-7 flex items-center justify-center rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] transition-colors"
           >
-            {collapsed ? (
-              <PanelLeftOpen size={16} />
-            ) : (
-              <PanelLeftClose size={16} />
-            )}
+            <SidebarSimple size={16} mirrored={collapsed} />
           </button>
         )}
       </div>
@@ -161,6 +158,7 @@ function SidebarContent({
                 )}
                 <Icon
                   size={16}
+                  weight={active ? "fill" : "regular"}
                   className={cn(
                     "relative z-10 shrink-0",
                     active && "text-[var(--color-blue)]",

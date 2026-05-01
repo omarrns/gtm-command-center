@@ -1,6 +1,7 @@
 "use client";
-
-import { AlertTriangle } from "lucide-react";
+import {
+  Warning as AlertTriangle,
+} from "@phosphor-icons/react/ssr";
 import { Alert } from "@/components/ui/alert";
 import { ReviewFormSection } from "@/components/ui/review-form-section";
 import type { IcpDisagreement } from "@/lib/onboarding/orchestrator/icp-disagreements";
