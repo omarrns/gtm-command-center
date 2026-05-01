@@ -6,6 +6,7 @@ import {
   deriveSalesTalkTrack,
   extractArcBeats,
   parseBullets,
+  parseMarkdownBlocks,
   type ArcBeats,
 } from "../src/app/(app)/messaging/_components/messaging-hub-helpers";
 
@@ -101,6 +102,28 @@ assert.deepEqual(
   "parseBullets parses simple bullets and ignores non-bullets",
 );
 assert.deepEqual(parseBullets(""), [], "parseBullets returns empty array");
+assert.deepEqual(
+  parseMarkdownBlocks(
+    ["## Product", "", "- **Category**: Agentic GTM", "", "---", "", "## Buyer", "", "VP Sales"].join(
+      "\n",
+    ),
+  ),
+  [
+    { title: "Product", body: "- **Category**: Agentic GTM" },
+    { title: "Buyer", body: "VP Sales" },
+  ],
+  "parseMarkdownBlocks returns titled sections",
+);
+assert.deepEqual(
+  parseMarkdownBlocks("Standalone note"),
+  [{ title: "Notes", body: "Standalone note" }],
+  "parseMarkdownBlocks handles markdown without headings",
+);
+assert.deepEqual(
+  parseMarkdownBlocks("   "),
+  [],
+  "parseMarkdownBlocks returns empty array for whitespace-only input",
+);
 
 const arc = extractArcBeats(arcMarkdown);
 assert.equal(

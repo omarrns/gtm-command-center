@@ -15,6 +15,11 @@ export interface HookDerivation {
   overlay: string[];
 }
 
+export interface MarkdownBlock {
+  title: string;
+  body: string;
+}
+
 export function parseBullets(md: string): string[] {
   return md
     .split("\n")
@@ -22,6 +27,31 @@ export function parseBullets(md: string): string[] {
     .filter((line) => line.startsWith("- "))
     .map((line) => line.slice(2).trim())
     .filter(Boolean);
+}
+
+export function parseMarkdownBlocks(md: string | undefined): MarkdownBlock[] {
+  const content = md?.trim() ?? "";
+  if (!content) return [];
+
+  const blocks: MarkdownBlock[] = [];
+  const pattern = /^##\s+(.+)$/gm;
+  const matches = [...content.matchAll(pattern)];
+
+  if (matches.length === 0) {
+    return [{ title: "Notes", body: content }];
+  }
+
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const next = matches[index + 1];
+    const title = match[1]?.trim() ?? "Section";
+    const start = (match.index ?? 0) + match[0].length;
+    const end = next?.index ?? content.length;
+    const body = content.slice(start, end).replace(/\n---\s*$/g, "").trim();
+    blocks.push({ title, body });
+  }
+
+  return blocks.filter((block) => block.body);
 }
 
 export function extractArcBeats(arcMarkdown: string): ArcBeats {
