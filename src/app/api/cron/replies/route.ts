@@ -1,5 +1,6 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { getGmailClient, checkReplies } from "@/lib/integrations/gmail";
+import { recordOutreachEvent } from "@/lib/outreach/events";
 import { advanceStage } from "@/lib/pipeline/opportunities";
 import { createLogger, newRunId } from "@/lib/logger";
 
@@ -82,6 +83,24 @@ export async function GET(request: Request) {
               "replied",
             );
             if (advanced) {
+              try {
+                await recordOutreachEvent(svc, {
+                  userId,
+                  opportunityId: opp.id,
+                  eventType: "reply_detected",
+                  source: "reply_cron",
+                  metadata: { gmailThreadId: status.threadId },
+                });
+              } catch (eventErr) {
+                userLog.warn("failed to record reply outreach event", {
+                  opportunityId: opp.id,
+                  threadId: status.threadId,
+                  error:
+                    eventErr instanceof Error
+                      ? eventErr.message
+                      : String(eventErr),
+                });
+              }
               userReplied++;
               totalReplied++;
               userLog.info("opportunity advanced to replied", {

@@ -53,7 +53,8 @@
     "test:video-icp-review-job": "tsx scripts/test-video-icp-review-job.ts",
     "test:video-icp-model-selection": "tsx scripts/test-video-icp-model-selection.ts",
     "check:ai-gateway-video-icp-models": "tsx scripts/check-ai-gateway-video-icp-models.ts",
-    "test:messaging-hub-helpers": "tsx scripts/test-messaging-hub-helpers.ts"
+    "test:messaging-hub-helpers": "tsx scripts/test-messaging-hub-helpers.ts",
+    "test:outreach-events": "tsx scripts/test-outreach-events.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.156",
