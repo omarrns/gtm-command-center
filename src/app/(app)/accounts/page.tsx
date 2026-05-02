@@ -52,7 +52,7 @@ export default async function AccountsPage() {
     .from("opportunities")
     .select("*")
     .eq("user_id", user.id)
-    .in("source", ["theirstack", "exa-dormant"])
+    .in("source", ["theirstack", "exa-dormant", "yt_comments"])
     .not("stage", "in", "(discovered,filtered,skipped)")
     .order("score", { ascending: false, nullsFirst: false })
     .limit(50);
@@ -64,7 +64,7 @@ export default async function AccountsPage() {
       <div className="space-y-6">
         <PageHeader
           title="Accounts"
-          description="Accounts the pipeline promoted from TheirStack + Exa dormant."
+          description="Accounts promoted from hiring, dormant, and YouTube prospect signals."
         />
         <Alert variant="destructive">
           <AlertTitle>Couldn&apos;t load accounts</AlertTitle>
@@ -189,7 +189,7 @@ export default async function AccountsPage() {
       <div className="space-y-6">
         <PageHeader
           title="Accounts"
-          description="Accounts the pipeline promoted from TheirStack + Exa dormant. Stay here until you skip."
+          description="Accounts promoted from hiring, dormant, and YouTube prospect signals. Stay here until you skip."
         />
         <EmptyState
           message="No promoted accounts yet"
@@ -273,7 +273,7 @@ export default async function AccountsPage() {
       discoveredAt: o.discovered_at,
       source: o.source as Extract<
         OpportunitySource,
-        "theirstack" | "exa-dormant"
+        "theirstack" | "exa-dormant" | "yt_comments"
       >,
       contacts,
       research,

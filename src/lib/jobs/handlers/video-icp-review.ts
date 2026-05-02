@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { MODELS } from "@/lib/ai/anthropic";
 import { runGenerateObject } from "@/lib/ai/calls";
+import { enqueueScoreYoutubeProspectsJob } from "@/lib/jobs/score-youtube-prospects";
+import { upsertYoutubeCommentProspects } from "@/lib/prospects/youtube";
 import type { JobRow } from "@/lib/supabase/types";
 import { loadMemoryContext } from "@/lib/skills/context";
 import { extractSenderIdentity } from "@/lib/skills/sender-identity";
@@ -63,10 +65,28 @@ export async function runVideoIcpReviewJob(
     analysis,
   });
 
+  const prospectSummary = await upsertYoutubeCommentProspects(
+    svc,
+    {
+      ...review,
+      video_id: extraction.source.id,
+      video_title: extraction.meta.title,
+      channel_title: extraction.meta.channel,
+    },
+    extraction.comments,
+  );
+  if (prospectSummary.insertedOrUpdated > 0) {
+    await enqueueScoreYoutubeProspectsJob(svc, {
+      userId: job.user_id,
+      reviewId: review.id,
+    });
+  }
+
   return {
     review_id: review.id,
     video_id: extraction.source.id,
     comments_status: extraction.commentsStatus,
+    prospects: prospectSummary,
   };
 }
 

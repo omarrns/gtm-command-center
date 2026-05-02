@@ -17,7 +17,7 @@ export async function findContactsForAccountAction(
     .select("id")
     .eq("id", opportunityId)
     .eq("user_id", user.id)
-    .in("source", ["theirstack", "exa-dormant"])
+    .in("source", ["theirstack", "exa-dormant", "yt_comments"])
     .maybeSingle();
 
   if (error) return { ok: false, error: error.message };

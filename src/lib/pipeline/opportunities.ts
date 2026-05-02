@@ -37,6 +37,7 @@ interface CreateOpportunityInput {
   company_domain?: string | null;
   trigger_signals?: Record<string, unknown>[] | null;
   buyer_personas?: Record<string, unknown>[] | null;
+  prospect_id?: string | null;
 }
 
 /**

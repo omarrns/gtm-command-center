@@ -221,7 +221,7 @@ export async function runDraftGtm(
     .select("*")
     .eq("user_id", userId)
     .eq("stage", "enriched")
-    .in("source", ["theirstack", "exa-dormant"])
+    .in("source", ["theirstack", "exa-dormant", "yt_comments"])
     .order("score", { ascending: false, nullsFirst: false })
     .limit(MAX_DRAFTS_PER_RUN);
   if (error) throw error;

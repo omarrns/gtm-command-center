@@ -9,6 +9,7 @@ import {
   Globe,
   Clock,
   Radio,
+  YoutubeLogo,
   Moon,
   X,
   MagnifyingGlass,
@@ -56,7 +57,7 @@ export interface AccountCardProps {
   industry: string | null;
   // Optional: enrichment chips shown only on the persisted-queue view
   discoveredAt?: string;
-  source?: "theirstack" | "exa-dormant";
+  source?: "theirstack" | "exa-dormant" | "yt_comments";
   // Dismiss affordance: only rendered when both are set. /accounts passes
   // them; /activate's static preview does not. canSkip is derived from
   // SKIPPABLE_STAGES so we never ship a button that would visibly fail
@@ -276,6 +277,15 @@ export function AccountCard({
               >
                 <Radio size={10} />
                 Hiring
+              </Badge>
+            )}
+            {source === "yt_comments" && (
+              <Badge
+                variant="outline"
+                className="text-[var(--color-text-subtle)]"
+              >
+                <YoutubeLogo size={10} />
+                YouTube
               </Badge>
             )}
           </div>

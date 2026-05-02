@@ -11,6 +11,9 @@ import {
   VideoIcpReviewNotFoundError,
 } from "@/lib/video-icp/reviews";
 import { videoIcpAnalysisSchema } from "@/lib/video-icp/schemas";
+import { listReviewProspects } from "@/lib/prospects/youtube";
+import type { ProspectRow } from "@/lib/prospects/types";
+import { CommenterProspectsSection } from "../_components/commenter-prospects-section";
 import { ReviewPoller } from "../_components/review-poller";
 import { ReviewResult } from "../_components/review-result";
 
@@ -59,7 +62,10 @@ export default async function VideoIcpDetailPage({ params }: Props) {
           </AlertDescription>
         </Alert>
       ) : review.status === "complete" ? (
-        <CompleteReview review={review} />
+        <CompleteReview
+          review={review}
+          prospects={await listReviewProspects(svc, user.id, id)}
+        />
       ) : (
         <div className="rounded-lg border border-[var(--color-border)] p-4">
           <ReviewPoller jobId={review.job_id} />
@@ -71,20 +77,25 @@ export default async function VideoIcpDetailPage({ params }: Props) {
 
 function CompleteReview({
   review,
+  prospects,
 }: {
   review: Awaited<ReturnType<typeof loadVideoIcpReview>>;
+  prospects: ProspectRow[];
 }) {
   const analysis = videoIcpAnalysisSchema.parse(review.analysis);
   const transcript = TranscriptSchema.parse(review.transcript);
   const comments = z.array(CommentSchema).nullable().parse(review.comments);
 
   return (
-    <ReviewResult
-      analysis={analysis}
-      transcript={transcript}
-      comments={comments}
-      commentsStatus={review.comments_status}
-      commentsError={review.comments_error}
-    />
+    <>
+      <ReviewResult
+        analysis={analysis}
+        transcript={transcript}
+        comments={comments}
+        commentsStatus={review.comments_status}
+        commentsError={review.comments_error}
+      />
+      <CommenterProspectsSection reviewId={review.id} prospects={prospects} />
+    </>
   );
 }

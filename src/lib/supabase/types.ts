@@ -173,7 +173,8 @@ export type OpportunitySource =
   | "exa"
   | "manual"
   | "theirstack"
-  | "exa-dormant";
+  | "exa-dormant"
+  | "yt_comments";
 
 export interface PipelineConfigRow {
   id: string;
@@ -214,6 +215,7 @@ export interface OpportunityRow {
   score_components: Record<string, unknown> | null;
   analysis_id: string | null;
   research_id: string | null;
+  prospect_id: string | null;
   selected_draft_id: string | null;
   recipient_name: string | null;
   recipient_title: string | null;

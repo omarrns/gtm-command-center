@@ -152,7 +152,7 @@ export async function runScoreAccounts(
     userId,
     "discovered",
     MAX_SCORES_PER_RUN,
-    { sources: ["theirstack", "exa-dormant"] },
+    { sources: ["theirstack", "exa-dormant", "yt_comments"] },
   );
 
   const result: ScoreResult = {
@@ -164,7 +164,13 @@ export async function runScoreAccounts(
   };
 
   for (const opp of opportunities) {
-    if (opp.source !== "theirstack" && opp.source !== "exa-dormant") continue;
+    if (
+      opp.source !== "theirstack" &&
+      opp.source !== "exa-dormant" &&
+      opp.source !== "yt_comments"
+    ) {
+      continue;
+    }
 
     try {
       const claimed = await claimOpportunity(svc, opp.id, userId);
