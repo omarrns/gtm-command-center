@@ -30,9 +30,9 @@ export function StepGmail({ gmailConnected, isRefresh }: StepGmailProps) {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-[var(--color-text-muted)]">
-              Connect your Gmail account to send approved outreach emails
-              directly from the pipeline. You can also do this later from
-              Settings.
+              Connect Gmail to send approved outreach, detect replies, and
+              classify reply intent for tracked threads. Raw reply bodies are
+              not stored. You can also do this later from Settings.
             </p>
             <a href={authHref} className={buttonVariants()}>
               <ArrowSquareOut size={13} />
@@ -44,7 +44,7 @@ export function StepGmail({ gmailConnected, isRefresh }: StepGmailProps) {
 
       <p className="text-xs text-[var(--color-text-subtle)]">
         Gmail is optional. The pipeline can discover, score, and draft emails
-        without it. You can connect later from Settings.
+        without it. Disconnecting from Settings revokes Gmail access.
       </p>
     </div>
   );

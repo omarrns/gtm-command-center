@@ -37,12 +37,16 @@ export default async function SettingsPage(props: {
   // Check Gmail connection status
   const { data: gmailCreds } = await svc
     .from("gmail_credentials")
-    .select("id")
+    .select("id, granted_scopes")
     .eq("user_id", user.id)
     .maybeSingle();
 
   const gmailConnected =
     searchParams.gmail_connected === "true" || !!gmailCreds;
+  const hasGmailBodyAccess =
+    gmailCreds?.granted_scopes?.includes(
+      "https://www.googleapis.com/auth/gmail.readonly",
+    ) ?? false;
   const gmailError =
     typeof searchParams.gmail_error === "string"
       ? searchParams.gmail_error
@@ -60,6 +64,7 @@ export default async function SettingsPage(props: {
       <SettingsClient
         gmailConnected={gmailConnected}
         gmailAddress={config?.gmail_send_address ?? null}
+        hasGmailBodyAccess={hasGmailBodyAccess}
         gmailError={gmailError}
         scoreThreshold={config?.score_threshold ?? 70}
         dailySendCap={config?.daily_send_cap ?? 10}

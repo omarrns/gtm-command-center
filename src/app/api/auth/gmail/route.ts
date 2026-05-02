@@ -3,11 +3,7 @@ import { cookies } from "next/headers";
 import { randomBytes, createHash } from "node:crypto";
 import { SignJWT } from "jose";
 import { requireUser } from "@/lib/supabase/server";
-
-const SCOPES = [
-  "https://www.googleapis.com/auth/gmail.send",
-  "https://www.googleapis.com/auth/gmail.metadata",
-];
+import { GMAIL_SCOPES } from "@/lib/integrations/gmail-scopes";
 
 function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -68,7 +64,7 @@ export async function GET(request: NextRequest) {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: SCOPES.join(" "),
+    scope: GMAIL_SCOPES.join(" "),
     access_type: "offline",
     prompt: "consent",
     state,

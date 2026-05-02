@@ -14,11 +14,13 @@ import { disconnectGmailAction } from "../actions";
 interface SettingsGmailPanelProps {
   gmailConnected: boolean;
   gmailAddress: string | null;
+  hasGmailBodyAccess: boolean;
 }
 
 export function SettingsGmailPanel({
   gmailConnected,
   gmailAddress,
+  hasGmailBodyAccess,
 }: SettingsGmailPanelProps) {
   const [isPending, startTransition] = useTransition();
 
@@ -49,6 +51,12 @@ export function SettingsGmailPanel({
               <span className="font-medium">{gmailAddress ?? "unknown"}</span>
             </span>
           </div>
+          {!hasGmailBodyAccess && (
+            <p className="text-xs text-[var(--color-text-subtle)]">
+              Reconnect Gmail to classify reply intent and objection themes.
+              Raw reply bodies are not stored.
+            </p>
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -64,8 +72,9 @@ export function SettingsGmailPanel({
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-[var(--color-text-muted)]">
-            Connect your Gmail account to send approved outreach emails directly
-            from the pipeline.
+            Connect Gmail to send approved outreach, detect replies, and
+            classify reply intent for tracked threads. Raw reply bodies are not
+            stored.
           </p>
           <a href="/api/auth/gmail" className={buttonVariants()}>
             <ArrowSquareOut size={13} />

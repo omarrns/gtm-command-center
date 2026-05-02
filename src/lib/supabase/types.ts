@@ -194,6 +194,7 @@ export interface GmailCredentialsRow {
   user_id: string;
   encrypted_refresh_token: string;
   token_expires_at: string | null;
+  granted_scopes: string[] | null;
   created_at: string;
   updated_at: string;
 }

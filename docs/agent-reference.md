@@ -218,7 +218,7 @@ Migrations live in `supabase/migrations/`. TypeScript row types in `src/lib/supa
 - All cron endpoints: `GET`, bearer `CRON_SECRET`, fail-closed if missing/mismatched.
 - Manual pipeline trigger: `POST`, authenticated with `requireUser()`.
 - AI calls route through Vercel AI Gateway using `gateway(modelId)` from the `ai` package. Local auth uses `AI_GATEWAY_API_KEY`; Vercel deployments can use OIDC.
-- Gmail OAuth: PKCE + signed state + nonce cookies. Scopes: `gmail.send`, `gmail.metadata`.
+- Gmail OAuth: PKCE + signed state + nonce cookies. Scopes: `gmail.send`, `gmail.readonly`; existing credentials without recorded `granted_scopes` can still send/check reply counts but skip body classification until reconnect.
 - Refresh tokens: AES-256-GCM encrypted in `gmail_credentials`.
 - `pipeline_config` client-readable but not client-writable (SELECT-only RLS).
 
@@ -227,7 +227,7 @@ Migrations live in `supabase/migrations/`. TypeScript row types in `src/lib/supa
 | Route                        | Schedule             | Purpose                                                                                            |
 | ---------------------------- | -------------------- | -------------------------------------------------------------------------------------------------- |
 | `/api/cron/pipeline`         | `0 4,10,16,22 * * *` | job_seeker pipeline (workflow.ts): discover → score → research → enrich → draft                    |
-| `/api/cron/replies`          | `*/30 * * * *`       | Check Gmail threads for replies, advance `sent → replied`                                          |
+| `/api/cron/replies`          | `*/30 * * * *`       | Check Gmail threads for replies, classify reply bodies when re-consented, advance `sent → replied`  |
 | `/api/cron/watchlist`        | `0 11 * * *`         | Ingest Exa Webset alerts                                                                           |
 | `/api/cron/dormant-discover` | `0 12 * * 1`         | GTM weekly Exa sweep over the user's ICP rubric (no hiring signal); scores via `runScoreAccounts`. |
 
@@ -238,7 +238,7 @@ Real-time (not cron): `POST /api/webhooks/theirstack?user=<uuid>` — HMAC-SHA25
 | Route                        | `maxDuration` | Why                                                                                                                                                                                                                                     |
 | ---------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/api/cron/pipeline`         | `60`          | Fire-and-forget — dispatches one Vercel Workflow per user (`workflow/api`'s `start()`) and returns. Each user's workflow has its own durability/retry, so the cron handler only needs to live long enough to insert N workflow records. |
-| `/api/cron/replies`          | `120`         | Inline — iterates sent opportunities, reads Gmail thread metadata. Bounded by the number of in-flight threads.                                                                                                                          |
+| `/api/cron/replies`          | `120`         | Inline — iterates sent opportunities, reads Gmail thread metadata, and reads tracked reply bodies only for users who re-consented to read-only scope.                                                                                     |
 | `/api/cron/watchlist`        | `120`         | Inline — iterates active watchlists, polls Exa Websets.                                                                                                                                                                                 |
 | `/api/cron/dormant-discover` | `300`         | Inline — Exa search + per-account scoring across the user's full ICP rubric; needs the long ceiling.                                                                                                                                    |
 
@@ -248,7 +248,7 @@ Real-time (not cron): `POST /api/webhooks/theirstack?user=<uuid>` — HMAC-SHA25
 2. Gmail API sends; stores `gmail_thread_id`, `gmail_message_id`, `sent_at`.
 3. **After Gmail returns IDs, NEVER revert to `queued`.** Post-send DB failures return a controlled reconciliation error to avoid duplicate sends.
 4. Headers sanitized, subject MIME-encoded before send.
-5. Reply tracking uses metadata/minimal thread reads only — never reads message bodies.
+5. Reply tracking uses metadata/minimal thread reads for detection. Body reads happen only after a reply is detected and only for credentials with `gmail.readonly`; raw bodies are not stored.
 
 ### Onboarding Flow
 

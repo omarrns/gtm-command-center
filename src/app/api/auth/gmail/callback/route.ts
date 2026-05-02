@@ -4,6 +4,7 @@ import { jwtVerify } from "jose";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { encrypt } from "@/lib/integrations/crypto";
+import { parseGrantedScopes } from "@/lib/integrations/gmail-scopes";
 
 function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -133,6 +134,7 @@ export async function GET(request: NextRequest) {
       user_id: user.id,
       encrypted_refresh_token: encryptedToken,
       token_expires_at: tokenExpiresAt,
+      granted_scopes: parseGrantedScopes(tokens.scope),
     },
     { onConflict: "user_id" },
   );

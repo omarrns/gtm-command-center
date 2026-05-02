@@ -57,7 +57,8 @@
     "check:ai-gateway-video-icp-models": "tsx scripts/check-ai-gateway-video-icp-models.ts",
     "test:messaging-hub-helpers": "tsx scripts/test-messaging-hub-helpers.ts",
     "test:outreach-events": "tsx scripts/test-outreach-events.ts",
-    "test:youtube-prospects": "tsx scripts/test-youtube-prospects.ts"
+    "test:youtube-prospects": "tsx scripts/test-youtube-prospects.ts",
+    "test:gmail-reply-classification": "tsx scripts/test-gmail-reply-classification.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.156",
