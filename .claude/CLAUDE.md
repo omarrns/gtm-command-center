@@ -28,7 +28,7 @@ Read `docs/agent-reference.md` before changing pipeline, onboarding, scoring, se
 
 ## High-Risk Invariants
 
-- `src/lib/pipeline/workflow.ts` is the live job_seeker orchestrator. `src/lib/pipeline/runner.ts` is legacy; do not add logic there.
+- `src/lib/pipeline/workflow.ts` is the live job_seeker orchestrator. Do not add a parallel synchronous pipeline runner.
 - GTM recurring/realtime entry points are `/api/cron/dormant-discover` and `/api/webhooks/theirstack`, not `/api/cron/pipeline`.
 - GTM account retention: `/accounts` must keep every pipeline-promoted account except `discovered`, `filtered`, and explicit user dismissals (`skipped`). Do not auto-remove accounts just because they move to `researched`, `needs_contact`, `enriched`, `queued`, `sent`, or `replied`.
 - Send Flow is safety-critical: after Gmail returns IDs, never revert `sending` back to `queued`. Return a reconciliation error instead of risking duplicate sends.

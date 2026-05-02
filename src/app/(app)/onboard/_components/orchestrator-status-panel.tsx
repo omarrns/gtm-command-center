@@ -20,10 +20,7 @@ import type { ClientInterviewTemplate } from "@/lib/onboarding/templates/types";
 interface StatusPanelProps {
   state: OrchestratorState | null;
   clientTemplate: ClientInterviewTemplate;
-  // Optional header-right slot. Currently holds the SwitchPersonaControl
-  // so the persona switch sits inside the panel header instead of a
-  // floating bar above the chat. Kept generic so future callers can
-  // drop in other controls (a close button, a refresh action, etc.).
+  // Optional header-right slot for small panel-level controls.
   headerAction?: ReactNode;
 }
 

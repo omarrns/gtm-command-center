@@ -3,7 +3,7 @@
  *
  * Fails on:
  *   - owned files exceeding 400 lines (or their grandfathered baseline count)
- *   - imports of `@/lib/pipeline/runner` outside of runner.ts and the regression test
+ *   - imports or references to the removed legacy pipeline runner
  *   - any import of `@ai-sdk/anthropic` (must route through Vercel AI Gateway)
  *   - imports of `lucide-react` outside vendored AI Elements
  *
@@ -34,12 +34,10 @@ const FORBIDDEN_IMPORTS: Array<{
   },
   {
     pattern:
-      /from\s+["']@\/lib\/pipeline\/runner["']|from\s+["']\.\.\/src\/lib\/pipeline\/runner["']|from\s+["']\.\.?\/runner["']/,
+      /@\/lib\/pipeline\/runner|\.\.\/src\/lib\/pipeline\/runner|src\/lib\/pipeline\/runner|pipeline\/runner|from\s+["']\.\.?\/runner["']/,
     message:
-      "imports the legacy pipeline/runner — use workflow.ts or pipeline/types.ts",
-    exempt: (rel) =>
-      rel === "src/lib/pipeline/runner.ts" ||
-      rel === "scripts/test-pipeline-regression.ts",
+      "references the removed legacy pipeline runner — use workflow.ts, gtm-runner.ts, or pipeline/types.ts",
+    exempt: () => false,
   },
   {
     pattern:

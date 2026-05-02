@@ -2,19 +2,17 @@
 /**
  * Phase 0 regression gate — SPEC-4 ICP pipeline.
  *
- * Guards the job_seeker pipeline path before Phase 1 persona routing
- * lands in src/lib/pipeline/runner.ts. If Phase 1 accidentally skips
+ * Guards the job_seeker workflow path. If routing accidentally skips
  * runDiscover for job_seeker users, this test catches it.
  *
  * Strategy:
  *   - In-memory Supabase mock (no real DB)
  *   - Global fetch stub: JSearch → fixture jobs; Anthropic / Exa → 503
  *     so downstream stages fail deterministically with isolated errors
- *   - Seeds pipeline_config (profile row unused today — runPipeline does
- *     not read user_type yet; Phase 1 will, and this test will still pass)
- *   - Calls runPipeline(svc, userId) end-to-end
+ *   - Seeds pipeline_config and a job_seeker profile row
+ *   - Calls pipelineWorkflow(userId, runId) through the service-client test override
  *   - Asserts runDiscover produced 3 opportunities with correct fields
- *     and the runner returned a well-formed result
+ *     and the workflow returned a well-formed result
  *
  * Run: npm run test:pipeline-regression
  */
@@ -575,7 +573,7 @@ async function main() {
     activation_completed_at: new Date().toISOString(),
   });
 
-  // Seed profile (ignored by runPipeline today; Phase 1 will read it)
+  // Seed profile so the live workflow takes the job_seeker path.
   tables.profiles.push({
     id: nextId(),
     user_id: userId,
@@ -583,10 +581,12 @@ async function main() {
     user_type: "job_seeker",
   });
 
-  // Dynamic import AFTER the fetch stub is installed so jsearch.ts picks it up.
-  const { runPipeline } = await import("../src/lib/pipeline/runner");
+  // Dynamic imports AFTER the fetch stub is installed so jsearch.ts picks it up.
+  const { __setSupabaseServiceClientForTests } = await import("../src/lib/supabase/service");
+  __setSupabaseServiceClientForTests(() => svc);
+  const { pipelineWorkflow } = await import("../src/lib/pipeline/workflow");
 
-  const result = await runPipeline(svc, userId);
+  const result = await pipelineWorkflow(userId, "test-run-phase-0");
 
   console.log("\n--- Result shape ---");
   console.log(JSON.stringify(result, null, 2));
@@ -637,9 +637,9 @@ async function main() {
     "every opportunity at stage='discovered' (score stubbed to 503)",
   );
 
-  // Runner returns a well-formed result even though downstream stages
+  // Workflow returns a well-formed result even though downstream stages
   // failed against the 503 stub. Pipeline error isolation catches the
-  // downstream failures; the runner itself does not throw.
+  // downstream failures; the workflow itself does not throw.
   assert(
     typeof result.score.processed === "number",
     "result.score.processed is numeric (runScore executed cleanly)",
@@ -663,10 +663,9 @@ async function main() {
 
   // ── GTM persona branch (Phase 2 gate) ───────────────────────────────────
   //
-  // runPipeline reads profiles.user_type and dispatches to runGtmPipeline,
-  // which loads the icp_rubric and calls TheirStack. The fetch stub above
-  // returns 2 fixture jobs. Opportunities should land with source=
-  // 'theirstack' and the GTM columns populated.
+  // The GTM batch runner loads the icp_rubric and calls TheirStack. The
+  // fetch stub above returns 2 insertable fixture jobs. Opportunities should
+  // land with source='theirstack' and the GTM columns populated.
   console.log("\n--- GTM discover-accounts (theirstack) ---");
   const gtmUserId = "test-user-phase-2-gtm";
   tables.pipeline_config.push({
@@ -740,7 +739,8 @@ async function main() {
     });
   }
 
-  const gtmResult = await runPipeline(svc, gtmUserId);
+  const { runGtmPipeline } = await import("../src/lib/pipeline/gtm-runner");
+  const gtmResult = await runGtmPipeline(svc, gtmUserId);
   // Scope assertions to TheirStack rows only — the 10 stale jsearch
   // seeds from the starvation fixture live in the same user's opps.
   const gtmOpps = tables.opportunities.filter(
@@ -925,13 +925,12 @@ async function main() {
   // isolates the row errors, and the UI can render scoring-failed
   // instead of pretending there are no accounts.
   console.log("\n--- GTM activation fast preview ---");
-  const {
-    runAccountActivationSearch,
-  } =
-    await import("../src/lib/pipeline/activation-accounts");
-  const { runExistingAccountActivationSearch } = await import(
-    "../src/lib/pipeline/activation-existing-accounts"
-  );
+  const { runAccountActivationSearch } = await import("../src/lib/pipeline/activation-accounts");
+  const { runExistingAccountActivationSearch } = await import("../src/lib/pipeline/activation-existing-accounts");
+  const { __setRunGenerateObjectForTests } = await import("../src/lib/ai/calls");
+  __setRunGenerateObjectForTests(() => {
+    throw new Error("No object generated: fixture failure");
+  });
   const activationResult = await runAccountActivationSearch(
     svc,
     gtmUserId,
@@ -1024,10 +1023,7 @@ async function main() {
   // (out-of-range) and 3.7 across the broad rollups (decimal) and
   // verify computeAccountScoreFromBreakdown clamps 6→5 → uniform 100.
   console.log("\n--- GTM activation clamp normalisation ---");
-  const { __setRunGenerateObjectForTests } =
-    await import("../src/lib/ai/calls");
-  const { ICP_DIMENSIONS } =
-    await import("../src/lib/onboarding/icp-dimensions");
+  const { ICP_DIMENSIONS } = await import("../src/lib/onboarding/icp-dimensions");
   exaReturnsEmpty = true;
 
   const broad = {
@@ -1082,6 +1078,7 @@ async function main() {
   );
 
   __setRunGenerateObjectForTests(null);
+  __setSupabaseServiceClientForTests(null);
   exaReturnsEmpty = false;
 
   console.log("\n===================================================");
@@ -1089,7 +1086,7 @@ async function main() {
     console.error(`FAILED: ${failures} assertion(s) did not pass`);
     process.exitCode = 1;
   } else {
-    console.log("PASSED: regression gate green on current runner behavior");
+    console.log("PASSED: regression gate green on current pipeline behavior");
   }
 
   globalThis.fetch = originalFetch;

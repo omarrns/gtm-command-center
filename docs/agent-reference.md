@@ -36,7 +36,6 @@ src/
 │       │   ├── interview-actions.ts        # Streaming-interview state transitions
 │       │   ├── extraction-actions.ts       # in_progress → review (uses orchestrator state for agentic templates)
 │       │   ├── story-actions.ts            # review ↔ story_review (agentic templates only)
-│       │   ├── artifact-actions.ts         # Upload/delete artifacts
 │       │   ├── get-or-create-interview.ts  # Active-row resolver, scoped by (user_id, template_id)
 │       │   ├── switch-persona.ts           # Abandon prior + create new + reassign artifacts
 │       │   ├── confirm-logic.ts            # performConfirm(svc, userId, …) — testable seam
@@ -76,13 +75,12 @@ src/
     ├── ai/                     # anthropic.ts (Gateway-routed runClaudeJson/Text), calls.ts (Gateway-routed runGenerateObject + ai_calls capture), exa.ts, firecrawl.ts
     ├── calls/                  # Sales-call data + types
     ├── trends/                 # Trend dashboard data
-    ├── supabase/               # client.ts, server.ts, service.ts, types.ts (row types are source of truth)
+    ├── supabase/               # server.ts, service.ts, types.ts (row types are source of truth)
     ├── integrations/           # gmail.ts, crypto.ts (AES-256-GCM token storage), theirstack.ts
     ├── pipeline/
-    │   ├── workflow.ts                 # LIVE orchestrator (Vercel Workflow durable). Edit this, not runner.ts.
-    │   ├── runner.ts                   # LEGACY — kept only for `scripts/test-pipeline-regression.ts` end-to-end fixture coverage. Do not add logic.
-    │   ├── types.ts                    # Shared pipeline result types (PipelineRunResult). Imported by gtm-runner.ts and runner.ts.
-    │   ├── gtm-runner.ts               # GTM persona pipeline entry (discover-accounts → score-accounts; no draft yet)
+    │   ├── workflow.ts                 # LIVE job_seeker orchestrator (Vercel Workflow durable).
+    │   ├── types.ts                    # Shared pipeline result types (PipelineRunResult). Imported by gtm-runner.ts.
+    │   ├── gtm-runner.ts               # GTM batch pipeline entry (discover-accounts → score-accounts → draft)
     │   ├── opportunities.ts            # Stage transitions + atomic claiming
     │   ├── scoring.ts                  # job_seeker per-opportunity scoring (analysisSchema, strict)
     │   ├── scoring-account.ts          # GTM per-account scoring (icpAccountAnalysisSchema)
@@ -140,7 +138,7 @@ discovered → scored → researched → enriched → drafted → queued → sen
 | Pipeline_config     | search_queries, locations, score_threshold | + `company_domain`, `trigger_signals`, `buyer_personas`, `icp_rubric`                               |
 | Surface UI          | Today (`/`), History, Watchlist            | `/accounts` (never-auto-remove rule), `/icp` (rubric editor)                                        |
 
-`gtm-runner.ts` is the GTM lane's entry point but is currently only called by the legacy `runner.ts`. `pipelineWorkflow` does not branch on `user_type` — the GTM persona's recurring/realtime entry points are the dormant-discover cron and the TheirStack webhook, not `/api/cron/pipeline`.
+`gtm-runner.ts` is the GTM batch lane's entry point. `pipelineWorkflow` short-circuits `gtm` profiles as a safety net — the GTM persona's recurring/realtime entry points are the dormant-discover cron and the TheirStack webhook, not `/api/cron/pipeline`.
 
 GTM account retention rule: `/accounts` shows every pipeline-promoted account except `discovered`, `filtered`, and explicit user dismissals (`skipped`). Downstream stages such as `researched`, `needs_contact`, `enriched`, `queued`, `sent`, and `replied` must not auto-remove an account from `/accounts`; only user actions like skip/flag remove it.
 
