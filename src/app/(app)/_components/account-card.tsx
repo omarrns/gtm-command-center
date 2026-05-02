@@ -61,10 +61,12 @@ export interface AccountCardProps {
   // SKIPPABLE_STAGES so we never ship a button that would visibly fail
   // on a terminal-stage row (sent / replied / sending).
   opportunityId?: string;
+  recipientEmail?: string | null;
   canSkip?: boolean;
   contacts?: Contact[];
   research?: AccountResearchSummary;
   latestDraft?: {
+    id: string;
     subject: string;
     body: string;
   };
@@ -85,6 +87,7 @@ export function AccountCard({
   discoveredAt,
   source,
   opportunityId,
+  recipientEmail,
   canSkip,
   contacts = [],
   research,
@@ -422,7 +425,12 @@ export function AccountCard({
                 />
               )}
               {latestDraft && (
-                <AccountCardDraftSection latestDraft={latestDraft} />
+                <AccountCardDraftSection
+                  latestDraft={latestDraft}
+                  opportunityId={opportunityId}
+                  recipientEmail={recipientEmail}
+                  stage={stage}
+                />
               )}
             </div>
           </div>

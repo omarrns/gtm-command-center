@@ -16,6 +16,7 @@ import {
   buildIcpAccountOutreachSystem,
   icpAccountDraftOutputSchema,
 } from "@/lib/skills/prompts/icp-account-outreach";
+import { queueExistingGtmDraft } from "./draft-gtm-stage";
 
 const MAX_DRAFTS_PER_RUN = 5;
 const MISSING_ARC_ERROR =
@@ -112,14 +113,7 @@ export async function draftOneGtmAccount(
 
   const existingDraft = await findExistingDraft(svc, userId, opp.id);
   if (existingDraft) {
-    if (opp.selected_draft_id !== existingDraft.id) {
-      const { error: updateError } = await svc
-        .from("opportunities")
-        .update({ selected_draft_id: existingDraft.id })
-        .eq("id", opp.id)
-        .eq("user_id", userId);
-      if (updateError) throw updateError;
-    }
+    await queueExistingGtmDraft(svc, userId, opp, existingDraft.id);
     return { skipped: "already_drafted" };
   }
 
@@ -193,13 +187,24 @@ export async function draftOneGtmAccount(
   const inserted = await insertDraft(svc, userId, opp, persona, parsed.data);
   if ("skipped" in inserted) return inserted;
 
-  const advanced = await advanceStage(svc, opp.id, userId, "enriched", "drafted", {
-    selected_draft_id: inserted.drafted.id,
-    last_error: null,
-  });
+  const advanced = await advanceStage(
+    svc,
+    opp.id,
+    userId,
+    "enriched",
+    "drafted",
+    { selected_draft_id: inserted.drafted.id, last_error: null },
+  );
   if (!advanced) {
     throw new Error(
       `Stage precondition missed: expected 'enriched' for opportunity ${opp.id}`,
+    );
+  }
+
+  const queued = await advanceStage(svc, opp.id, userId, "drafted", "queued");
+  if (!queued) {
+    throw new Error(
+      `Stage precondition missed: expected 'drafted' for opportunity ${opp.id}`,
     );
   }
 

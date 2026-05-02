@@ -204,7 +204,7 @@ export async function approveOpportunityAction(
     gmailThreadId: threadId,
     gmailMessageId: messageId,
   });
-  revalidatePath("/");
+  for (const path of ["/", "/accounts"]) revalidatePath(path);
   return { ok: true };
 }
 
