@@ -25,6 +25,7 @@ import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { skipOpportunityAction } from "../actions";
 import { findContactsForAccountAction } from "../accounts/actions";
 import { AccountCardDraftSection } from "./account-card-draft-section";
+import { AccountOutcomeChips } from "./account-outcome-chips";
 import {
   contactJobLabel,
   formatElapsed,
@@ -102,6 +103,7 @@ export function AccountCard({
   const contactJobStartedAtRef = useRef<number | null>(null);
   const contactJob = useJobPoll(contactJobId);
   const showDismiss = !!opportunityId && !!canSkip;
+  const showOutcomeChips = !!opportunityId && !!source && stage !== "sending";
   const showFindContacts =
     !!opportunityId &&
     !contactJob.isLoading &&
@@ -396,6 +398,13 @@ export function AccountCard({
           </span>
         )}
       </div>
+
+      {showOutcomeChips && (
+        <AccountOutcomeChips
+          opportunityId={opportunityId}
+          companyName={companyName}
+        />
+      )}
 
       {hasExpandableContent && (
         <div

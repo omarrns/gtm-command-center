@@ -1,7 +1,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OutreachEventType } from "@/lib/supabase/types";
 
-interface RecordOutreachEventInput {
+export type ManualOutcome =
+  | "positive_reply"
+  | "bad_fit"
+  | "not_icp"
+  | "booked"
+  | "manual_conversion";
+
+export interface ManualOutcomeMetadata {
+  outcome: ManualOutcome;
+  note?: string;
+}
+
+export interface RecordOutreachEventInput {
   userId: string;
   opportunityId: string;
   emailDraftId?: string;
