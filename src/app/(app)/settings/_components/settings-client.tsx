@@ -18,6 +18,7 @@ import { SwitchPersonaPlaceholder } from "./switch-persona-placeholder";
 interface SettingsClientProps {
   gmailConnected: boolean;
   gmailAddress: string | null;
+  hasGmailBodyAccess: boolean;
   gmailError?: string;
   scoreThreshold: number;
   dailySendCap: number;
@@ -30,6 +31,7 @@ interface SettingsClientProps {
 export function SettingsClient({
   gmailConnected,
   gmailAddress,
+  hasGmailBodyAccess,
   gmailError,
   scoreThreshold,
   dailySendCap,
@@ -94,6 +96,7 @@ export function SettingsClient({
           <SettingsGmailPanel
             gmailConnected={gmailConnected}
             gmailAddress={gmailAddress}
+            hasGmailBodyAccess={hasGmailBodyAccess}
           />
 
           <SettingsSearchPanel

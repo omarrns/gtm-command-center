@@ -9,6 +9,7 @@ import {
   Globe,
   Clock,
   Radio,
+  YoutubeLogo,
   Moon,
   X,
   MagnifyingGlass,
@@ -25,6 +26,7 @@ import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { skipOpportunityAction } from "../actions";
 import { findContactsForAccountAction } from "../accounts/actions";
 import { AccountCardDraftSection } from "./account-card-draft-section";
+import { AccountOutcomeChips } from "./account-outcome-chips";
 import {
   contactJobLabel,
   formatElapsed,
@@ -55,16 +57,18 @@ export interface AccountCardProps {
   industry: string | null;
   // Optional: enrichment chips shown only on the persisted-queue view
   discoveredAt?: string;
-  source?: "theirstack" | "exa-dormant";
+  source?: "theirstack" | "exa-dormant" | "yt_comments";
   // Dismiss affordance: only rendered when both are set. /accounts passes
   // them; /activate's static preview does not. canSkip is derived from
   // SKIPPABLE_STAGES so we never ship a button that would visibly fail
   // on a terminal-stage row (sent / replied / sending).
   opportunityId?: string;
+  recipientEmail?: string | null;
   canSkip?: boolean;
   contacts?: Contact[];
   research?: AccountResearchSummary;
   latestDraft?: {
+    id: string;
     subject: string;
     body: string;
   };
@@ -85,6 +89,7 @@ export function AccountCard({
   discoveredAt,
   source,
   opportunityId,
+  recipientEmail,
   canSkip,
   contacts = [],
   research,
@@ -99,6 +104,7 @@ export function AccountCard({
   const contactJobStartedAtRef = useRef<number | null>(null);
   const contactJob = useJobPoll(contactJobId);
   const showDismiss = !!opportunityId && !!canSkip;
+  const showOutcomeChips = !!opportunityId && !!source && stage !== "sending";
   const showFindContacts =
     !!opportunityId &&
     !contactJob.isLoading &&
@@ -273,6 +279,15 @@ export function AccountCard({
                 Hiring
               </Badge>
             )}
+            {source === "yt_comments" && (
+              <Badge
+                variant="outline"
+                className="text-[var(--color-text-subtle)]"
+              >
+                <YoutubeLogo size={10} />
+                YouTube
+              </Badge>
+            )}
           </div>
           {companyDomain && (
             <p className="text-xs text-[var(--color-text-subtle)] truncate">
@@ -394,6 +409,13 @@ export function AccountCard({
         )}
       </div>
 
+      {showOutcomeChips && (
+        <AccountOutcomeChips
+          opportunityId={opportunityId}
+          companyName={companyName}
+        />
+      )}
+
       {hasExpandableContent && (
         <div
           className={cn(
@@ -422,7 +444,12 @@ export function AccountCard({
                 />
               )}
               {latestDraft && (
-                <AccountCardDraftSection latestDraft={latestDraft} />
+                <AccountCardDraftSection
+                  latestDraft={latestDraft}
+                  opportunityId={opportunityId}
+                  recipientEmail={recipientEmail}
+                  stage={stage}
+                />
               )}
             </div>
           </div>

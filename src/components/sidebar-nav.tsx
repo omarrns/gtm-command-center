@@ -15,6 +15,7 @@ import {
   TrendUp,
   Tray,
   UserCircle,
+  Users,
   VideoCamera,
 } from "@phosphor-icons/react/ssr";
 import {
@@ -45,6 +46,7 @@ function buildNav(userType: UserType | null): NavItem[] {
     return [
       { href: "/icp", label: "Your ICP", icon: CalendarCheck },
       { href: "/video-icp", label: "Video ICP", icon: VideoCamera },
+      { href: "/prospects", label: "Prospects", icon: Users },
       { href: "/accounts", label: "Accounts", icon: Tray },
       { href: "/messaging", label: "Messaging", icon: ChatText },
       { href: "/calls", label: "Calls", icon: Phone, badge: "POC" },

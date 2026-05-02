@@ -16,7 +16,7 @@ import {
 } from "../../_components/account-card";
 
 type Tier = "A" | "B" | "C";
-type Source = "theirstack" | "exa-dormant";
+type Source = "theirstack" | "exa-dormant" | "yt_comments";
 
 interface AccountsListProps {
   cards: AccountCardProps[];
@@ -126,6 +126,7 @@ export function AccountsList({ cards }: AccountsListProps) {
                   <SelectItem value="all">All sources</SelectItem>
                   <SelectItem value="theirstack">Hiring</SelectItem>
                   <SelectItem value="exa-dormant">Dormant</SelectItem>
+                  <SelectItem value="yt_comments">YouTube</SelectItem>
                 </SelectContent>
               </Select>
             </div>

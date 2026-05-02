@@ -11,6 +11,7 @@ import {
   MagnifyingGlass,
   Gear,
   UserCircle,
+  Users,
   VideoCamera,
 } from "@phosphor-icons/react/ssr";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
@@ -54,6 +55,12 @@ function buildItems(userType: UserType | null): PaletteItem[] {
         label: "Go to Video ICP",
         href: "/video-icp",
         icon: VideoCamera,
+      },
+      {
+        id: "prospects",
+        label: "Go to Prospects",
+        href: "/prospects",
+        icon: Users,
       },
       ...baseItems.slice(1),
     ];

@@ -22,8 +22,9 @@
     "onboard:reset": "tsx scripts/onboard-reset.ts",
     "onboard:fixture": "tsx scripts/onboard-fixture.ts",
     "onboard:to-review": "tsx scripts/onboard-to-review.ts",
-    "test": "pnpm test:account-scoring-schema && pnpm test:artifact-kind-per-template && pnpm test:onboarding-artifact-analysis-job && pnpm test:onboarding-boundary-validation && pnpm test:video-icp-review-job && pnpm test:video-icp-model-selection && pnpm test:artifact-persistence && pnpm test:confirm-adapter && pnpm test:correctness && pnpm test:extraction && pnpm test:icp-dimensions && pnpm test:icp-confirm && pnpm test:icp-confirm-low-exemplar && pnpm test:icp-interview && pnpm test:icp-narrative-formatter && pnpm test:icp-account-outreach && pnpm test:messaging-hub-helpers && pnpm test:job-scoring-retry && pnpm test:onboarding-complete-per-template && pnpm test:onboarding-confirm && pnpm test:persona-switch-artifact-retention && pnpm test:pipeline-regression && pnpm test:pipeline-workflow-persona && pnpm test:pipeline-dispatch-persona && pnpm test:pursuit-removed && pnpm test:scoring-normalize-per-template && pnpm test:sender-identity && pnpm test:theirstack-webhook",
+    "test": "pnpm test:account-scoring-schema && pnpm test:artifact-kind-per-template && pnpm test:onboarding-artifact-analysis-job && pnpm test:onboarding-boundary-validation && pnpm test:video-icp-review-job && pnpm test:video-icp-model-selection && pnpm test:youtube-prospects && pnpm test:artifact-persistence && pnpm test:confirm-adapter && pnpm test:correctness && pnpm test:extraction && pnpm test:icp-dimensions && pnpm test:icp-confirm && pnpm test:icp-confirm-low-exemplar && pnpm test:icp-interview && pnpm test:icp-narrative-formatter && pnpm test:icp-account-outreach && pnpm test:messaging-hub-helpers && pnpm test:job-scoring-retry && pnpm test:onboarding-complete-per-template && pnpm test:onboarding-confirm && pnpm test:persona-switch-artifact-retention && pnpm test:pipeline-regression && pnpm test:pipeline-workflow-persona && pnpm test:pipeline-dispatch-persona && pnpm test:pursuit-removed && pnpm test:scoring-normalize-per-template && pnpm test:sender-identity && pnpm test:theirstack-webhook",
     "test:account-scoring-schema": "tsx scripts/test-account-scoring-schema.ts",
+    "test:account-manual-outcomes": "tsx scripts/test-account-manual-outcomes.ts",
     "test:sender-identity": "tsx scripts/test-sender-identity.ts",
     "test:extraction": "tsx scripts/test-extraction.ts",
     "test:onboarding-confirm": "tsx scripts/test-onboarding-confirm.ts",
@@ -37,6 +38,8 @@
     "test:icp-interview": "tsx scripts/test-icp-interview.ts",
     "test:icp-narrative-formatter": "tsx src/lib/onboarding/templates/icp-definition/__tests__/narrative-formatter.test.ts",
     "test:icp-account-outreach": "tsx scripts/test-icp-account-outreach.ts",
+    "test:gtm-send-path": "tsx scripts/test-gtm-send-path.ts",
+    "test:outreach-performance-memory": "tsx scripts/test-outreach-performance-memory.ts",
     "test:job-scoring-retry": "tsx scripts/test-job-scoring-retry.ts",
     "test:artifact-persistence": "tsx scripts/test-artifact-persistence.ts",
     "test:persona-switch-artifact-retention": "tsx scripts/test-persona-switch-artifact-retention.ts",
@@ -52,7 +55,10 @@
     "test:video-icp-review-job": "tsx scripts/test-video-icp-review-job.ts",
     "test:video-icp-model-selection": "tsx scripts/test-video-icp-model-selection.ts",
     "check:ai-gateway-video-icp-models": "tsx scripts/check-ai-gateway-video-icp-models.ts",
-    "test:messaging-hub-helpers": "tsx scripts/test-messaging-hub-helpers.ts"
+    "test:messaging-hub-helpers": "tsx scripts/test-messaging-hub-helpers.ts",
+    "test:outreach-events": "tsx scripts/test-outreach-events.ts",
+    "test:youtube-prospects": "tsx scripts/test-youtube-prospects.ts",
+    "test:gmail-reply-classification": "tsx scripts/test-gmail-reply-classification.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.156",

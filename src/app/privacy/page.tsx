@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       <div className="mx-auto max-w-2xl space-y-6">
         <h1 className="text-2xl font-bold tracking-tight">Privacy Policy</h1>
         <p className="text-sm text-[var(--color-text-muted)]">
-          Last updated: April 7, 2026
+          Last updated: May 1, 2026
         </p>
 
         <section className="space-y-3 text-sm leading-relaxed text-[var(--color-text)]">
@@ -29,10 +29,10 @@ export default function PrivacyPage() {
               your manual approval.
             </li>
             <li>
-              <strong>Gmail Metadata (gmail.metadata)</strong> — Used to check
-              whether recipients have replied to your emails. Only message
-              counts and thread IDs are accessed — message bodies are never
-              read.
+              <strong>Gmail Read-only (gmail.readonly)</strong> — Used to
+              check whether recipients have replied to your tracked outreach
+              threads and classify reply intent or objection themes. Raw reply
+              bodies are not stored.
             </li>
           </ul>
 

@@ -134,7 +134,7 @@ export async function sendEmail(
 }
 
 // ---------------------------------------------------------------------------
-// Reply tracking (metadata only — no message body access)
+// Reply tracking detection
 // ---------------------------------------------------------------------------
 
 interface ThreadReplyStatus {
@@ -143,8 +143,8 @@ interface ThreadReplyStatus {
 }
 
 /**
- * Batch check threads for replies. Uses gmail.metadata scope —
- * only checks message count per thread, never reads message bodies.
+ * Batch check threads for replies. Uses minimal thread reads for detection;
+ * body reads live in gmail-replies.ts and only run after a reply is detected.
  */
 export async function checkReplies(
   gmail: gmail_v1.Gmail,

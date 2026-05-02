@@ -11,30 +11,24 @@ import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
 import { firecrawlScrape } from "@/lib/ai/firecrawl";
 import { MODELS } from "@/lib/ai/anthropic";
 import { runJsonWithFallback } from "@/lib/ai/json-with-fallback";
+import { recordOutreachEvent } from "@/lib/outreach/events";
 import { createLogger } from "@/lib/logger";
 import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
 import type { OpportunityStage, PipelineConfigRow } from "@/lib/supabase/types";
-
-// ---------------------------------------------------------------------------
-// Trigger pipeline manually (calls /api/pipeline/run with cookie forwarding)
-// ---------------------------------------------------------------------------
 
 export async function triggerPipelineAction(): Promise<{
   ok: boolean;
   error?: string;
   runId?: string;
 }> {
-  // Auth gate — will redirect if not logged in
   await requireUser();
 
-  // Forward auth cookies so the route handler's requireUser() succeeds
   const cookieStore = await cookies();
   const cookieHeader = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  // Derive the origin from the incoming request headers
   const headerStore = await headers();
   const host = headerStore.get("host") ?? "localhost:3000";
   const proto = headerStore.get("x-forwarded-proto") ?? "http";
@@ -45,7 +39,6 @@ export async function triggerPipelineAction(): Promise<{
     headers: { cookie: cookieHeader },
   });
 
-  // Route returns 202 immediately — the workflow runs durably in the background
   if (res.status !== 202) {
     return { ok: false, error: `Pipeline returned ${res.status}` };
   }
@@ -54,10 +47,6 @@ export async function triggerPipelineAction(): Promise<{
   revalidatePath("/");
   return { ok: true, runId: data.runId };
 }
-
-// ---------------------------------------------------------------------------
-// Approve opportunity (Gmail send is Phase 4 — currently gates on connection)
-// ---------------------------------------------------------------------------
 
 export async function approveOpportunityAction(
   opportunityId: string,
@@ -200,17 +189,28 @@ export async function approveOpportunityAction(
     };
   }
 
+  await recordOutreachEvent(svc, {
+    userId: user.id,
+    opportunityId,
+    emailDraftId: opp.selected_draft_id,
+    eventType: "sent",
+    source: "approve_send_action",
+    metadata: { gmailThreadId: threadId, gmailMessageId: messageId },
+  }).catch((eventErr) => {
+    log.warn("failed to record sent outreach event", {
+      error: eventErr instanceof Error ? eventErr.message : String(eventErr),
+      gmailThreadId: threadId,
+      gmailMessageId: messageId,
+    });
+  });
+
   log.info("opportunity sent", {
     gmailThreadId: threadId,
     gmailMessageId: messageId,
   });
-  revalidatePath("/");
+  for (const path of ["/", "/accounts"]) revalidatePath(path);
   return { ok: true };
 }
-
-// ---------------------------------------------------------------------------
-// Skip opportunity
-// ---------------------------------------------------------------------------
 
 export async function skipOpportunityAction(
   opportunityId: string,

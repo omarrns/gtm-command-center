@@ -15,6 +15,22 @@ import { MODELS, type ModelId } from "@/lib/ai/models";
 
 const DEFAULT_MODEL: ModelId = MODELS.opus;
 
+type RunClaudeJsonForTests = (args: {
+  system: string;
+  prompt: string;
+  model?: string;
+  maxTokens?: number;
+  scope?: AiCallScope;
+}) => Promise<unknown> | unknown;
+
+let runClaudeJsonForTests: RunClaudeJsonForTests | null = null;
+
+export function __setRunClaudeJsonForTests(
+  fn: RunClaudeJsonForTests | null,
+): void {
+  runClaudeJsonForTests = fn;
+}
+
 /**
  * Legacy helper name retained for compatibility. It can route any Vercel AI
  * Gateway text model, not only Claude. Expects a JSON object response, strips
@@ -33,6 +49,16 @@ export async function runClaudeJson<T = unknown>({
   maxTokens?: number;
   scope?: AiCallScope;
 }): Promise<T> {
+  if (runClaudeJsonForTests) {
+    return (await runClaudeJsonForTests({
+      system,
+      prompt,
+      model: modelName,
+      maxTokens,
+      scope,
+    })) as T;
+  }
+
   const start = Date.now();
   let text = "";
   let usage: {

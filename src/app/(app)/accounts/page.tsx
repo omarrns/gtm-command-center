@@ -52,7 +52,7 @@ export default async function AccountsPage() {
     .from("opportunities")
     .select("*")
     .eq("user_id", user.id)
-    .in("source", ["theirstack", "exa-dormant"])
+    .in("source", ["theirstack", "exa-dormant", "yt_comments"])
     .not("stage", "in", "(discovered,filtered,skipped)")
     .order("score", { ascending: false, nullsFirst: false })
     .limit(50);
@@ -64,7 +64,7 @@ export default async function AccountsPage() {
       <div className="space-y-6">
         <PageHeader
           title="Accounts"
-          description="Accounts the pipeline promoted from TheirStack + Exa dormant."
+          description="Accounts promoted from hiring, dormant, and YouTube prospect signals."
         />
         <Alert variant="destructive">
           <AlertTitle>Couldn&apos;t load accounts</AlertTitle>
@@ -88,13 +88,15 @@ export default async function AccountsPage() {
   const researchIds = opps
     .map((o) => o.research_id)
     .filter((id): id is string => !!id);
-  const opportunityIds = opps.map((o) => o.id);
+  const selectedDraftIds = opps
+    .map((o) => o.selected_draft_id)
+    .filter((id): id is string => !!id);
 
   const reasonById = new Map<string, string>();
   const researchById = new Map<string, AccountResearchSummary>();
-  const latestDraftByOpportunityId = new Map<
+  const draftById = new Map<
     string,
-    { subject: string; body: string }
+    { id: string; subject: string; body: string }
   >();
 
   if (analysisIds.length > 0) {
@@ -157,14 +159,14 @@ export default async function AccountsPage() {
     }
   }
 
-  if (opportunityIds.length > 0) {
+  if (selectedDraftIds.length > 0) {
     const { data: drafts, error: draftsError } = await svc
       .from("email_drafts")
-      .select("opportunity_id, subject, body")
+      .select("id, subject, body")
       .eq("user_id", user.id)
       .eq("draft_type", "icp-account-outreach")
       .eq("status", "draft")
-      .in("opportunity_id", opportunityIds);
+      .in("id", selectedDraftIds);
 
     if (draftsError) {
       const log = createLogger({ scope: "accounts.page", userId: user.id });
@@ -172,15 +174,10 @@ export default async function AccountsPage() {
     }
 
     for (const draft of drafts ?? []) {
-      const opportunityId = draft.opportunity_id as string | null;
-      if (
-        !opportunityId ||
-        !draft.subject ||
-        !draft.body
-      ) {
-        continue;
-      }
-      latestDraftByOpportunityId.set(opportunityId, {
+      const id = draft.id as string | null;
+      if (!id || !draft.subject || !draft.body) continue;
+      draftById.set(id, {
+        id,
         subject: draft.subject,
         body: draft.body,
       });
@@ -192,7 +189,7 @@ export default async function AccountsPage() {
       <div className="space-y-6">
         <PageHeader
           title="Accounts"
-          description="Accounts the pipeline promoted from TheirStack + Exa dormant. Stay here until you skip."
+          description="Accounts promoted from hiring, dormant, and YouTube prospect signals. Stay here until you skip."
         />
         <EmptyState
           message="No promoted accounts yet"
@@ -222,7 +219,9 @@ export default async function AccountsPage() {
 
     const reason = o.analysis_id ? (reasonById.get(o.analysis_id) ?? "") : "";
     const research = o.research_id ? researchById.get(o.research_id) : undefined;
-    const latestDraft = latestDraftByOpportunityId.get(o.id);
+    const latestDraft = o.selected_draft_id
+      ? draftById.get(o.selected_draft_id)
+      : undefined;
     const candidates: Contact[] = [
       {
         role: "primary",
@@ -251,6 +250,7 @@ export default async function AccountsPage() {
 
     return {
       opportunityId: o.id,
+      recipientEmail: o.recipient_email,
       canSkip: SKIPPABLE_STAGES.includes(o.stage as OpportunityStage),
       companyName: o.company_name,
       companyDomain: o.company_domain,
@@ -273,7 +273,7 @@ export default async function AccountsPage() {
       discoveredAt: o.discovered_at,
       source: o.source as Extract<
         OpportunitySource,
-        "theirstack" | "exa-dormant"
+        "theirstack" | "exa-dormant" | "yt_comments"
       >,
       contacts,
       research,

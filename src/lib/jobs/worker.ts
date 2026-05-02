@@ -7,6 +7,7 @@ import { runPeopleResearchJob } from "./handlers/people-research";
 import { runCareerCoachJob } from "./handlers/career-coach";
 import { runGtmFindContactsJob } from "./handlers/gtm-find-contacts";
 import { runOnboardingArtifactAnalysisJob } from "./handlers/onboarding-artifact-analysis";
+import { runScoreYoutubeProspectsJob } from "./handlers/score-youtube-prospects";
 import { runVideoIcpReviewJob } from "./handlers/video-icp-review";
 
 type JobHandler = (
@@ -22,6 +23,7 @@ const HANDLERS: Record<string, JobHandler> = {
   "career-coach": runCareerCoachJob,
   "gtm-find-contacts": runGtmFindContactsJob,
   "onboarding-artifact-analysis": runOnboardingArtifactAnalysisJob,
+  "score-youtube-prospects": runScoreYoutubeProspectsJob,
   "video-icp-review": runVideoIcpReviewJob,
 };
 

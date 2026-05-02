@@ -38,6 +38,7 @@ Read `docs/agent-reference.md` before changing pipeline, onboarding, scoring, se
 - Model slugs use Gateway provider/model format with dotted versions, e.g. `anthropic/claude-opus-4.6` and `anthropic/claude-sonnet-4.6`.
 - `components/ai-elements/` is vendored from Vercel AI Elements. Do not hand-refactor; re-vendor from upstream.
 - `command-palette.tsx` and `sidebar-nav.tsx` are intentionally custom. Do not replace them with shadcn `command` or `sidebar` without an explicit ask.
+- Combined/integration branches are for visual QA only unless the user explicitly chooses to merge them. Prefer clean topic branches for review. If an integration branch includes Supabase migrations, apply or verify those migrations before browser QA; a page can fail from remote schema cache drift even when the TypeScript branch is correct.
 
 ## Scripts
 
@@ -183,6 +184,7 @@ These are constraints. Violating any rule is a bug.
 
 - Never modify existing production columns. Add new columns instead.
 - Every schema change gets its own migration file in `supabase/migrations/`.
+- After switching to a branch with new migrations, run a dry migration check before visual QA. If the app points at hosted Supabase via `.env.local`, local Docker/Supabase status is not enough; use `supabase db push --dry-run` or an equivalent schema query against the configured project.
 - No raw SQL in pipeline files. Named query functions live in dedicated query files.
 
 ### Prompts

@@ -1,6 +1,3 @@
-// Hand-written row types for the initial migration. Replace with generated
-// types from `supabase gen types typescript` once the project is linked.
-
 export type JobStatus = "pending" | "running" | "complete" | "failed";
 
 export type UserType = "job_seeker" | "gtm";
@@ -62,6 +59,14 @@ export interface EmailDraftRow {
   opportunity_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type OutreachEventType = "sent" | "reply_detected" | "manual_outcome" | "no_response_7d";
+export interface OutreachEventRow {
+  id: string; user_id: string; opportunity_id: string;
+  email_draft_id: string | null; event_type: OutreachEventType; source: string;
+  metadata: Record<string, unknown>;
+  occurred_at: string; created_at: string;
 }
 
 export interface ResearchReportRow {
@@ -140,10 +145,6 @@ export interface VideoIcpReviewRow {
   updated_at: string;
 }
 
-// ---------------------------------------------------------------------------
-// Pipeline V2 types
-// ---------------------------------------------------------------------------
-
 export type OpportunityStage =
   | "discovered"
   | "scored"
@@ -172,7 +173,8 @@ export type OpportunitySource =
   | "exa"
   | "manual"
   | "theirstack"
-  | "exa-dormant";
+  | "exa-dormant"
+  | "yt_comments";
 
 export interface PipelineConfigRow {
   id: string;
@@ -192,6 +194,7 @@ export interface GmailCredentialsRow {
   user_id: string;
   encrypted_refresh_token: string;
   token_expires_at: string | null;
+  granted_scopes: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -202,12 +205,7 @@ export interface OpportunityRow {
   source: OpportunitySource;
   external_id: string;
   company_name: string;
-  // Nullable under GTM — target accounts don't have roles. Non-null for
-  // job_seeker rows in practice (the job_search pipeline writes it).
   role_title: string | null;
-  // GTM shape (populated for user_type='gtm' rows; null for job_seeker).
-  // No code reads these in SPEC-3 v1 — schema reserved for the future
-  // GTM pipeline surface. See docs/DEFERRED.md.
   company_domain: string | null;
   trigger_signals: Record<string, unknown>[] | null;
   buyer_personas: Record<string, unknown>[] | null;
@@ -218,6 +216,7 @@ export interface OpportunityRow {
   score_components: Record<string, unknown> | null;
   analysis_id: string | null;
   research_id: string | null;
+  prospect_id: string | null;
   selected_draft_id: string | null;
   recipient_name: string | null;
   recipient_title: string | null;

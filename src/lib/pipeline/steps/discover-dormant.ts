@@ -50,7 +50,7 @@ export async function runDiscoverDormant(
     .from("opportunities")
     .select("company_domain")
     .eq("user_id", userId)
-    .in("source", ["theirstack", "exa-dormant"])
+    .in("source", ["theirstack", "exa-dormant", "yt_comments"])
     .not("company_domain", "is", null);
 
   const existingDomains = new Set(
