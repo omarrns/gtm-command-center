@@ -198,7 +198,7 @@ function SidebarContent({
       {/* Footer */}
       <div
         className={cn(
-          "pb-3 pt-2 border-t border-[var(--color-border)]",
+          "mt-3 pb-3 pt-2",
           collapsed ? "px-2" : "px-3",
         )}
       >

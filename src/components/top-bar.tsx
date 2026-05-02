@@ -47,7 +47,7 @@ export function TopBar({ onMenuClick, userType }: TopBarProps) {
   const title = isSignalBase ? "SignalBase" : baseTitle;
 
   return (
-    <header className="h-14 border-b border-[var(--color-border)] bg-[var(--color-bg)] flex items-center justify-between px-4 md:px-8">
+    <header className="h-14 bg-[var(--color-bg)] flex items-center justify-between px-4 md:px-8">
       <div className="flex items-center gap-2">
         <button
           type="button"
