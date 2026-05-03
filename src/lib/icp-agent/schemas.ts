@@ -58,7 +58,7 @@ export const routedEvidenceSchema = z.object({
 });
 
 export const revisionPatchSchema = z.object({
-  op: z.literal("append"),
+  op: z.enum(["append", "remove"]),
   path: z.string().min(1),
   value: z.string().min(1),
 });

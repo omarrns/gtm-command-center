@@ -97,6 +97,67 @@ function testRubricPatches() {
   assert.equal(rejected.ok, false);
 }
 
+function testStageRubricPatches() {
+  const stageRubric = coerceIcpRubric({
+    firmographics: { stages: ["Series A"] },
+    disqualifiers: {
+      stage_disqualifiers: [
+        "Pre-seed companies lack budget",
+        "Seed companies are too early",
+        "Public companies are too slow",
+      ],
+    },
+  });
+  const stageResult = applyRubricPatches(stageRubric, [
+    { op: "append", path: "/firmographics/stages", value: "Pre-seed" },
+    { op: "append", path: "/firmographics/stages", value: "Seed" },
+    {
+      op: "remove",
+      path: "/disqualifiers/stage_disqualifiers",
+      value: "Pre-seed companies",
+    },
+    {
+      op: "remove",
+      path: "/disqualifiers/stage_disqualifiers",
+      value: "Seed companies",
+    },
+  ]);
+  assert.equal(stageResult.ok, true);
+  if (stageResult.ok) {
+    const after = stageResult.after as unknown as typeof stageRubric;
+    assert.ok(after.firmographics.stages.includes("Pre-seed"));
+    assert.ok(after.firmographics.stages.includes("Seed"));
+    assert.deepEqual(after.disqualifiers.stage_disqualifiers, [
+      "Public companies are too slow",
+    ]);
+  }
+
+  const seedOnlyResult = applyRubricPatches(stageRubric, [
+    {
+      op: "remove",
+      path: "/disqualifiers/stage_disqualifiers",
+      value: "Seed companies",
+    },
+  ]);
+  assert.equal(seedOnlyResult.ok, true);
+  if (seedOnlyResult.ok) {
+    const after = seedOnlyResult.after as unknown as typeof stageRubric;
+    assert.deepEqual(after.disqualifiers.stage_disqualifiers, [
+      "Pre-seed companies lack budget",
+      "Public companies are too slow",
+    ]);
+  }
+
+  const removeRejected = applyRubricPatches(stageRubric, [
+    {
+      op: "remove",
+      path: "/signals/pain_language",
+      value: "slow shared inference",
+    },
+  ]);
+  assert.equal(removeRejected.ok, false);
+}
+
 function testNarrativePatches() {
   const result = applyNarrativePatches("## Decision Criteria\n\n- latency", [
     {
@@ -122,6 +183,7 @@ function testModelRouting() {
 
 testSchemas();
 testRubricPatches();
+testStageRubricPatches();
 testNarrativePatches();
 testModelRouting();
 

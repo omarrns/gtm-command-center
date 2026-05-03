@@ -106,7 +106,7 @@ async function evaluateRevision(
   });
   const proposal = await runGenerateObject({
     model: MODELS.icpRevisionCritic,
-    system: "Propose a narrow append-only ICP revision or decline.",
+    system: "Propose a narrow ICP revision or decline.",
     prompt: buildRevisionCriticPrompt({ context, evidence }),
     schema: revisionProposalSchema,
     maxOutputTokens: 3072,

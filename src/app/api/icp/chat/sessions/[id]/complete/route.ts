@@ -26,22 +26,20 @@ export async function POST(
     return Response.json({ ok: true, alreadyComplete: true });
   }
 
-  if (session.status === "distilling") {
+  if (session.status === "completed" || session.status === "distilling") {
     return Response.json({ ok: true, alreadyQueued: true });
   }
 
-  if (session.status !== "complete" && session.status !== "distilling") {
-    const { error } = await svc
-      .from("icp_chat_sessions")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .eq("user_id", user.id);
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
-    }
+  const { error } = await svc
+    .from("icp_chat_sessions")
+    .update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
   }
 
   const { jobId } = await insertIcpAgentJob(svc, {

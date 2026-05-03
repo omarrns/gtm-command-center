@@ -6,7 +6,8 @@ import {
 import type { IcpNarrativeArc } from "@/lib/onboarding/icp-narrative-schema";
 import type { RevisionPatch } from "./schemas";
 
-const RUBRIC_ARRAY_PATHS = new Set([
+const RUBRIC_APPEND_PATHS = new Set([
+  "/firmographics/stages",
   "/proof_points/existing_customers",
   "/proof_points/won_deals",
   "/proof_points/lost_deals_reasons",
@@ -14,6 +15,8 @@ const RUBRIC_ARRAY_PATHS = new Set([
   "/signals/trigger_events",
   "/signals/jtbd_evidence",
 ]);
+
+const RUBRIC_REMOVE_PATHS = new Set(["/disqualifiers/stage_disqualifiers"]);
 
 const NARRATIVE_ARRAY_PATHS = new Set([
   "/decision_criteria",
@@ -37,10 +40,9 @@ export function applyRubricPatches(
   const changedPaths: string[] = [];
 
   for (const patch of patches) {
-    if (!RUBRIC_ARRAY_PATHS.has(patch.path)) {
-      return { ok: false, error: `Unsupported rubric path: ${patch.path}` };
-    }
-    if (appendUnique(next, patch.path, patch.value)) {
+    const changed = applyRubricPatch(next, patch);
+    if (!changed.ok) return changed;
+    if (changed.changed) {
       changedPaths.push(patch.path);
     }
   }
@@ -61,6 +63,26 @@ export function applyRubricPatches(
   };
 }
 
+function applyRubricPatch(
+  target: Record<string, unknown>,
+  patch: RevisionPatch,
+): { ok: false; error: string } | { ok: true; changed: boolean } {
+  if (patch.op === "append") {
+    if (!RUBRIC_APPEND_PATHS.has(patch.path)) {
+      return {
+        ok: false,
+        error: `Unsupported rubric append path: ${patch.path}`,
+      };
+    }
+    return { ok: true, changed: appendUnique(target, patch.path, patch.value) };
+  }
+
+  if (!RUBRIC_REMOVE_PATHS.has(patch.path)) {
+    return { ok: false, error: `Unsupported rubric remove path: ${patch.path}` };
+  }
+  return { ok: true, changed: removeMatching(target, patch.path, patch.value) };
+}
+
 export function applyNarrativePatches(
   content: string | null,
   patches: RevisionPatch[],
@@ -72,6 +94,9 @@ export function applyNarrativePatches(
   for (const patch of patches) {
     if (!NARRATIVE_ARRAY_PATHS.has(patch.path)) {
       return { ok: false, error: `Unsupported narrative path: ${patch.path}` };
+    }
+    if (patch.op !== "append") {
+      return { ok: false, error: `Unsupported narrative op: ${patch.op}` };
     }
     if (appendUnique(next, patch.path, patch.value)) {
       changedPaths.push(patch.path);
@@ -115,6 +140,57 @@ function appendUnique(
   if (!trimmed || arr.some((item) => String(item) === trimmed)) return false;
   cursor[key] = [...arr, trimmed];
   return true;
+}
+
+function removeMatching(
+  target: Record<string, unknown>,
+  pointer: string,
+  value: string,
+): boolean {
+  const arr = readArray(target, pointer);
+  if (!arr) return false;
+  const needle = normalize(value);
+  const next = arr.filter((item) => {
+    const normalized = normalize(String(item));
+    return normalized !== needle && !containsTerm(normalized, needle);
+  });
+  if (next.length === arr.length) return false;
+  writeArray(target, pointer, next);
+  return true;
+}
+
+function readArray(
+  target: Record<string, unknown>,
+  pointer: string,
+): string[] | null {
+  const value = readPointer(target, pointer);
+  return Array.isArray(value) ? value.map(String) : null;
+}
+
+function writeArray(
+  target: Record<string, unknown>,
+  pointer: string,
+  value: string[],
+): void {
+  const parts = pointer.split("/").filter(Boolean);
+  const key = parts.pop();
+  if (!key) return;
+  let cursor: Record<string, unknown> = target;
+  for (const part of parts) {
+    const next = cursor[part];
+    if (!next || typeof next !== "object" || Array.isArray(next)) return;
+    cursor = next as Record<string, unknown>;
+  }
+  cursor[key] = value;
+}
+
+function normalize(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function containsTerm(value: string, term: string): boolean {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9-])${escaped}([^a-z0-9-]|$)`).test(value);
 }
 
 function buildDiff(
