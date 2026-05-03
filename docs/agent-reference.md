@@ -28,8 +28,9 @@ src/
 │       ├── coaching/           # Career-coach skill UI
 │       ├── dev/                # Dev/admin debug page (profiles, pipeline_config, onboarding_interviews)
 │       ├── history/            # Sent/skipped opportunities
-│       ├── icp/                # ICP rubric editor (GTM persona)
+│       ├── icp/                # ICP rubric editor, chat, and revision history (GTM persona)
 │       ├── memory/             # memory_documents browse/edit
+│       ├── messaging/          # GTM messaging system and draft composer
 │       ├── onboard/
 │       │   ├── page.tsx
 │       │   ├── actions.ts                  # Manual wizard step actions
@@ -41,6 +42,8 @@ src/
 │       │   ├── confirm-logic.ts            # performConfirm(svc, userId, …) — testable seam
 │       │   └── _components/                # onboard-router, interview-client, review-client, story-client, artifact-input, persona-picker
 │       ├── outreach/           # Standalone outreach drafts
+│       ├── profile/            # Saved profile / ICP read surface
+│       ├── prospects/          # GTM commenter prospects from video ICP reviews
 │       ├── research/           # Research reports (detail + new)
 │       ├── settings/
 │       ├── trail/              # Career-coach TRAIL.md viewer
@@ -53,8 +56,10 @@ src/
 │       ├── activation/{search,accounts}/
 │       ├── cron/pipeline/              # job_seeker pipeline (workflow.ts)
 │       ├── cron/dormant-discover/      # GTM weekly Exa sweep over ICP rubric
+│       ├── cron/icp-revisions/         # GTM ICP revision consolidation jobs
 │       ├── cron/replies/
 │       ├── cron/watchlist/
+│       ├── icp/chat/                   # GTM ICP chat sessions and streaming turns
 │       ├── jobs/[id]/                  # Background-job status polling
 │       ├── onboard/{chat,artifacts,story/stream}/
 │       ├── pipeline/run/               # Manual pipelineWorkflow trigger
@@ -65,18 +70,18 @@ src/
 │   ├── sidebar-nav.tsx         # Desktop aside + mobile Sheet (intentionally custom)
 │   ├── top-bar.tsx
 │   ├── command-palette.tsx, lazy-command-palette.tsx  # Intentionally custom (⌘K motion)
-│   ├── page-header.tsx, list-item.tsx, empty-state.tsx, detail-header.tsx
+│   ├── page-header.tsx, empty-state.tsx, detail-header.tsx
 │   ├── dev-persona-toggle.tsx, tag-input.tsx, theme-provider.tsx
 │   ├── ai-elements/            # VENDORED from Vercel AI Elements (prompt-input.tsx, message.tsx, conversation.tsx, loader.tsx). Don't hand-refactor; re-vendor from upstream.
 │   └── ui/                     # shadcn/ui (owned source)
 └── lib/
     ├── utils.ts                # cn(), formatRelativeTime(), assertEnv()
     ├── logger.ts               # createLogger({ runId, scope, … }) — use for all background work
-    ├── ai/                     # anthropic.ts (Gateway-routed runClaudeJson/Text), calls.ts (Gateway-routed runGenerateObject + ai_calls capture), exa.ts, firecrawl.ts
+    ├── ai/                     # anthropic.ts (Gateway-routed runClaudeJson/Text), calls.ts (Gateway-routed runGenerateObject + ai_calls capture), models.ts, exa.ts, firecrawl.ts
     ├── calls/                  # Sales-call data + types
-    ├── trends/                 # Trend dashboard data
-    ├── supabase/               # server.ts, service.ts, types.ts (row types are source of truth)
+    ├── icp-agent/              # GTM ICP chat sessions, patch/revision events, and consolidation jobs
     ├── integrations/           # gmail.ts, crypto.ts (AES-256-GCM token storage), theirstack.ts
+    ├── outreach/               # Outreach events, reply metadata/classification, performance memory
     ├── pipeline/
     │   ├── workflow.ts                 # LIVE job_seeker orchestrator (Vercel Workflow durable).
     │   ├── types.ts                    # Shared pipeline result types (PipelineRunResult). Imported by gtm-runner.ts.
@@ -90,6 +95,7 @@ src/
     │   ├── jsearch.ts, watchlist.ts, people-search.ts
     │   ├── icp-to-theirstack-filters.ts, icp-webset-query.ts
     │   └── steps/                      # job_seeker: discover/score/research/enrich/draft. GTM: discover-accounts, discover-dormant, score-accounts.
+    ├── prospects/                      # YouTube commenter prospect persistence, scoring, and promotion to opportunities
     ├── onboarding/
     │   ├── interview-prompt.ts, extraction-prompt.ts, story-prompt.ts
     │   ├── extraction.ts               # runExtractionFromTranscript<X>(messages, template) — template-generic
@@ -102,7 +108,10 @@ src/
     │   ├── sender-identity.ts          # extractSenderIdentity(ctx, displayName) → SenderIdentity
     │   ├── context.ts                  # loadMemoryContext()
     │   └── prompts/                    # All prompt builders, accept SenderIdentity
-    └── jobs/                           # Background-job worker + handlers (career-coach, full-analysis, company-fit-analyzer, people-research)
+    ├── supabase/               # server.ts, service.ts, types.ts (row types are source of truth)
+    ├── trends/                 # Trend dashboard data
+    ├── video-icp/              # YouTube transcript extraction/reviews and yt-llm adapter
+    └── jobs/                           # Background-job worker + handlers (career-coach, full-analysis, company-fit-analyzer, people-research, ICP revisions, video/prospect jobs)
 ```
 
 ## Current State
@@ -133,10 +142,10 @@ discovered → scored → researched → enriched → drafted → queued → sen
 | Entry / cron        | `/api/cron/pipeline` → `pipelineWorkflow`  | `/api/cron/dormant-discover` (weekly Exa sweep) + `/api/webhooks/theirstack` (real-time `job.new`)  |
 | Discover            | `steps/discover.ts` (JSearch)              | `steps/discover-accounts.ts` (TheirStack), `steps/discover-dormant.ts` (Exa over rubric)            |
 | Score               | `scoring.ts` → `analysisSchema`            | `scoring-account.ts` → `icpAccountAnalysisSchema` (called per-account from `gtm-runner` or webhook) |
-| Opportunity source  | `jsearch`                                  | `theirstack`, `exa-dormant`                                                                         |
+| Opportunity source  | `jsearch`                                  | `theirstack`, `exa-dormant`, `yt_comments`                                                          |
 | Onboarding template | `job_search`                               | `icp_definition` (agentic; uses orchestrator + artifacts)                                           |
 | Pipeline_config     | search_queries, locations, score_threshold | + `company_domain`, `trigger_signals`, `buyer_personas`, `icp_rubric`                               |
-| Surface UI          | Today (`/`), History, Watchlist            | `/accounts` (never-auto-remove rule), `/icp` (rubric editor)                                        |
+| Surface UI          | Today (`/`), History, Watchlist            | `/accounts` (never-auto-remove rule), `/icp` (rubric editor/chat/changes), `/messaging`, `/prospects`, `/video-icp` |
 
 `gtm-runner.ts` is the GTM batch lane's entry point. `pipelineWorkflow` short-circuits `gtm` profiles as a safety net — the GTM persona's recurring/realtime entry points are the dormant-discover cron and the TheirStack webhook, not `/api/cron/pipeline`.
 
