@@ -56,7 +56,7 @@ export interface ActivationSearchResult {
 const MAX_ACTIVATION_DISCOVERIES = 10;
 const RECENCY_DAYS = 10;
 const MAX_RESULTS = 5;
-const ACTIVATION_MODEL = MODELS.sonnet;
+const ACTIVATION_MODEL = MODELS.jobSeekerScoring;
 
 // ---------------------------------------------------------------------------
 // Main

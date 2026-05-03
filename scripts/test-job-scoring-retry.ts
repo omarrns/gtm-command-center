@@ -1,17 +1,11 @@
 #!/usr/bin/env tsx
-/**
- * Regression coverage for job-seeker structured-output retry.
- *
- * Run: pnpm test:job-scoring-retry
- */
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { config } from "dotenv";
 import { NoObjectGeneratedError } from "ai";
 import { MODELS } from "../src/lib/ai/anthropic";
 import { __setRunGenerateObjectForTests } from "../src/lib/ai/calls";
-import { runScore } from "../src/lib/pipeline/steps/score";
+import { MAX_SCORES_PER_RUN, runScore } from "../src/lib/pipeline/steps/score";
 
 config({ path: ".env.local" });
 
@@ -227,10 +221,13 @@ function createMockSupabase(): any {
   };
 }
 
-function objectFailure(message = "No object generated: response did not match schema") {
+function objectFailure(
+  message = "No object generated: response did not match schema",
+  text = '{"jd_fit":"{\\"scorecard\\":{}}"}',
+) {
   return new NoObjectGeneratedError({
     message,
-    text: '{"jd_fit":"{\\"scorecard\\":{}}"}',
+    text,
     response: {} as any,
     usage: {} as any,
     finishReason: "stop",
@@ -346,15 +343,24 @@ async function main() {
   seedOpportunity(userId, "opp-1", "RetryCo", "old error");
   seedOpportunity(userId, "opp-2", "FailCo");
   seedOpportunity(userId, "opp-3", "LaterCo");
+  seedOpportunity(userId, "opp-4", "CappedCo");
 
   const calls: Array<{ model: string; oppId: string | undefined }> = [];
   __setRunGenerateObjectForTests((args) => {
     calls.push({ model: args.model, oppId: args.scope?.scopeId });
-    if (args.scope?.scopeId === "opp-1" && args.model === MODELS.sonnet) {
+    if (args.scope?.scopeId === "opp-1" && args.model === MODELS.jobSeekerScoring) {
       throw objectFailure();
     }
     if (args.scope?.scopeId === "opp-2") {
       throw objectFailure("No object generated: no low surrogate in string");
+    }
+    if (args.scope?.scopeId === "opp-3") {
+      const malformed = {
+        ...analysis(),
+        jd_fit: JSON.stringify(analysis().jd_fit),
+        strategic_fit: JSON.stringify(analysis().strategic_fit),
+      };
+      throw objectFailure(undefined, JSON.stringify(malformed));
     }
     return args.schema.parse(analysis());
   });
@@ -363,30 +369,24 @@ async function main() {
   const opp1 = tables.opportunities.find((row) => row.id === "opp-1")!;
   const opp2 = tables.opportunities.find((row) => row.id === "opp-2")!;
   const opp3 = tables.opportunities.find((row) => row.id === "opp-3")!;
+  const opp4 = tables.opportunities.find((row) => row.id === "opp-4")!;
 
-  assert(result.processed === 3, `processed all 3 rows (got ${result.processed})`);
+  assert(MAX_SCORES_PER_RUN === 3, "scheduled score cap is 3");
+  assert(result.processed === 3, `processed capped 3 rows (got ${result.processed})`);
   assert(result.scored === 2, `scored 2 rows (got ${result.scored})`);
   assert(result.errors === 1, `recorded 1 final error (got ${result.errors})`);
-  assert(
-    calls.filter((call) => call.oppId === "opp-1").map((call) => call.model).join(",") ===
-      `${MODELS.sonnet},${MODELS.opus}`,
-    "opp-1 retried Sonnet failure with Opus",
-  );
-  assert(
-    calls.filter((call) => call.oppId === "opp-2").map((call) => call.model).join(",") ===
-      `${MODELS.sonnet},${MODELS.opus}`,
-    "opp-2 failed after one Opus retry",
-  );
-  assert(
-    calls.filter((call) => call.oppId === "opp-3").map((call) => call.model).join(",") ===
-      MODELS.sonnet,
-    "opp-3 did not call Opus after Sonnet success",
-  );
+  const modelsFor = (oppId: string) =>
+    calls.filter((call) => call.oppId === oppId).map((call) => call.model).join(",");
+
+  assert(modelsFor("opp-1") === `${MODELS.jobSeekerScoring},${MODELS.opus}`, "opp-1 retried Opus");
+  assert(modelsFor("opp-2") === `${MODELS.jobSeekerScoring},${MODELS.opus}`, "opp-2 retried Opus");
+  assert(modelsFor("opp-3") === MODELS.jobSeekerScoring, "opp-3 recovered without Opus");
   assert(opp1.stage === "scored", "retried row advanced to scored");
   assert(opp1.last_error === null, "successful retry cleared stale last_error");
   assert(opp2.stage === "discovered", "final failure stayed discovered");
   assert(typeof opp2.last_error === "string", "final failure persisted last_error");
   assert(opp3.stage === "scored", "batch continued after final failure");
+  assert(opp4.stage === "discovered", "fourth row stayed queued by batch cap");
 
   __setRunGenerateObjectForTests(null);
   globalThis.fetch = originalFetch;

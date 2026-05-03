@@ -17,6 +17,8 @@ PRINCIPLES:
 - Check the candidate's dealbreaker flags.
 
 OUTPUT: Return valid JSON only:
+- Emit nested objects as objects, never as JSON-encoded strings.
+- Every scorecard dimension must be an object with numeric "score" and string "justification".
 {
   "company_name": string,
   "role_title": string,

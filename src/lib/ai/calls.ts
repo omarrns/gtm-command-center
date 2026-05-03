@@ -11,7 +11,7 @@
  * importing generateObject directly so they get capture for free.
  */
 
-import { gateway, generateObject } from "ai";
+import { gateway, generateObject, type LanguageModelUsage } from "ai";
 import type { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -48,6 +48,26 @@ export interface CapturedCall {
 }
 
 const MAX_TEXT = 100_000;
+
+export function aiUsageTokens(
+  usage: LanguageModelUsage | null | undefined,
+): Pick<CapturedCall, "inputTokens" | "outputTokens" | "totalTokens"> {
+  return {
+    inputTokens: usage?.inputTokens ?? undefined,
+    outputTokens: usage?.outputTokens ?? undefined,
+    totalTokens: usage?.totalTokens ?? undefined,
+  };
+}
+
+export async function aiUsageTokensFrom(
+  usage: PromiseLike<LanguageModelUsage>,
+): Promise<Pick<CapturedCall, "inputTokens" | "outputTokens" | "totalTokens">> {
+  try {
+    return aiUsageTokens(await usage);
+  } catch {
+    return {};
+  }
+}
 
 function gatewayOptions(scope: AiCallScope | undefined, callKind: string) {
   const tags = [

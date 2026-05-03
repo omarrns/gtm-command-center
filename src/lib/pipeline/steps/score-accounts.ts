@@ -25,7 +25,7 @@ import {
 import { createLogger } from "@/lib/logger";
 import { MODELS } from "@/lib/ai/anthropic";
 
-const MAX_SCORES_PER_RUN = 10;
+export const MAX_SCORES_PER_RUN = 3;
 const PIPELINE_MODEL = MODELS.sonnet;
 
 export interface ScoreOneAccountResult {

@@ -22,6 +22,7 @@ import {
 } from "@/lib/onboarding/orchestrator/types";
 import { toConfirmEditsForTemplate } from "@/lib/onboarding/orchestrator/to-confirm-edits";
 import { parseChatRequest } from "../_lib/request-validation";
+import { captureOnboardingStream } from "./_lib/capture";
 
 export const maxDuration = 120;
 
@@ -133,6 +134,7 @@ async function handleAgenticTurn(
     );
 
     const wrapUpSystem = `You are wrapping up an interview. Briefly thank the user and tell them the review screen is next. Keep it to 1–2 sentences. End with ${template.completionMarker} on its own line. Do NOT ask questions.`;
+    const startedAt = Date.now();
 
     const result = streamText({
       model: gateway(template.chatModel),
@@ -155,6 +157,17 @@ async function handleAgenticTurn(
             updated_at: new Date().toISOString(),
           })
           .eq("id", interview.id);
+        await captureOnboardingStream({
+          userId,
+          interviewId: interview.id,
+          callPurpose: "onboarding_chat_wrapup",
+          model: template.chatModel,
+          systemPrompt: wrapUpSystem,
+          messages,
+          finalMessages,
+          usage: result.totalUsage,
+          startedAt,
+        });
       },
     });
   }
@@ -224,6 +237,16 @@ async function handleAgenticTurn(
           updated_at: new Date().toISOString(),
         })
         .eq("id", interview.id);
+      await captureOnboardingStream({
+        userId,
+        interviewId: interview.id,
+        callPurpose: "onboarding_chat",
+        model: template.chatModel,
+        systemPrompt: interviewerSystem,
+        messages,
+        finalMessages,
+        usage: result.totalUsage,
+      });
     },
   });
 }
@@ -343,6 +366,16 @@ async function handleLegacyTurn(
         .from("onboarding_interviews")
         .update(updateData)
         .eq("id", interview.id);
+      await captureOnboardingStream({
+        userId: interview.user_id,
+        interviewId: interview.id,
+        callPurpose: "onboarding_chat",
+        model: template.chatModel,
+        systemPrompt,
+        messages,
+        finalMessages,
+        usage: result.totalUsage,
+      });
     },
   });
 }

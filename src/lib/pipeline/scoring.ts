@@ -1,13 +1,6 @@
 /**
  * Pure scoring function — extracted from full-analysis job handler.
  * Takes raw inputs (no JobRow dependency) so the pipeline runner can call it directly.
- *
- * Accepts an optional SupabaseClient for loading memory context in worker/pipeline
- * contexts where the cookie-scoped server client is not available.
- *
- * Phase 9H: Loads user_scoring_profiles for structured preferences + dimension weights.
- * When no profile row exists, all weights default to 1.0 and scoring proceeds
- * identically to pre-Phase 9 behavior.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -24,6 +17,7 @@ import { extractSenderIdentity } from "@/lib/skills/sender-identity";
 import { runGenerateObject, type AiCallScope } from "@/lib/ai/calls";
 import { MODELS } from "@/lib/ai/anthropic";
 import { createLogger } from "@/lib/logger";
+import { recoverObjectFromError } from "@/lib/pipeline/scoring-recovery";
 
 const dimensionScoreSchema = z.object({
   score: z.number().min(0).max(5),
@@ -49,7 +43,7 @@ const strategicFitScorecardSchema = z.object({
   stage_match: dimensionScoreSchema,
 });
 
-const analysisSchema = z.object({
+export const analysisSchema = z.object({
   company_name: z.string(),
   role_title: z.string(),
   jd_fit: z.object({
@@ -148,8 +142,7 @@ export async function scoreOpportunity(
     "</external_jd>",
   ].join("\n");
 
-  // When scoring profile exists, inject structured preferences so Claude has
-  // explicit signals. When absent, Claude scores using memory context alone.
+  // Inject structured preferences when present; otherwise use memory context.
   const structuredPreferences = scoringProfile
     ? formatStructuredPreferences(scoringProfile)
     : "";
@@ -218,6 +211,9 @@ async function runJobSeekerScoringObject({
     if (model === MODELS.opus || !isStructuredObjectGenerationFailure(err)) {
       throw err;
     }
+
+    const recovered = recoverObjectFromError(err, analysisSchema);
+    if (recovered) return recovered;
 
     const log = createLogger({
       runId: scope.runId,

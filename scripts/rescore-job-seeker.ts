@@ -133,7 +133,7 @@ async function main() {
         configRow as PipelineConfigRow,
         {
           source: "manual-rescore",
-          model: MODELS.sonnet,
+          model: MODELS.jobSeekerScoring,
           runId,
         },
       );

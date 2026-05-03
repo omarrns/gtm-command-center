@@ -22,8 +22,8 @@ import { addToWatchlist } from "@/lib/pipeline/watchlist";
 import { MODELS } from "@/lib/ai/anthropic";
 import { createLogger } from "@/lib/logger";
 
-const MAX_SCORES_PER_RUN = 10;
-const PIPELINE_MODEL = MODELS.sonnet;
+export const MAX_SCORES_PER_RUN = 3;
+const PIPELINE_MODEL = MODELS.jobSeekerScoring;
 
 export interface ScoreResult {
   processed: number;
@@ -164,6 +164,7 @@ export async function runScore(
         opportunityId: opp.id,
         companyName: opp.company_name,
         roleTitle: opp.role_title,
+        scoreBatchLimit: MAX_SCORES_PER_RUN,
         firstModel: PIPELINE_MODEL,
         retryModel: MODELS.opus,
       });

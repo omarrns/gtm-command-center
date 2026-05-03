@@ -10,6 +10,8 @@ export const MODELS = {
   opus: "anthropic/claude-opus-4.6",
   /** Pipeline-tier — high-volume batch work, chat, fast scoring. */
   sonnet: "anthropic/claude-sonnet-4.6",
+  /** Job-seeker opportunity scoring primary. */
+  jobSeekerScoring: "google/gemini-3.1-pro-preview",
   /** Utility-tier — narrow extraction/classification fallback. */
   haiku: "anthropic/claude-haiku-4.5",
   /** Cheap narrow extraction/classification. */
