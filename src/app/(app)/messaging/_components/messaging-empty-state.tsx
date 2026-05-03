@@ -44,7 +44,7 @@ export function MessagingEmptyState({
       description="This page fills in after GTM onboarding writes your ICP, proof, disqualifiers, and buyer narrative arc."
     >
       <Link
-        href="/onboard?mode=refresh&template=icp_definition"
+        href="/icp?mode=refresh"
         className={cn(buttonVariants({ size: "sm" }))}
       >
         Refresh onboarding

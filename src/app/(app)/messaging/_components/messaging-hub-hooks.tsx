@@ -133,7 +133,7 @@ export function RefreshPlaceholder({ children }: { children: ReactNode }) {
     <p className="text-sm text-[var(--color-text-muted)]">
       {children}{" "}
       <Link
-        href="/onboard?mode=refresh&template=icp_definition"
+        href="/icp?mode=refresh"
         className="underline underline-offset-4 hover:text-[var(--color-text)]"
       >
         Refresh onboarding

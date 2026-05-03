@@ -10,6 +10,10 @@ const ALL_JOB_TYPES = [
   "onboarding-artifact-analysis",
   "score-youtube-prospects",
   "video-icp-review",
+  "icp-session-distill",
+  "icp-evidence-route",
+  "icp-revision-evaluate",
+  "icp-revision-consolidate",
 ];
 
 /**

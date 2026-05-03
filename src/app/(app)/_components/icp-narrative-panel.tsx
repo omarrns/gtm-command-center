@@ -10,7 +10,7 @@ import { parseIcpNarrativeMarkdown } from "@/lib/onboarding/templates/icp-defini
 import { updateIcpNarrativeArcAction } from "../_actions/update-icp-narrative";
 import { GenerateIcpNarrativeButton } from "./generate-icp-narrative-button";
 
-const REFRESH_HREF = "/onboard?mode=refresh&template=icp_definition";
+const REFRESH_HREF = "/icp?mode=refresh";
 
 interface IcpNarrativePanelProps {
   narrativeArc: string | null;

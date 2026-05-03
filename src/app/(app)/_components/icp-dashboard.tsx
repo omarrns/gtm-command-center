@@ -10,12 +10,18 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EmptyState } from "@/components/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { safeParseIcpRubric, type IcpRubric } from "@/lib/onboarding/icp-schemas";
+import type {
+  IcpAgentEventRow,
+  IcpRevisionCandidateRow,
+  IcpRevisionCommitRow,
+} from "@/lib/icp-agent/types";
 import { IcpDashboardClient } from "./icp-dashboard-client";
 
-const REFRESH_HREF = "/onboard?mode=refresh&template=icp_definition";
+const REFRESH_HREF = "/icp?mode=refresh";
 
 interface IcpDashboardProps {
   userId: string;
+  initialView?: "chat" | "rubric" | "narrative" | "changes";
 }
 
 interface ArtifactSummary {
@@ -26,7 +32,10 @@ interface ArtifactSummary {
   status: string;
 }
 
-export async function IcpDashboard({ userId }: IcpDashboardProps) {
+export async function IcpDashboard({
+  userId,
+  initialView = "chat",
+}: IcpDashboardProps) {
   const svc = createSupabaseServiceClient();
 
   const { data: confirmedInterview } = await svc
@@ -39,7 +48,15 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
     .limit(1)
     .maybeSingle();
 
-  const [scoringRes, artifactsRes, configRes, narrativeRes] = await Promise.all([
+  const [
+    scoringRes,
+    artifactsRes,
+    configRes,
+    narrativeRes,
+    commitsRes,
+    candidatesRes,
+    eventsRes,
+  ] = await Promise.all([
     svc
       .from("user_scoring_profiles")
       .select("icp_rubric")
@@ -63,6 +80,25 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
       .eq("user_id", userId)
       .eq("document_key", "icp_narrative_arc")
       .maybeSingle(),
+    svc
+      .from("icp_revision_commits")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    svc
+      .from("icp_revision_candidates")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("status", "rejected")
+      .order("created_at", { ascending: false })
+      .limit(25),
+    svc
+      .from("icp_agent_events")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   const rawRubric = scoringRes.data?.icp_rubric ?? null;
@@ -72,6 +108,9 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
   const artifacts = (artifactsRes.data ?? []) as ArtifactSummary[];
   const activationCompleted = !!configRes.data?.activation_completed_at;
   const narrativeArc = narrativeRes.data?.content?.trim() || null;
+  const commits = (commitsRes.data ?? []) as IcpRevisionCommitRow[];
+  const rejected = (candidatesRes.data ?? []) as IcpRevisionCandidateRow[];
+  const events = (eventsRes.data ?? []) as IcpAgentEventRow[];
 
   if (!rubric) {
     return (
@@ -101,6 +140,10 @@ export async function IcpDashboard({ userId }: IcpDashboardProps) {
       narrativeArc={narrativeArc}
       artifacts={artifacts}
       activationCompleted={activationCompleted}
+      commits={commits}
+      rejectedCandidates={rejected}
+      events={events}
+      initialView={initialView}
     />
   );
 }

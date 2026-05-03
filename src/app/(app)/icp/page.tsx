@@ -21,7 +21,12 @@ export default async function IcpPage(props: {
 
   // Already onboarded and not a refresh → show the dashboard.
   if (onboarding.complete && !isRefresh) {
-    return <IcpDashboard userId={user.id} />;
+    return (
+      <IcpDashboard
+        userId={user.id}
+        initialView={viewFrom(searchParams.view)}
+      />
+    );
   }
 
   const { data: interviewData } = await svc
@@ -57,4 +62,12 @@ export default async function IcpPage(props: {
       existingOutreach={null}
     />
   );
+}
+
+function viewFrom(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw === "rubric" || raw === "narrative" || raw === "changes") {
+    return raw;
+  }
+  return "chat";
 }

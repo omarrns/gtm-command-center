@@ -22,6 +22,12 @@ const TITLES: Record<string, string> = {
   "/watchlist": "Watchlist",
   "/settings": "Settings",
   "/analytics": "Analytics",
+  "/icp": "Your ICP",
+  "/video-icp": "Video ICP",
+  "/accounts": "Accounts",
+  "/messaging": "Messaging",
+  "/calls": "Calls",
+  "/trends": "Trends",
 };
 
 interface TopBarProps {
@@ -32,11 +38,13 @@ interface TopBarProps {
 export function TopBar({ onMenuClick, userType }: TopBarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const key = Object.keys(TITLES).find((k) =>
-    k === "/"
-      ? pathname === "/"
-      : pathname === k || pathname.startsWith(`${k}/`),
-  );
+  const key = Object.keys(TITLES)
+    .sort((a, b) => b.length - a.length)
+    .find((k) =>
+      k === "/"
+        ? pathname === "/"
+        : pathname === k || pathname.startsWith(`${k}/`),
+    );
   // SPEC-3 polish: persona drives the / label. GTM users see "ICP"
   // because that's what the homepage renders for them; job_seeker
   // and null keep "Today". Other titles are persona-agnostic.

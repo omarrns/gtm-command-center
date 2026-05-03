@@ -24,6 +24,16 @@ export const MODELS = {
   videoIcpReviewFallback: "anthropic/claude-sonnet-4.6",
   /** Buyer narrative synthesis candidate. */
   deepseekNarrative: "deepseek/deepseek-v4-pro",
+  /** Live ICP chat for SDR/AE account prep. */
+  icpChat: "anthropic/claude-sonnet-4.6",
+  /** Cheap session distillation after ICP chat sessions. */
+  icpSessionDistill: "deepseek/deepseek-v4-flash",
+  /** Cheap evidence routing for ICP chat insights. */
+  icpEvidenceRouter: "deepseek/deepseek-v4-flash",
+  /** Conservative rubric/narrative proposal model. */
+  icpRevisionCritic: "deepseek/deepseek-v4-pro",
+  /** Different-family judge for automatic ICP revisions. */
+  icpRevisionJudge: "google/gemini-3-flash",
 } as const;
 
 export type ModelId = (typeof MODELS)[keyof typeof MODELS];

@@ -9,6 +9,10 @@ import { runGtmFindContactsJob } from "./handlers/gtm-find-contacts";
 import { runOnboardingArtifactAnalysisJob } from "./handlers/onboarding-artifact-analysis";
 import { runScoreYoutubeProspectsJob } from "./handlers/score-youtube-prospects";
 import { runVideoIcpReviewJob } from "./handlers/video-icp-review";
+import { runIcpSessionDistillJob } from "./handlers/icp-session-distill";
+import { runIcpEvidenceRouteJob } from "./handlers/icp-evidence-route";
+import { runIcpRevisionEvaluateJob } from "./handlers/icp-revision-evaluate";
+import { runIcpRevisionConsolidateJob } from "./handlers/icp-revision-consolidate";
 
 type JobHandler = (
   job: JobRow,
@@ -25,6 +29,10 @@ const HANDLERS: Record<string, JobHandler> = {
   "onboarding-artifact-analysis": runOnboardingArtifactAnalysisJob,
   "score-youtube-prospects": runScoreYoutubeProspectsJob,
   "video-icp-review": runVideoIcpReviewJob,
+  "icp-session-distill": runIcpSessionDistillJob,
+  "icp-evidence-route": runIcpEvidenceRouteJob,
+  "icp-revision-evaluate": runIcpRevisionEvaluateJob,
+  "icp-revision-consolidate": runIcpRevisionConsolidateJob,
 };
 
 const testHandlers = new Map<string, JobHandler>();

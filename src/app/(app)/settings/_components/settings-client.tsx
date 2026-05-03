@@ -51,7 +51,7 @@ export function SettingsClient({
     ? "Refresh your ICP rubric, exemplars, and product positioning. Discovery + outreach surfaces ship in a follow-up release."
     : "Update your profile, positioning, and outreach preferences. Changes take effect on the next pipeline run.";
   const profileHref = isGtm
-    ? "/onboard?mode=refresh&template=icp_definition"
+    ? "/icp?mode=refresh"
     : "/onboard?mode=refresh";
   const profileLinkLabel = isGtm ? "Refresh ICP" : "Edit Profile";
 

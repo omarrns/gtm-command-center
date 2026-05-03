@@ -3,6 +3,7 @@
     { "path": "/api/cron/pipeline", "schedule": "0 4,10,16,22 * * *" },
     { "path": "/api/cron/replies", "schedule": "*/30 * * * *" },
     { "path": "/api/cron/watchlist", "schedule": "0 11 * * *" },
-    { "path": "/api/cron/dormant-discover", "schedule": "0 12 * * 1" }
+    { "path": "/api/cron/dormant-discover", "schedule": "0 12 * * 1" },
+    { "path": "/api/cron/icp-revisions", "schedule": "0 7 * * *" }
   ]
 }
