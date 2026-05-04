@@ -12,6 +12,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { safeParseIcpRubric, type IcpRubric } from "@/lib/onboarding/icp-schemas";
 import type {
   IcpAgentEventRow,
+  IcpEvidenceItemRow,
   IcpRevisionCandidateRow,
   IcpRevisionCommitRow,
 } from "@/lib/icp-agent/types";
@@ -56,6 +57,7 @@ export async function IcpDashboard({
     commitsRes,
     candidatesRes,
     eventsRes,
+    evidenceRes,
   ] = await Promise.all([
     svc
       .from("user_scoring_profiles")
@@ -99,6 +101,12 @@ export async function IcpDashboard({
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(100),
+    svc
+      .from("icp_evidence_items")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   const rawRubric = scoringRes.data?.icp_rubric ?? null;
@@ -110,7 +118,11 @@ export async function IcpDashboard({
   const narrativeArc = narrativeRes.data?.content?.trim() || null;
   const commits = (commitsRes.data ?? []) as IcpRevisionCommitRow[];
   const rejected = (candidatesRes.data ?? []) as IcpRevisionCandidateRow[];
-  const events = (eventsRes.data ?? []) as IcpAgentEventRow[];
+  const evidenceItems = (evidenceRes.data ?? []) as IcpEvidenceItemRow[];
+  const events = hydrateEventEvidence(
+    (eventsRes.data ?? []) as IcpAgentEventRow[],
+    evidenceItems,
+  );
 
   if (!rubric) {
     return (
@@ -146,4 +158,32 @@ export async function IcpDashboard({
       initialView={initialView}
     />
   );
+}
+
+function hydrateEventEvidence(
+  events: IcpAgentEventRow[],
+  evidenceItems: IcpEvidenceItemRow[],
+): IcpAgentEventRow[] {
+  const evidenceById = new Map(evidenceItems.map((item) => [item.id, item]));
+  return events.map((event) => {
+    if (Array.isArray(event.metadata.evidence)) return event;
+    const evidence = event.evidence_ids
+      .map((id) => evidenceById.get(id))
+      .filter((item): item is IcpEvidenceItemRow => Boolean(item))
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        detail: item.detail,
+        target: item.target,
+        confidence: item.confidence,
+      }));
+    if (evidence.length === 0) return event;
+    return {
+      ...event,
+      metadata: {
+        ...event.metadata,
+        evidence,
+      },
+    };
+  });
 }

@@ -48,6 +48,9 @@ export async function runIcpSessionDistillJob(
     });
     return result;
   } catch (error) {
+    await markSessionDistillFailed(svc, job.user_id, sessionId, error).catch(
+      () => undefined,
+    );
     await recordIcpAgentEvent(svc, {
       userId: job.user_id,
       jobId: job.id,
@@ -61,6 +64,38 @@ export async function runIcpSessionDistillJob(
     });
     throw error;
   }
+}
+
+async function markSessionDistillFailed(
+  svc: SupabaseClient,
+  userId: string,
+  sessionId: string,
+  error: unknown,
+) {
+  const { data } = await svc
+    .from("icp_chat_sessions")
+    .select("metadata")
+    .eq("id", sessionId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const metadata =
+    data?.metadata && typeof data.metadata === "object"
+      ? (data.metadata as Record<string, unknown>)
+      : {};
+
+  await svc
+    .from("icp_chat_sessions")
+    .update({
+      status: "failed",
+      metadata: {
+        ...metadata,
+        distill_error: errorMessage(error),
+        distill_failed_at: new Date().toISOString(),
+      },
+    })
+    .eq("id", sessionId)
+    .eq("user_id", userId);
 }
 
 async function distillSession(

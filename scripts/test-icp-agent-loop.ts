@@ -32,6 +32,23 @@ function testSchemas() {
   });
   assert.equal(insight.explicitUpdateRequest, true);
 
+  const nullAccountInsight = sessionInsightSchema.parse({
+    summary: "User requested a Seed-stage ICP update.",
+    account: null,
+    keySignals: ["100 Seed-stage closed deals"],
+    suggestedUpdates: [
+      {
+        target: "rubric",
+        path: "firmographics.stages",
+        suggestedValue: "Seed",
+        reason: "Closed deal pattern",
+        confidence: 0.95,
+      },
+    ],
+    explicitUpdateRequest: true,
+  });
+  assert.equal(nullAccountInsight.account, undefined);
+
   const routed = routedEvidenceSchema.parse({
     items: [
       {

@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   if (error || !session || session.user_id !== user.id) {
     return new Response("Session not found", { status: 404 });
   }
-  if (session.status !== "active" && session.status !== "completed") {
+  if (session.status !== "active") {
     return new Response("Session is not active", { status: 400 });
   }
 

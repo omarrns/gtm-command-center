@@ -80,6 +80,7 @@ async function evaluateRevision(
   startedAt: number,
 ) {
   const evidence = await loadEvidence(svc, job.user_id, evidenceIds);
+  const evidenceSummary = summarizeEvidence(evidence);
   if (evidence.length === 0) {
     await recordIcpAgentEvent(svc, {
       userId: job.user_id,
@@ -103,6 +104,10 @@ async function evaluateRevision(
     message: "Critic is proposing a conservative ICP patch.",
     evidenceIds,
     model: MODELS.icpRevisionCritic,
+    metadata: {
+      evidence: evidenceSummary,
+      policy: revisionPolicySummary(),
+    },
   });
   const proposal = await runGenerateObject({
     model: MODELS.icpRevisionCritic,
@@ -132,10 +137,22 @@ async function evaluateRevision(
         target: proposal.target,
         confidence: proposal.confidence,
         reason: proposal.reason,
+        evidence: evidenceSummary,
+        proposal: {
+          shouldPropose: proposal.shouldPropose,
+          title: proposal.title,
+          patches: proposal.patches,
+        },
+        policy: revisionPolicySummary(),
       },
     });
     await markEvidenceProcessed(svc, job.user_id, evidenceIds);
-    return { evaluated: true, applied: false, proposed: false };
+    return {
+      evaluated: true,
+      applied: false,
+      proposed: false,
+      reason: proposal.reason,
+    };
   }
 
   await recordIcpAgentEvent(svc, {
@@ -151,7 +168,10 @@ async function evaluateRevision(
       target: proposal.target,
       title: proposal.title,
       confidence: proposal.confidence,
+      reason: proposal.reason,
+      patches: proposal.patches,
       patchCount: proposal.patches.length,
+      evidence: evidenceSummary,
     },
   });
 
@@ -184,6 +204,15 @@ async function evaluateRevision(
       candidateId: candidate.id,
       durationMs: elapsedMs(startedAt),
       error: patchResult.error,
+      metadata: {
+        target: proposal.target,
+        title: proposal.title,
+        reason: proposal.reason,
+        patches: proposal.patches,
+        evidence: evidenceSummary,
+        policy: revisionPolicySummary(),
+        policyError: patchResult.error,
+      },
     });
     await markEvidenceProcessed(svc, job.user_id, evidenceIds);
     return { evaluated: true, applied: false, reason: patchResult.error };
@@ -201,6 +230,14 @@ async function evaluateRevision(
     metadata: {
       changedPaths: patchResult.changedPaths,
       target: proposal.target,
+      proposal: {
+        title: proposal.title,
+        reason: proposal.reason,
+        confidence: proposal.confidence,
+        patches: proposal.patches,
+      },
+      diff: patchResult.diff,
+      evidence: evidenceSummary,
     },
   });
   const judge = await runGenerateObject({
@@ -222,6 +259,12 @@ async function evaluateRevision(
     judge.confidence >= 0.8 &&
     proposal.confidence >= 0.8 &&
     patchResult.changedPaths.length <= 5;
+  const gateChecks = {
+    judgeApproved: judge.approved,
+    judgeConfidenceMet: judge.confidence >= 0.8,
+    proposalConfidenceMet: proposal.confidence >= 0.8,
+    patchCountAllowed: patchResult.changedPaths.length <= 5,
+  };
 
   const candidate = await insertCandidate(svc, job.user_id, {
     status: approved ? "applied" : "rejected",
@@ -252,7 +295,15 @@ async function evaluateRevision(
       judgeConfidence: judge.confidence,
       proposalConfidence: proposal.confidence,
       reason: judge.reason,
+      risks: judge.risks,
       changedPaths: patchResult.changedPaths,
+      gateChecks,
+      proposal: {
+        title: proposal.title,
+        reason: proposal.reason,
+        patches: proposal.patches,
+      },
+      evidence: evidenceSummary,
     },
   });
 
@@ -284,6 +335,13 @@ async function evaluateRevision(
       metadata: {
         target: proposal.target,
         changedPaths: patchResult.changedPaths,
+        proposal: {
+          title: proposal.title,
+          reason: proposal.reason,
+          patches: proposal.patches,
+        },
+        diff: patchResult.diff,
+        evidence: evidenceSummary,
       },
     });
   }
@@ -294,6 +352,7 @@ async function evaluateRevision(
     applied: approved,
     candidateId: candidate.id,
     commitId,
+    reason: approved ? proposal.reason : judge.reason,
   };
 }
 
@@ -302,4 +361,37 @@ function parseEvidenceIds(payload: Record<string, unknown>): string[] {
     throw new Error("Invalid icp-revision-evaluate payload.");
   }
   return payload.evidenceIds.filter((id): id is string => typeof id === "string");
+}
+
+function summarizeEvidence(evidence: unknown[]) {
+  return evidence.map((item) => {
+    const row = item as Record<string, unknown>;
+    return {
+      id: typeof row.id === "string" ? row.id : null,
+      title: typeof row.title === "string" ? row.title : "",
+      detail: typeof row.detail === "string" ? row.detail : "",
+      target: typeof row.target === "string" ? row.target : "",
+      confidence: Number(row.confidence ?? 0),
+    };
+  });
+}
+
+function revisionPolicySummary() {
+  return {
+    allowedRubricAppends: [
+      "/firmographics/stages",
+      "/proof_points/existing_customers",
+      "/proof_points/won_deals",
+      "/proof_points/lost_deals_reasons",
+      "/signals/pain_language",
+      "/signals/trigger_events",
+      "/signals/jtbd_evidence",
+    ],
+    allowedRubricRemoves: ["/disqualifiers/stage_disqualifiers"],
+    allowedNarrativeAppends: [
+      "/decision_criteria",
+      "/failed_workarounds",
+      "/aha",
+    ],
+  };
 }

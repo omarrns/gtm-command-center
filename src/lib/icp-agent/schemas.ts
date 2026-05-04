@@ -19,7 +19,8 @@ export const sessionInsightSchema = z.object({
       name: z.string().optional(),
       domain: z.string().optional(),
     })
-    .optional(),
+    .nullish()
+    .transform((value) => value ?? undefined),
   keySignals: z.array(z.string()).default([]),
   objections: z.array(z.string()).default([]),
   buyerLanguage: z.array(z.string()).default([]),

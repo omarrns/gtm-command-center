@@ -99,12 +99,163 @@ function EventRow({ event }: { event: IcpAgentEventRow }) {
       {event.evidence_ids.length > 0 ? (
         <PathList paths={event.evidence_ids.map((id) => `evidence ${shortId(id)}`)} />
       ) : null}
+      <DecisionDetails metadata={event.metadata} />
       {event.error ? (
         <pre className="mt-3 overflow-x-auto rounded-md bg-[var(--color-surface-muted)] p-3 text-xs text-[var(--color-danger)]">
           {event.error}
         </pre>
       ) : null}
     </article>
+  );
+}
+
+function DecisionDetails({ metadata }: { metadata: Record<string, unknown> }) {
+  const reason = stringValue(metadata.reason) ?? stringValue(metadata.policyError);
+  const evidence = arrayValue(metadata.evidence);
+  const proposal = recordValue(metadata.proposal);
+  const patches = arrayValue(proposal?.patches ?? metadata.patches);
+  const gateChecks = recordValue(metadata.gateChecks);
+  const risks = arrayValue(metadata.risks);
+  const policy = recordValue(metadata.policy);
+  const diff = metadata.diff;
+
+  if (
+    !reason &&
+    evidence.length === 0 &&
+    !proposal &&
+    patches.length === 0 &&
+    !gateChecks &&
+    risks.length === 0 &&
+    !policy &&
+    !diff
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 space-y-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 text-xs">
+      {reason ? <DetailBlock title="Decision rationale" value={reason} /> : null}
+      {proposal ? <ProposalBlock proposal={proposal} /> : null}
+      {evidence.length > 0 ? <EvidenceBlock evidence={evidence} /> : null}
+      {patches.length > 0 ? <JsonBlock title="Proposed patch" value={patches} /> : null}
+      {gateChecks ? <GateChecks value={gateChecks} /> : null}
+      {risks.length > 0 ? <ListBlock title="Risks" items={risks} /> : null}
+      {policy ? <PolicyBlock policy={policy} /> : null}
+      {diff ? <JsonBlock title="Diff preview" value={diff} /> : null}
+    </div>
+  );
+}
+
+function ProposalBlock({ proposal }: { proposal: Record<string, unknown> }) {
+  const title = stringValue(proposal.title);
+  const reason = stringValue(proposal.reason);
+  const confidence = numberValue(proposal.confidence);
+  if (!title && !reason && confidence === null) return null;
+  return (
+    <div>
+      <h4 className="font-medium text-[var(--color-text)]">Proposal</h4>
+      <div className="mt-1 space-y-1 text-[var(--color-text-muted)]">
+        {title ? <p>{title}</p> : null}
+        {reason ? <p>{reason}</p> : null}
+        {confidence !== null ? <p>{Math.round(confidence * 100)}% confidence</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function EvidenceBlock({ evidence }: { evidence: unknown[] }) {
+  return (
+    <div>
+      <h4 className="font-medium text-[var(--color-text)]">Evidence reviewed</h4>
+      <div className="mt-2 space-y-2">
+        {evidence.map((item, index) => {
+          const row = recordValue(item);
+          const title = stringValue(row?.title) ?? `Evidence ${index + 1}`;
+          const detail = stringValue(row?.detail);
+          const confidence = numberValue(row?.confidence);
+          return (
+            <div key={index} className="rounded bg-[var(--color-surface)] p-2">
+              <div className="font-medium text-[var(--color-text)]">{title}</div>
+              {detail ? (
+                <p className="mt-1 text-[var(--color-text-muted)]">{detail}</p>
+              ) : null}
+              {confidence !== null ? (
+                <p className="mt-1 text-[var(--color-text-muted)]">
+                  {Math.round(confidence * 100)}% confidence
+                </p>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function GateChecks({ value }: { value: Record<string, unknown> }) {
+  const entries = Object.entries(value);
+  if (entries.length === 0) return null;
+  return (
+    <div>
+      <h4 className="font-medium text-[var(--color-text)]">Approval gates</h4>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {entries.map(([key, passed]) => (
+          <span
+            key={key}
+            className={[
+              "rounded px-2 py-1",
+              passed
+                ? "bg-emerald-500/10 text-emerald-700"
+                : "bg-amber-500/10 text-amber-700",
+            ].join(" ")}
+          >
+            {labelize(key)}: {passed ? "pass" : "stop"}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PolicyBlock({ policy }: { policy: Record<string, unknown> }) {
+  const lines = Object.entries(policy).flatMap(([key, value]) => {
+    const items = arrayValue(value);
+    return items.length > 0 ? [`${labelize(key)}: ${items.join(", ")}`] : [];
+  });
+  return <ListBlock title="Local policy" items={lines} />;
+}
+
+function DetailBlock({ title, value }: { title: string; value: string }) {
+  return (
+    <div>
+      <h4 className="font-medium text-[var(--color-text)]">{title}</h4>
+      <p className="mt-1 text-[var(--color-text-muted)]">{value}</p>
+    </div>
+  );
+}
+
+function ListBlock({ title, items }: { title: string; items: unknown[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <h4 className="font-medium text-[var(--color-text)]">{title}</h4>
+      <ul className="mt-1 space-y-1 text-[var(--color-text-muted)]">
+        {items.map((item, index) => (
+          <li key={index}>{String(item)}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function JsonBlock({ title, value }: { title: string; value: unknown }) {
+  return (
+    <div>
+      <h4 className="font-medium text-[var(--color-text)]">{title}</h4>
+      <pre className="mt-1 overflow-x-auto rounded bg-[var(--color-surface)] p-2">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    </div>
   );
 }
 
@@ -194,6 +345,30 @@ function Empty({ text }: { text: string }) {
 
 function shortId(id: string): string {
   return id.slice(0, 8);
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function arrayValue(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function labelize(value: string): string {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replaceAll("_", " ")
+    .toLowerCase();
 }
 
 function statusClass(status: IcpAgentEventRow["status"]): string {
