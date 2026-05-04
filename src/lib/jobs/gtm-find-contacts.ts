@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { pokeWorker } from "./poke-worker";
 
 export const GTM_FIND_CONTACTS_JOB = "gtm-find-contacts";
 
@@ -25,9 +26,7 @@ export async function enqueueGtmFindContactsJob(
     .single();
 
   if (!error && data?.id) {
-    pokeWorker().catch(() => {
-      /* best-effort */
-    });
+    pokeWorker(GTM_FIND_CONTACTS_JOB);
     return { jobId: data.id as string, duplicate: false };
   }
 
@@ -40,9 +39,7 @@ export async function enqueueGtmFindContactsJob(
       .eq("status", "pending")
       .eq("payload->>opportunityId", opportunityId)
       .maybeSingle();
-    pokeWorker().catch(() => {
-      /* best-effort */
-    });
+    pokeWorker(GTM_FIND_CONTACTS_JOB);
     return {
       jobId: (existing?.id as string | undefined) ?? null,
       duplicate: true,
@@ -50,17 +47,4 @@ export async function enqueueGtmFindContactsJob(
   }
 
   throw new Error(`Failed to enqueue ${GTM_FIND_CONTACTS_JOB}: ${error?.message}`);
-}
-
-async function pokeWorker(): Promise<void> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const invokeSecret = process.env.WORKER_INVOKE_SECRET;
-  await fetch(`${appUrl}/api/worker/claim`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(invokeSecret ? { authorization: `Bearer ${invokeSecret}` } : {}),
-    },
-    body: JSON.stringify({ types: [GTM_FIND_CONTACTS_JOB] }),
-  });
 }

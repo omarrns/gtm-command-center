@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { pokeWorker } from "./poke-worker";
 
 export const ONBOARDING_ARTIFACT_ANALYSIS_JOB =
   "onboarding-artifact-analysis";
@@ -36,22 +37,7 @@ export async function enqueueOnboardingArtifactAnalysisJob(
     );
   }
 
-  pokeWorker().catch(() => {
-    /* best-effort */
-  });
+  pokeWorker(ONBOARDING_ARTIFACT_ANALYSIS_JOB);
 
   return { jobId: data.id as string };
-}
-
-async function pokeWorker(): Promise<void> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const invokeSecret = process.env.WORKER_INVOKE_SECRET;
-  await fetch(`${appUrl}/api/worker/claim`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(invokeSecret ? { authorization: `Bearer ${invokeSecret}` } : {}),
-    },
-    body: JSON.stringify({ types: [ONBOARDING_ARTIFACT_ANALYSIS_JOB] }),
-  });
 }

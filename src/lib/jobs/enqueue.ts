@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { JobRow } from "@/lib/supabase/types";
+import { pokeWorker } from "./poke-worker";
 
 /**
  * Insert a job row and return its ID. The caller should also create the
@@ -27,21 +28,7 @@ export async function enqueueJob({
     throw new Error(`Failed to enqueue job: ${error?.message ?? "no data"}`);
   }
 
-  // Fire-and-forget: poke the worker endpoint so it claims this job immediately.
-  // If the fetch fails (e.g., cold start), the worker will pick it up on the
-  // next poll/cron tick anyway.
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const invokeSecret = process.env.WORKER_INVOKE_SECRET;
-  fetch(`${appUrl}/api/worker/claim`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(invokeSecret ? { authorization: `Bearer ${invokeSecret}` } : {}),
-    },
-    body: JSON.stringify({ types: [type] }),
-  }).catch(() => {
-    /* best-effort */
-  });
+  pokeWorker(type);
 
   return { jobId: data.id };
 }

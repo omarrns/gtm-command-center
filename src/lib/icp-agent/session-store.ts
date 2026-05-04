@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UIMessage } from "ai";
+import { pokeWorker } from "@/lib/jobs/poke-worker";
 
 export function messageText(message: UIMessage): string {
   return message.parts
@@ -73,21 +74,6 @@ export async function insertIcpAgentJob(
     throw new Error(`Failed to enqueue ICP agent job: ${error?.message}`);
   }
 
-  pokeWorker(type).catch(() => {
-    /* best-effort */
-  });
+  pokeWorker(type);
   return { jobId: data.id as string };
-}
-
-async function pokeWorker(type: string): Promise<void> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const invokeSecret = process.env.WORKER_INVOKE_SECRET;
-  await fetch(`${appUrl}/api/worker/claim`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(invokeSecret ? { authorization: `Bearer ${invokeSecret}` } : {}),
-    },
-    body: JSON.stringify({ types: [type] }),
-  });
 }

@@ -39,6 +39,7 @@ const artifactInput = read(
   "src/app/(app)/onboard/_components/artifact-input.tsx",
 );
 const jobHelper = read("src/lib/jobs/onboarding-artifact-analysis.ts");
+const pokeWorkerHelper = read("src/lib/jobs/poke-worker.ts");
 
 assert(
   worker.includes('"onboarding-artifact-analysis"') &&
@@ -66,6 +67,13 @@ assert(
   jobHelper.includes("pokeWorker") &&
     jobHelper.includes("ONBOARDING_ARTIFACT_ANALYSIS_JOB"),
   "job helper inserts and pokes worker",
+);
+
+assert(
+  pokeWorkerHelper.includes('import { after } from "next/server"') &&
+    pokeWorkerHelper.includes("after(async () =>") &&
+    pokeWorkerHelper.includes("/api/worker/claim"),
+  "worker poke is registered as post-response work",
 );
 
 assert(
