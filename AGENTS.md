@@ -34,6 +34,10 @@ Read `docs/agent-reference.md` before changing pipeline, onboarding, scoring, se
 - Send Flow is safety-critical: after Gmail returns IDs, never revert `sending` back to `queued`. Return a reconciliation error instead of risking duplicate sends.
 - All cron endpoints are `GET`, require bearer `CRON_SECRET`, and fail closed if missing or mismatched.
 - `pipeline_config` is client-readable but not client-writable. Mutations go through server actions or service-role code.
+- ICP chat cannot directly mutate the saved rubric. Rubric recommendations must go through the job handoff chain: `icp-session-distill` → `icp-evidence-route` → `icp-revision-evaluate`, with trace rows in `icp_agent_events`.
+- ICP revision agents suggest structured patches only. Server code validates and applies them; models do not write `user_scoring_profiles.icp_rubric` directly.
+- Current ICP auto-apply policy is narrow: append allowed rubric arrays such as `/firmographics/stages`, remove only matching `/disqualifiers/stage_disqualifiers`, and keep broader scalar changes as rejected/manual-review candidates unless policy is explicitly expanded.
+- ICP distillation must tolerate rubric-level conversations without a named account; `account: null` is valid model output and should not block the review pipeline.
 - AI calls use Vercel AI Gateway via `gateway(modelId)` from `ai`. Do not import `@ai-sdk/anthropic` or wrap models with `anthropic(...)`.
 - Model slugs use Gateway provider/model format with dotted versions, e.g. `anthropic/claude-opus-4.6` and `anthropic/claude-sonnet-4.6`.
 - `components/ai-elements/` is vendored from Vercel AI Elements. Do not hand-refactor; re-vendor from upstream.
@@ -51,6 +55,7 @@ pnpm onboard:fixture      # Seed onboarding fixture states
 pnpm test                 # Umbrella test suite
 pnpm test:correctness     # Pipeline correctness guardrails
 pnpm test:extraction      # Opus extraction fixture
+pnpm test:icp-agent-loop  # ICP chat/revision guardrails
 pnpm test:onboarding-confirm
 pnpm test:sender-identity
 ```
