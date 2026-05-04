@@ -4,17 +4,16 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { advanceStage, createOpportunity } from "@/lib/pipeline/opportunities";
+import { advanceStage } from "@/lib/pipeline/opportunities";
 import { addToWatchlist } from "@/lib/pipeline/watchlist";
-import { getGmailClient, sendEmail } from "@/lib/integrations/gmail";
-import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
-import { firecrawlScrape } from "@/lib/ai/firecrawl";
-import { MODELS } from "@/lib/ai/anthropic";
-import { runJsonWithFallback } from "@/lib/ai/json-with-fallback";
-import { recordOutreachEvent } from "@/lib/outreach/events";
 import { createLogger } from "@/lib/logger";
+import { approveOpportunityForSend } from "@/lib/outreach/approve-send";
+import {
+  manuallyInjectOpportunity,
+  type ManualInjectOpportunityResult,
+} from "@/lib/pipeline/manual-inject";
 import { SKIPPABLE_STAGES } from "@/lib/pipeline/stages";
-import type { OpportunityStage, PipelineConfigRow } from "@/lib/supabase/types";
+import type { OpportunityStage } from "@/lib/supabase/types";
 
 export async function triggerPipelineAction(): Promise<{
   ok: boolean;
@@ -52,164 +51,16 @@ export async function approveOpportunityAction(
   opportunityId: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const user = await requireUser();
-  const svc = createSupabaseServiceClient();
-  const log = createLogger({
-    scope: "action.approve",
+  const result = await approveOpportunityForSend({
     userId: user.id,
+    userEmail: user.email,
     opportunityId,
   });
-
-  // Check if Gmail is connected
-  const { data: gmailCreds } = await svc
-    .from("gmail_credentials")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!gmailCreds) {
-    return {
-      ok: false,
-      error: "Gmail not connected. Connect Gmail in Settings to send emails.",
-    };
+  if (result.ok) {
+    revalidatePath("/");
+    revalidatePath("/accounts");
   }
-
-  // Atomic cap check + stage transition via RPC
-  const { data: reserved, error: rpcError } = await svc.rpc(
-    "reserve_send_slot",
-    { p_opportunity_id: opportunityId, p_user_id: user.id },
-  );
-
-  if (rpcError) {
-    return { ok: false, error: rpcError.message };
-  }
-
-  if (!reserved) {
-    return {
-      ok: false,
-      error: "Daily send cap reached or opportunity not queued",
-    };
-  }
-
-  // Load the selected draft for subject + body + recipient email
-  const { data: opp } = await svc
-    .from("opportunities")
-    .select("selected_draft_id, recipient_email, recipient_name")
-    .eq("id", opportunityId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (!opp?.selected_draft_id || !opp.recipient_email) {
-    await advanceStage(svc, opportunityId, user.id, "sending", "queued");
-    return { ok: false, error: "Missing draft or recipient email" };
-  }
-
-  const { data: draft } = await svc
-    .from("email_drafts")
-    .select("subject, body")
-    .eq("id", opp.selected_draft_id)
-    .eq("user_id", user.id)
-    .single();
-
-  if (!draft?.subject || !draft.body) {
-    await advanceStage(svc, opportunityId, user.id, "sending", "queued");
-    return { ok: false, error: "Draft subject or body is empty" };
-  }
-
-  // Get the sender address from pipeline_config
-  const { data: config } = await svc
-    .from("pipeline_config")
-    .select("gmail_send_address")
-    .eq("user_id", user.id)
-    .single();
-
-  const fromAddress = config?.gmail_send_address ?? user.email ?? "";
-
-  // Send via Gmail API
-  let threadId: string;
-  let messageId: string;
-  try {
-    const gmail = await getGmailClient(user.id);
-    const result = await sendEmail(gmail, {
-      to: opp.recipient_email,
-      subject: draft.subject,
-      body: draft.body,
-      from: fromAddress,
-    });
-    threadId = result.threadId;
-    messageId = result.messageId;
-  } catch (err) {
-    // Gmail send failed — safe to revert to queued for retry
-    const errorMsg = err instanceof Error ? err.message : "Gmail send failed";
-    log.error("gmail send failed; reverting to queued", err);
-
-    await advanceStage(svc, opportunityId, user.id, "sending", "queued", {
-      last_error: errorMsg,
-    });
-
-    return { ok: false, error: errorMsg };
-  }
-
-  // Email was sent — never revert to queued from here (would cause duplicates)
-  let advanced = false;
-  try {
-    advanced = await advanceStage(
-      svc,
-      opportunityId,
-      user.id,
-      "sending",
-      "sent",
-      {
-        gmail_thread_id: threadId,
-        gmail_message_id: messageId,
-        sent_at: new Date().toISOString(),
-      },
-    );
-  } catch (dbErr) {
-    log.error("RECONCILE: email sent but post-send DB write threw", dbErr, {
-      gmailThreadId: threadId,
-      gmailMessageId: messageId,
-    });
-    return {
-      ok: false,
-      error:
-        "Email was sent but status update failed. Check the opportunity manually.",
-    };
-  }
-
-  if (!advanced) {
-    log.error(
-      "RECONCILE: email sent but stage transition returned false (precondition miss)",
-      undefined,
-      { gmailThreadId: threadId, gmailMessageId: messageId },
-    );
-    return {
-      ok: false,
-      error:
-        "Email was sent but status update failed. Check the opportunity manually.",
-    };
-  }
-
-  await recordOutreachEvent(svc, {
-    userId: user.id,
-    opportunityId,
-    emailDraftId: opp.selected_draft_id,
-    eventType: "sent",
-    source: "approve_send_action",
-    metadata: { gmailThreadId: threadId, gmailMessageId: messageId },
-  }).catch((eventErr) => {
-    log.warn("failed to record sent outreach event", {
-      error: eventErr instanceof Error ? eventErr.message : String(eventErr),
-      gmailThreadId: threadId,
-      gmailMessageId: messageId,
-    });
-  });
-
-  log.info("opportunity sent", {
-    gmailThreadId: threadId,
-    gmailMessageId: messageId,
-  });
-  for (const path of ["/", "/accounts"]) revalidatePath(path);
-  return { ok: true };
+  return result;
 }
 
 export async function skipOpportunityAction(
@@ -432,114 +283,16 @@ export async function applyManuallyAction(
 // Manually inject a job URL into the pipeline and immediately score it
 // ---------------------------------------------------------------------------
 
-export async function manualInjectOpportunityAction(jobUrl: string): Promise<{
-  ok: boolean;
-  error?: string;
-  score?: number;
-  stage?: string;
-  companyName?: string;
-  roleTitle?: string;
-}> {
+export async function manualInjectOpportunityAction(
+  jobUrl: string,
+): Promise<ManualInjectOpportunityResult> {
   const user = await requireUser();
-  const svc = createSupabaseServiceClient();
-  const log = createLogger({
-    scope: "action.manualInject",
+  const result = await manuallyInjectOpportunity({
     userId: user.id,
     jobUrl,
   });
-
-  const { data: config, error: configError } = await svc
-    .from("pipeline_config")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
-
-  if (configError || !config) {
-    log.warn("pipeline_config missing");
-    return { ok: false, error: "Pipeline config not found" };
+  if (result.ok) {
+    revalidatePath("/");
   }
-
-  let markdown: string;
-  try {
-    markdown = await firecrawlScrape(jobUrl);
-  } catch (err) {
-    log.error("firecrawl scrape failed", err);
-    return {
-      ok: false,
-      error: `Could not fetch the job page: ${err instanceof Error ? err.message : String(err)}`,
-    };
-  }
-
-  if (!markdown.trim()) {
-    log.warn("scraped page is empty");
-    return { ok: false, error: "Job page returned empty content" };
-  }
-
-  const parsed = await runJsonWithFallback<{
-    company_name: string;
-    role_title: string;
-  }>({
-    system:
-      "Extract the hiring company name and exact job title from the job posting. Return JSON with keys company_name and role_title only.",
-    prompt: markdown.slice(0, 8000),
-    primaryModel: MODELS.tinyExtraction,
-    fallbackModel: MODELS.haiku,
-    maxTokens: 128,
-    scope: { userId: user.id, callPurpose: "manual_inject_extract" },
-    validate: validateManualInjectExtraction,
-  });
-
-  const opp = await createOpportunity(svc, user.id, {
-    source: "manual",
-    external_id: jobUrl,
-    company_name: parsed.company_name,
-    role_title: parsed.role_title,
-    job_url: jobUrl,
-    job_description: markdown,
-  });
-
-  if (!opp) {
-    log.info("dedup hit — already added in last 30 days");
-    return {
-      ok: false,
-      error: "Duplicate — this role was already added within the last 30 days",
-    };
-  }
-
-  const { newStage, normalizedScore } = await scoreOneOpportunity(
-    svc,
-    user.id,
-    opp,
-    config as PipelineConfigRow,
-    { source: "manual" },
-  );
-
-  log.info("injected + scored", {
-    opportunityId: opp.id,
-    company: parsed.company_name,
-    role: parsed.role_title,
-    score: normalizedScore,
-    newStage,
-  });
-  revalidatePath("/");
-  return {
-    ok: true,
-    score: normalizedScore,
-    stage: newStage,
-    companyName: parsed.company_name,
-    roleTitle: parsed.role_title,
-  };
-}
-
-function validateManualInjectExtraction(value: {
-  company_name?: unknown;
-  role_title?: unknown;
-}): string | null {
-  if (typeof value.company_name !== "string" || !value.company_name.trim()) {
-    return "company_name must be a non-empty string";
-  }
-  if (typeof value.role_title !== "string" || !value.role_title.trim()) {
-    return "role_title must be a non-empty string";
-  }
-  return null;
+  return result;
 }
