@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import type { AnalysisRow } from "@/lib/supabase/types";
 import { AnalysisDetail } from "./analysis-detail";
 
 export const metadata = { title: "Analysis Detail · Searchcraft" };
@@ -20,5 +21,5 @@ export default async function AnalysisDetailPage({ params }: Props) {
 
   if (!analysis) notFound();
 
-  return <AnalysisDetail analysis={analysis} />;
+  return <AnalysisDetail analysis={analysis as unknown as AnalysisRow} />;
 }

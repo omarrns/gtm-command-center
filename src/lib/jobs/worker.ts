@@ -1,4 +1,5 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { asJson } from "@/lib/supabase/schema";
 import type { JobRow } from "@/lib/supabase/types";
 import { videoIcpJobPayloadSchema } from "@/lib/video-icp/schemas";
 import { runCompanyFitAnalyzerJob } from "./handlers/company-fit-analyzer";
@@ -81,7 +82,7 @@ export async function claimAndRun(types: string[]): Promise<JobRow | null> {
     const result = await handler(job, svc);
     await svc
       .from("jobs")
-      .update({ status: "complete", result })
+      .update({ status: "complete", result: asJson(result) })
       .eq("id", job.id);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -110,8 +111,11 @@ async function propagateFailureToDomainRow(
   const payload = job.payload as Record<string, unknown>;
 
   const domainUpdates: Array<{
-    table: string;
-    idField: string;
+    table:
+      | "analyses"
+      | "research_reports"
+      | "coaching_sessions"
+      | "video_icp_reviews";
     id: string;
     error?: string | null;
   }> = [];
@@ -119,21 +123,18 @@ async function propagateFailureToDomainRow(
   if (payload.analysis_id) {
     domainUpdates.push({
       table: "analyses",
-      idField: "id",
       id: payload.analysis_id as string,
     });
   }
   if (payload.report_id) {
     domainUpdates.push({
       table: "research_reports",
-      idField: "id",
       id: payload.report_id as string,
     });
   }
   if (payload.session_id) {
     domainUpdates.push({
       table: "coaching_sessions",
-      idField: "id",
       id: payload.session_id as string,
     });
   }
@@ -141,19 +142,38 @@ async function propagateFailureToDomainRow(
   if (videoIcpPayload.success) {
     domainUpdates.push({
       table: "video_icp_reviews",
-      idField: "id",
       id: videoIcpPayload.data.review_id,
       error: errorMessage ?? job.error,
     });
   }
 
-  for (const { table, idField, id, error } of domainUpdates) {
+  for (const { table, id, error } of domainUpdates) {
     const update =
       error === undefined ? { status: "failed" } : { status: "failed", error };
-    await svc
-      .from(table)
-      .update(update)
-      .eq(idField, id)
-      .eq("user_id", job.user_id);
+    if (table === "analyses") {
+      await svc
+        .from("analyses")
+        .update(update)
+        .eq("id", id)
+        .eq("user_id", job.user_id);
+    } else if (table === "research_reports") {
+      await svc
+        .from("research_reports")
+        .update(update)
+        .eq("id", id)
+        .eq("user_id", job.user_id);
+    } else if (table === "coaching_sessions") {
+      await svc
+        .from("coaching_sessions")
+        .update(update)
+        .eq("id", id)
+        .eq("user_id", job.user_id);
+    } else {
+      await svc
+        .from("video_icp_reviews")
+        .update(update)
+        .eq("id", id)
+        .eq("user_id", job.user_id);
+    }
   }
 }

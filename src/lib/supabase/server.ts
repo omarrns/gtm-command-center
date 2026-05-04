@@ -1,6 +1,7 @@
-import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import type { Database } from "@/lib/supabase/schema";
 
 /**
  * Server-side Supabase client scoped to the current request's cookies.
@@ -34,7 +35,7 @@ export async function createSupabaseServerClient() {
         },
       },
     },
-  );
+  ) as unknown as SupabaseClient<Database>;
 }
 
 export async function getCurrentUser() {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { asJson } from "@/lib/supabase/schema";
 import type { IcpRevisionCommitRow } from "@/lib/icp-agent/types";
 
 export async function rollbackIcpRevisionAction(commitId: string) {
@@ -22,7 +23,7 @@ export async function rollbackIcpRevisionAction(commitId: string) {
   if (row.target === "rubric") {
     const { error: updateError } = await svc
       .from("user_scoring_profiles")
-      .update({ icp_rubric: row.before_snapshot })
+      .update({ icp_rubric: asJson(row.before_snapshot) })
       .eq("user_id", user.id);
     if (updateError) return { ok: false, error: updateError.message };
   } else if (row.target === "narrative") {
@@ -37,7 +38,7 @@ export async function rollbackIcpRevisionAction(commitId: string) {
         title: "ICP Narrative Arc",
         origin: "system",
         content,
-        metadata: { rollback_of: row.id },
+        metadata: asJson({ rollback_of: row.id }),
       },
       { onConflict: "user_id,document_key" },
     );
@@ -53,12 +54,12 @@ export async function rollbackIcpRevisionAction(commitId: string) {
     title: `Rollback: ${row.title}`,
     reason: "Manual rollback from ICP change log.",
     changed_paths: row.changed_paths,
-    before_snapshot: row.after_snapshot,
-    after_snapshot: row.before_snapshot,
-    diff: {
+    before_snapshot: asJson(row.after_snapshot),
+    after_snapshot: asJson(row.before_snapshot),
+    diff: asJson({
       rollback_of: row.id,
       restored_paths: row.changed_paths,
-    },
+    }),
     evidence_ids: row.evidence_ids,
     proposer_model: row.proposer_model,
     judge_model: row.judge_model,

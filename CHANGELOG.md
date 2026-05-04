@@ -23,7 +23,7 @@ Build history extracted from CLAUDE.md. Not injected into AI context — referen
   - Cross-table ownership trigger validates linked analysis, research, and selected draft ownership.
   - `gmail_credentials` has no client RLS policies; access is service-role only.
   - Pipeline config is client-readable but updated through server-side actions.
-- TypeScript row types are maintained in `src/lib/supabase/types.ts`.
+- Supabase schema types are generated into `supabase/generated/database.types.ts`; app-facing domain overlays live in `src/lib/supabase/types.ts`.
 - JSearch was ported to `src/lib/pipeline/jsearch.ts`.
 - Opportunity helpers, atomic claiming, stale-claim recovery, and stage precondition transitions live in `src/lib/pipeline/opportunities.ts`.
 

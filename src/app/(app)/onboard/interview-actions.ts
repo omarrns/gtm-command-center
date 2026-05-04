@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { asJson } from "@/lib/supabase/schema";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
 import {
@@ -141,7 +142,7 @@ export async function confirmInterviewAction(
         await svc
           .from("onboarding_interviews")
           .update({
-            extracted: updatedExtracted,
+            extracted: asJson(updatedExtracted),
             updated_at: new Date().toISOString(),
           })
           .eq("id", interviewId);
@@ -150,10 +151,10 @@ export async function confirmInterviewAction(
       await svc
         .from("onboarding_interviews")
         .update({
-          orchestrator_state: {
+          orchestrator_state: asJson({
             ...state,
             metrics: { ...state.metrics, reviewEdits },
-          },
+          }),
           updated_at: new Date().toISOString(),
         })
         .eq("id", interviewId);
@@ -281,10 +282,10 @@ export async function startAgenticInterviewAction(
   }
 
   const state =
-    (interview.orchestrator_state as OrchestratorState | null) ??
+    (interview.orchestrator_state as unknown as OrchestratorState | null) ??
     emptyOrchestratorState(template.id);
 
-  const messages = (interview.messages as UIMessage[]) ?? [];
+  const messages = (interview.messages as unknown as UIMessage[]) ?? [];
   const latest = messages.at(-1);
 
   // Idempotency: if a prior kickoff already asked a dimension AND the latest
@@ -307,7 +308,7 @@ export async function startAgenticInterviewAction(
       .from("onboarding_interviews")
       .update({
         status: "review",
-        extracted: edits,
+        extracted: asJson(edits),
         updated_at: new Date().toISOString(),
       })
       .eq("id", interviewId)
@@ -375,8 +376,8 @@ export async function startAgenticInterviewAction(
   const { error: updateError } = await svc
     .from("onboarding_interviews")
     .update({
-      messages: [...messages, assistantMessage],
-      orchestrator_state: newState,
+      messages: asJson([...messages, assistantMessage]),
+      orchestrator_state: asJson(newState),
       updated_at: new Date().toISOString(),
     })
     .eq("id", interviewId);

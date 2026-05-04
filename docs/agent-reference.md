@@ -218,7 +218,7 @@ story_review  → confirmed       confirm-logic.ts: performConfirm
 | `ai_calls`              | Best-effort capture of every model call (params, prompt, output, latency) for replay/inspection. Capture failure must not break the actual call.                                                      | Service-role only. No client RLS.                  |
 | `video_icp_reviews`     | GTM-only YouTube transcript/comment extraction + synthetic ICP review output. Comments are raw/unscored; failures are preserved separately from empty comments.                                       | RLS owner select/insert. Worker updates.           |
 
-Migrations live in `supabase/migrations/`. TypeScript row types in `src/lib/supabase/types.ts`.
+Migrations in `supabase/migrations/` define the schema. The linked-project TypeScript schema interface is generated into `supabase/generated/database.types.ts` and re-exported through `src/lib/supabase/schema.ts`. App-facing domain overlays and narrower unions live in `src/lib/supabase/types.ts`.
 
 ### Auth and Security
 

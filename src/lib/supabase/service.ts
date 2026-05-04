@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/schema";
 
 /**
  * Service-role Supabase client. BYPASSES RLS.
@@ -8,10 +9,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * When writing rows, always include user_id matching the claimed job owner so
  * that regular users see them through their RLS-scoped client.
  */
-let testClientFactory: (() => SupabaseClient) | null = null;
+let testClientFactory: (() => SupabaseClient<Database>) | null = null;
 
 export function __setSupabaseServiceClientForTests(
-  factory: (() => SupabaseClient) | null,
+  factory: (() => SupabaseClient<Database>) | null,
 ) {
   if (process.env.NODE_ENV === "production") {
     throw new Error("Cannot override Supabase service client in production.");
@@ -29,7 +30,7 @@ export function createSupabaseServiceClient() {
       "Supabase service client requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
     );
   }
-  return createClient(url, serviceKey, {
+  return createClient<Database>(url, serviceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

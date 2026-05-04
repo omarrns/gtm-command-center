@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { asJson } from "@/lib/supabase/schema";
 import {
   ingestFile,
   ingestText,
@@ -217,7 +218,7 @@ async function maybeQueueAnalysis(
   const { error } = await svc
     .from("onboarding_interviews")
     .update({
-      orchestrator_state: next,
+      orchestrator_state: asJson(next),
       updated_at: new Date().toISOString(),
     })
     .eq("id", interviewId)

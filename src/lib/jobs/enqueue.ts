@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { asJson } from "@/lib/supabase/schema";
 import type { JobRow } from "@/lib/supabase/types";
 import { pokeWorker } from "./poke-worker";
 
@@ -20,7 +21,7 @@ export async function enqueueJob({
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("jobs")
-    .insert({ user_id: userId, type, payload })
+    .insert({ user_id: userId, type, payload: asJson(payload) })
     .select("id")
     .single();
 

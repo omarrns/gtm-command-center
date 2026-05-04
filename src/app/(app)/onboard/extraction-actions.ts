@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { asJson } from "@/lib/supabase/schema";
 import { runExtractionFromTranscript } from "@/lib/onboarding/extraction";
 import { getTemplate } from "@/lib/onboarding/templates";
 import { toConfirmEditsForTemplate } from "@/lib/onboarding/orchestrator/to-confirm-edits";
@@ -45,12 +46,12 @@ export async function extractAndReviewAction(
       interview.orchestrator_state !== null;
 
     if (needsHydration) {
-      const state = interview.orchestrator_state as OrchestratorState;
+      const state = interview.orchestrator_state as unknown as OrchestratorState;
       const { edits } = toConfirmEditsForTemplate(state, template);
       const { data: hydrated } = await svc
         .from("onboarding_interviews")
         .update({
-          extracted: edits,
+          extracted: asJson(edits),
           updated_at: new Date().toISOString(),
         })
         .eq("id", interviewId)
@@ -97,7 +98,7 @@ export async function extractAndReviewAction(
 
   try {
     const template = getTemplate(interview.template_id);
-    const messages = interview.messages as UIMessage[];
+    const messages = interview.messages as unknown as UIMessage[];
     const extraction = await runExtractionFromTranscript(messages, template, {
       userId: user.id,
       scopeTable: "onboarding_interviews",
@@ -109,7 +110,7 @@ export async function extractAndReviewAction(
       .from("onboarding_interviews")
       .update({
         status: "review",
-        extracted: extraction,
+        extracted: asJson(extraction),
         updated_at: new Date().toISOString(),
       })
       .eq("id", interviewId)

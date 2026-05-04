@@ -180,6 +180,8 @@ After confirmation, the system writes memory documents, pipeline config, and a n
 | `gmail_credentials`     | Encrypted refresh tokens (service-role only)                                          |
 | `ai_calls`              | Best-effort capture of every model call for replay/inspection                         |
 
+Schema changes live in `supabase/migrations/`. Generated Supabase TypeScript types live in `supabase/generated/database.types.ts`; app-level domain overlays live in `src/lib/supabase/types.ts`.
+
 ---
 
 ## Setup

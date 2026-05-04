@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import type { UserType } from "@/lib/supabase/types";
+import type { UserScoringProfileRow, UserType } from "@/lib/supabase/types";
 import { SettingsClient } from "./_components/settings-client";
 
 export default async function SettingsPage(props: {
@@ -80,7 +80,7 @@ export default async function SettingsPage(props: {
             "New York",
           ]
         }
-        scoringProfile={scoringProfile}
+        scoringProfile={scoringProfile as unknown as UserScoringProfileRow | null}
         userType={userType}
       />
     </div>

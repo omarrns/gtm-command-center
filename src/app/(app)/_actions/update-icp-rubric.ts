@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { asJson } from "@/lib/supabase/schema";
 import { safeParseIcpRubric } from "@/lib/onboarding/icp-schemas";
 import {
   ICP_DIMENSIONS,
@@ -48,7 +49,7 @@ export async function updateIcpRubricAction(
   const { error } = await svc
     .from("user_scoring_profiles")
     .upsert(
-      { user_id: user.id, icp_rubric: nextRubric },
+      { user_id: user.id, icp_rubric: asJson(nextRubric) },
       { onConflict: "user_id" },
     );
 

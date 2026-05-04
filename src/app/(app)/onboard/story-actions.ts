@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { asJson } from "@/lib/supabase/schema";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplateId } from "@/lib/onboarding/templates/types";
 import type { JobSearchEdits } from "@/lib/onboarding/templates/job-search";
@@ -90,7 +91,7 @@ export async function startStoryPhaseAction(
     .from("onboarding_interviews")
     .update({
       status: "story_review",
-      extracted: updatedExtracted,
+      extracted: asJson(updatedExtracted),
       updated_at: new Date().toISOString(),
     })
     .eq("id", interviewId)
@@ -169,7 +170,7 @@ export async function startIcpNarrativeAction(
     .from("onboarding_interviews")
     .update({
       status: "story_review",
-      extracted: updatedExtracted,
+      extracted: asJson(updatedExtracted),
       updated_at: new Date().toISOString(),
     })
     .eq("id", interviewId)

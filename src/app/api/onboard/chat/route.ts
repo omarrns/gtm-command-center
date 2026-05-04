@@ -8,6 +8,7 @@ import {
 } from "ai";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { asJson } from "@/lib/supabase/schema";
 import { loadMemoryContext, formatMemoryForPrompt } from "@/lib/skills/context";
 import { getTemplate } from "@/lib/onboarding/templates";
 import type { InterviewTemplate } from "@/lib/onboarding/templates/types";
@@ -150,10 +151,10 @@ async function handleAgenticTurn(
         await svc
           .from("onboarding_interviews")
           .update({
-            messages: finalMessages,
-            orchestrator_state: finalState,
+            messages: asJson(finalMessages),
+            orchestrator_state: asJson(finalState),
             status: "review",
-            extracted: initialReviewEdits,
+            extracted: asJson(initialReviewEdits),
             updated_at: new Date().toISOString(),
           })
           .eq("id", interview.id);
@@ -214,7 +215,7 @@ async function handleAgenticTurn(
   await svc
     .from("onboarding_interviews")
     .update({
-      orchestrator_state: pendingState,
+      orchestrator_state: asJson(pendingState),
       updated_at: new Date().toISOString(),
     })
     .eq("id", interview.id);
@@ -233,7 +234,7 @@ async function handleAgenticTurn(
       await svc
         .from("onboarding_interviews")
         .update({
-          messages: finalMessages,
+          messages: asJson(finalMessages),
           updated_at: new Date().toISOString(),
         })
         .eq("id", interview.id);
@@ -264,7 +265,7 @@ async function handleLegacyTurn(
     await svc
       .from("onboarding_interviews")
       .update({
-        messages,
+        messages: asJson(messages),
         ready_for_extraction: true,
         updated_at: new Date().toISOString(),
       })

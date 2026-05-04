@@ -1,6 +1,7 @@
 import { gateway, streamObject, type UIMessage } from "ai";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { asJson } from "@/lib/supabase/schema";
 import { aiUsageTokens, captureAiCall } from "@/lib/ai/calls";
 import { getTemplate } from "@/lib/onboarding/templates";
 import { formatTranscript } from "@/lib/onboarding/transcript";
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
   }
 
   const transcript = formatTranscript(
-    (interview.messages ?? []) as UIMessage[],
+    (interview.messages ?? []) as unknown as UIMessage[],
   );
   const extractedContext = JSON.stringify(interview.extracted ?? {}, null, 2);
   const prompt = `<transcript>\n${transcript}\n</transcript>\n\n<reviewed_context>\n${extractedContext}\n</reviewed_context>\n\nWrite the reflective synthesis now. Return JSON matching the schema in your system prompt.`;
@@ -108,7 +109,7 @@ export async function POST(req: Request) {
       const { error: updateErr } = await svc
         .from("onboarding_interviews")
         .update({
-          extracted: updatedExtracted,
+          extracted: asJson(updatedExtracted),
           updated_at: new Date().toISOString(),
         })
         .eq("id", interviewId);

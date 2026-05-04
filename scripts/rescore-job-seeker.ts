@@ -10,7 +10,11 @@
  */
 
 import { config } from "dotenv";
-import type { PipelineConfigRow, ProfileRow } from "../src/lib/supabase/types";
+import type {
+  OpportunityRow,
+  PipelineConfigRow,
+  ProfileRow,
+} from "../src/lib/supabase/types";
 import { MODELS } from "../src/lib/ai/anthropic";
 import { createSupabaseServiceClient } from "../src/lib/supabase/service";
 import { newRunId } from "../src/lib/logger";
@@ -129,7 +133,7 @@ async function main() {
       const result = await scoreOneOpportunity(
         svc,
         userId,
-        opp,
+        opp as unknown as OpportunityRow,
         configRow as PipelineConfigRow,
         {
           source: "manual-rescore",

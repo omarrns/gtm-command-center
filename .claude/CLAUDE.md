@@ -183,6 +183,7 @@ These are constraints. Violating any rule is a bug.
 
 - Never modify existing production columns. Add new columns instead.
 - Every schema change gets its own migration file in `supabase/migrations/`.
+- Generated DB types live in `supabase/generated/database.types.ts` and are a committed snapshot, not a dynamic runtime interface. After any Supabase migration is applied or pulled, run `pnpm db:types`; before merging DB-touching work, run `pnpm db:check`; if hosted DB drift is suspected, run `pnpm db:types:check`. App-facing domain overlays live in `src/lib/supabase/types.ts`.
 - No raw SQL in pipeline files. Named query functions live in dedicated query files.
 
 ### Prompts

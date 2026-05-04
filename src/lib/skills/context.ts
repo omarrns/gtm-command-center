@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/schema";
 
 /**
  * Load user's memory context for skill execution.
@@ -22,7 +23,7 @@ export interface MemoryContext {
 
 export async function loadMemoryContext(
   userId: string,
-  client?: SupabaseClient,
+  client?: SupabaseClient<Database>,
 ): Promise<MemoryContext> {
   const supabase = client ?? (await createSupabaseServerClient());
 

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import type { ResearchReportRow } from "@/lib/supabase/types";
 import { ResearchDetail } from "./research-detail";
 
 export const metadata = { title: "Research Report · Searchcraft" };
@@ -20,5 +21,5 @@ export default async function ResearchReportPage({ params }: Props) {
 
   if (!report) notFound();
 
-  return <ResearchDetail report={report} />;
+  return <ResearchDetail report={report as unknown as ResearchReportRow} />;
 }
