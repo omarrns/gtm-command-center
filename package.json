@@ -1,7 +1,7 @@
 {
   "name": "gtm-command-center",
   "version": "0.1.0",
-  "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "dev": "next dev",
