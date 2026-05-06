@@ -28,7 +28,7 @@ let idCounter = 0;
 function resetTables(): void {
   for (const rows of Object.values(tables)) rows.length = 0;
   idCounter = 0;
-  tables.profiles.push({ user_id: userId, display_name: "Omar Nasser" });
+  tables.profiles.push({ user_id: userId, display_name: "Avery Chen" });
   tables.memory_documents.push({
     user_id: userId,
     document_key: "icp_narrative_arc",

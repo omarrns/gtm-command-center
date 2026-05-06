@@ -9,7 +9,7 @@ const supabase = createClient(url, key, {
 });
 
 async function main() {
-  const email = "omarns059+2@gmail.com";
+  const email = process.env.SEED_USER_EMAIL ?? "demo@example.com";
 
   const { data: profile } = await supabase
     .from("profiles")

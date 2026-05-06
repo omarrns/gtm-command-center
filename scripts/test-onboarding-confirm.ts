@@ -64,7 +64,7 @@ const EDITS_FIXTURE = {
 
 const EXTRACTED_INSIGHTS_FIXTURE = {
   career_narrative:
-    "Omar's career is a single thesis: unstructured data → structured intelligence → decision-ready output.",
+    "Avery's career is a single thesis: unstructured data → structured intelligence → decision-ready output.",
   decision_drivers: [
     "Wants to build, not execute someone else's playbook",
     "Needs a company with a real data/intelligence problem to solve",

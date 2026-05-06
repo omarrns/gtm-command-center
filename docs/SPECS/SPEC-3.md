@@ -28,7 +28,7 @@ Worse: forcing GTM teams through the job_search template creates vocabulary soup
 - GTM teams churn on tools that ask them to define ICP abstractly instead of from examples. People pattern-match better than they define.
 - The job_search flow, used by a GTM team, produces unusable output — a scoring rubric shaped for individuals scoring jobs, not companies scoring accounts.
 - Compounding is blocked: a user can't complete onboarding once and use the same substrate for both their own job search and their company's GTM.
-- The product can't expand beyond Omar without a persona fork. The engine scales; the onboarding doesn't.
+- The product can't expand beyond one operator without a persona fork. The engine scales; the onboarding doesn't.
 
 ## How a proposed solution could work
 
@@ -92,7 +92,7 @@ Ambiguity here creates either silent data loss or reluctant abandonment. The pol
 - **GTM teams:** operationalized ICP without a consulting engagement, grounded in exemplars instead of abstract form fields.
 - **Job seekers:** unchanged — no regression in their flow.
 - **Shared:** compounding across templates (ICP-done users can layer positioning for free), single product with two first-class flows instead of two separate tools.
-- **Expansion:** the product becomes usable by anyone doing outbound — not just Omar.
+- **Expansion:** the product becomes usable by anyone doing outbound — not just the original operator.
 
 ## Measures of ROI
 
@@ -174,6 +174,6 @@ Confirm path reuses `performConfirm` with `template.outputs[]` dispatch (already
 - **Declarative-vs-exemplar disagreement ignored.** User says Series A–C but exemplars are all Series D. If we surface it quietly, users miss it and ship a rubric that doesn't reflect reality. _Mitigation:_ disagreements are first-class review concerns with their own visual treatment, not inline footnotes.
 - **Phase 2/3 downstream work incomplete at launch.** Persona picker ships, pipeline still runs `job_search`-shaped scoring. Beautiful front door, broken hallway. _Mitigation:_ gate the GTM fork behind the unified extracted column, template-aware completion check, and per-template scoring normalizer landing first.
 - **Positioning nudge fatigue.** If the dashboard card pushes `positioning_rubric` too aggressively, it feels like a second onboarding. _Mitigation:_ concrete trigger (ICP confirmed + ≥5 scored accounts) gates first appearance; dismissable; re-appears once after 7 days, then stays hidden.
-- **Cross-persona drift.** Users want one account to run both `job_search` AND ICP (Omar himself is both — job-seeking now, running GTM at whichever company he joins). v1 explicitly rejects this: one persona per account. Risk is that users create second accounts and split data. _Mitigation:_ document as a known limitation; revisit in v2 once the multi-template-within-persona substrate proves stable enough to extend across personas. Note: multi-template _within_ a persona (GTM doing ICP + positioning) is the intended path, not the rejected one.
+- **Cross-persona drift.** Users want one account to run both `job_search` AND ICP. v1 explicitly rejects this: one persona per account. Risk is that users create second accounts and split data. _Mitigation:_ document as a known limitation; revisit in v2 once the multi-template-within-persona substrate proves stable enough to extend across personas. Note: multi-template _within_ a persona (GTM doing ICP + positioning) is the intended path, not the rejected one.
 - **Copy mismatch.** "GTM team" alienates founder-solo operators who don't think of themselves as a team. _Mitigation:_ test against "For my company" and "For my job search" / "For myself"; pick based on completion rate, not intuition.
 - **Reversal friction.** Users pick wrong persona, complete onboarding, then realize. The destructive-switch UX is correct but may feel punitive. _Mitigation:_ lower the cost of pre-confirm reversal aggressively (artifact persistence across switches) so the post-confirm case is rare; make the `/settings` switch explicit and non-hidden.

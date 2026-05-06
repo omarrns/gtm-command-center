@@ -1,11 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const DEFAULT_TEST_USER_EMAIL = "omarns059+1@gmail.com";
+export const DEFAULT_TEST_USER_EMAIL = "demo@example.com";
 
-export const PROTECTED_USER_EMAILS = [
-  "omarns059@gmail.com",
-  "bloomtea@proton.me",
-] as const;
+export const PROTECTED_USER_EMAILS = (
+  process.env.PROTECTED_USER_EMAILS ?? ""
+)
+  .split(",")
+  .map(normalizeUserEmail)
+  .filter(Boolean);
 
 export type UserTarget = {
   userId: string;
@@ -18,7 +20,7 @@ export function normalizeUserEmail(email: string): string {
 
 export function assertUnprotectedTargetEmail(email: string): void {
   const normalized = normalizeUserEmail(email);
-  if ((PROTECTED_USER_EMAILS as readonly string[]).includes(normalized)) {
+  if (PROTECTED_USER_EMAILS.includes(normalized)) {
     throw new Error(
       `Refusing to modify protected user ${normalized}. Use ${DEFAULT_TEST_USER_EMAIL} for resettable tests.`,
     );

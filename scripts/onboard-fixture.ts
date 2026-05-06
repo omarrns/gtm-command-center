@@ -189,7 +189,7 @@ function getExtractedFixture() {
     },
     insights: {
       career_narrative:
-        "Omar's career is a single thesis expressed in increasingly powerful ways: unstructured data \u2192 structured intelligence \u2192 decision-ready output. He started as the person who needed that intelligence (investor at 500 Global) and became the person who builds it (Compass, Mira Migo).",
+        "Avery's career is a single thesis expressed in increasingly powerful ways: unstructured data \u2192 structured intelligence \u2192 decision-ready output. They started as the person who needed that intelligence and became the person who builds it.",
       decision_drivers: [
         "Wants to build, not execute someone else's playbook",
         "Needs a company with a real data/intelligence problem to solve",

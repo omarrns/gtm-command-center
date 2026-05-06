@@ -5,6 +5,8 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
+  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL;
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)] px-6 py-16">
       <div className="mx-auto max-w-2xl space-y-6">
@@ -51,16 +53,23 @@ export default function PrivacyPage() {
           </p>
 
           <h2 className="text-lg font-semibold">Contact</h2>
-          <p>
-            Questions? Email{" "}
-            <a
-              href="mailto:omarns059@gmail.com"
-              className="text-[var(--color-blue)] underline"
-            >
-              omarns059@gmail.com
-            </a>
-            .
-          </p>
+          {contactEmail ? (
+            <p>
+              Questions? Email{" "}
+              <a
+                href={`mailto:${contactEmail}`}
+                className="text-[var(--color-blue)] underline"
+              >
+                {contactEmail}
+              </a>
+              .
+            </p>
+          ) : (
+            <p>
+              Configure <code>NEXT_PUBLIC_CONTACT_EMAIL</code> to show an
+              operator contact address here.
+            </p>
+          )}
         </section>
       </div>
     </div>

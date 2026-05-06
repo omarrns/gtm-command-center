@@ -93,7 +93,7 @@ Living log of features we've considered, cut, and scheduled for future considera
 
 ### Cross-persona substrate sharing (one account running both templates)
 
-**What.** A single account running `job_search` AND `icp_definition` concurrently, with memory documents + artifacts shared across both personas. Omar himself is the motivating case — currently job-seeking, will be running GTM at whichever company he joins.
+**What.** A single account running `job_search` AND `icp_definition` concurrently, with memory documents + artifacts shared across both personas.
 
 **Deferred from.** SPEC-3 — explicitly rejected as v1 scope.
 

@@ -110,17 +110,17 @@ async function main() {
             {
               action:
                 "Use 'context enablement' thesis framing in all cold outreach",
-              owner: "Omar",
+              owner: "Avery",
             },
             {
               action:
                 "Lead with Compass story in interviews — it's the hero project",
-              owner: "Omar",
+              owner: "Avery",
             },
             {
               action:
                 "Target companies with fragmented intelligence problems, not generic marketing roles",
-              owner: "Omar",
+              owner: "Avery",
             },
           ],
           trail_entry: TRAIL_CONTENT,

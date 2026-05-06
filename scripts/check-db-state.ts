@@ -9,7 +9,7 @@ const supabase = createClient(url, key, {
 });
 
 async function main() {
-  const email = (process.env.SEED_USER_EMAIL ?? "bloomtea@proton.me")
+  const email = (process.env.SEED_USER_EMAIL ?? "demo@example.com")
     .trim()
     .toLowerCase();
   console.log("Checking email:", email);

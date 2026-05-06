@@ -2,7 +2,7 @@
 
 ### Users
 
-Single user: Omar Nasser, a GTM Engineer running his job search pipeline. He uses this app daily to analyze job descriptions, draft outreach emails, research companies/people, run coaching sessions, and maintain a decision trail. Context is always focused, task-oriented work — paste data in, get structured intelligence out. Speed and clarity matter more than discovery or exploration.
+Single operator: a GTM engineer or job seeker running a personal outreach pipeline. They use this app to analyze job descriptions, draft outreach emails, research companies/people, run coaching sessions, and maintain a decision trail. Context is always focused, task-oriented work — paste data in, get structured intelligence out. Speed and clarity matter more than discovery or exploration.
 
 ### Brand Personality
 

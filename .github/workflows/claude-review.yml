@@ -31,7 +31,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--model claude-sonnet-4-6"
           prompt: |
-            You are reviewing a pull request for `gtm-command-center`, a solo-maintained Next.js 16 + Supabase + Vercel Workflow application. This is Omar's autonomous job-search agent. The source of truth for every architectural pattern is `CLAUDE.md` at the repo root — read it first, then review the diff against it.
+            You are reviewing a pull request for `gtm-command-center`, a solo-operator Next.js 16 + Supabase + Vercel Workflow application. The source of truth for every architectural pattern is `.claude/CLAUDE.md` — read it first, then review the diff against it.
 
             Only flag issues in the **changed files**. Do not audit the whole repo. Every finding must include a `file:line` anchor and a one-line fix. Lead with the most important finding.
 
@@ -52,8 +52,8 @@ jobs:
             **Check 5 — Pipeline step contract (P2).**
             Any new or modified file in `src/lib/pipeline/steps/*.ts` must export a `run<StepName>` function and a `<StepName>Result` type. Both `src/lib/pipeline/workflow.ts` and `src/lib/pipeline/runner.ts` import both shapes.
 
-            **Check 6 — CLAUDE.md drift (P2).**
-            If the PR adds new files, moves files, or changes canonical paths that `CLAUDE.md` references, verify `CLAUDE.md` is updated in the same PR. Dead path references mislead the next audit. If the PR touches a documented pattern but doesn't update the docs, flag it.
+            **Check 6 — `.claude/CLAUDE.md` drift (P2).**
+            If the PR adds new files, moves files, or changes canonical paths that `.claude/CLAUDE.md` references, verify `.claude/CLAUDE.md` is updated in the same PR. Dead path references mislead the next audit. If the PR touches a documented pattern but doesn't update the docs, flag it.
 
             **Check 7 — Error swallowing in server actions (P2).**
             Any `catch` block inside `src/app/**/actions.ts` that has an empty body, a bare `return`, or only `console.log` (without returning a structured `{ error: ... }` result) violates the CLAUDE.md "never swallow errors" rule. Flag these. Exception: `catch` blocks that intentionally return a typed error result are fine.
@@ -75,7 +75,7 @@ jobs:
             - Test coverage — this repo has no test suite by design
             - File size or line count — whole-repo metrics aren't PR-appropriate
             - Missing docstrings or JSDoc comments — not a project convention
-            - Anything documented as intentional in `CLAUDE.md` (e.g., legacy routes that redirect)
+            - Anything documented as intentional in `.claude/CLAUDE.md` (e.g., legacy routes that redirect)
             - Generic "consider adding error handling" advice without pointing to a specific swallowed error
 
             ## Output format
@@ -84,5 +84,5 @@ jobs:
             - **One summary comment** at the top of the PR with: (1) overall verdict, (2) P0 count, (3) P1 count, (4) the single most important finding
             - Lead with severity: P0 (active bug) → P1 (pattern drift) → P2 (maintenance)
             - Include a `**Fix:**` line for every finding
-            - If the PR is clean, post a single comment: "✓ No pattern drift detected against CLAUDE.md. Shipping recommended."
+            - If the PR is clean, post a single comment: "✓ No pattern drift detected against `.claude/CLAUDE.md`. Shipping recommended."
             - Do not pad. Do not restate the diff. Do not praise the code unnecessarily.

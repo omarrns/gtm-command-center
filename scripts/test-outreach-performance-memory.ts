@@ -14,7 +14,7 @@ const tables: Record<string, Row[]> = {
   opportunities: [],
   email_drafts: [],
   memory_documents: [],
-  profiles: [{ user_id: userId, display_name: "Omar Nasser" }],
+  profiles: [{ user_id: userId, display_name: "Avery Chen" }],
 };
 
 function resetTables(): void {

@@ -5,7 +5,7 @@
  * Default is dry-run. Add --apply to mutate rows through scoreOneOpportunity.
  *
  * Examples:
- *   pnpm rescore:job-seeker -- --email bloomtea@proton.me
+ *   pnpm rescore:job-seeker -- --email user@example.com
  *   pnpm rescore:job-seeker -- --user-id 781f76dc-... --apply
  */
 

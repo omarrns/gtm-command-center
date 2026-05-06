@@ -2,7 +2,7 @@
  * Read-only diagnostic for a job-search user's onboarding/activation gates.
  *
  * Usage:
- *   npx tsx scripts/check-job-search-readiness.ts --email bloomtea@proton.me
+ *   npx tsx scripts/check-job-search-readiness.ts --email user@example.com
  */
 
 import { config } from "dotenv";

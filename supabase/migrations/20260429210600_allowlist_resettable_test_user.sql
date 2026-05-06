@@ -1,5 +1,5 @@
--- Keep signup allowlisting in sync with protected production users and the
--- resettable script/test account.
+-- Keep signup allowlisting in sync with the operator account and the
+-- resettable demo account.
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -14,9 +14,8 @@ begin
     lower(new.email),
     coalesce(new.raw_user_meta_data->>'name', new.email),
     lower(new.email) in (
-      'omarns059@gmail.com',
-      'bloomtea@proton.me',
-      'omarns059+1@gmail.com'
+      'operator@example.com',
+      'demo@example.com'
     )
   )
   on conflict (user_id) do nothing;
@@ -26,4 +25,4 @@ $$;
 
 update public.profiles
 set is_enabled = true
-where lower(email) = 'omarns059+1@gmail.com';
+where lower(email) = 'demo@example.com';

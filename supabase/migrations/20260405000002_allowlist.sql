@@ -13,7 +13,7 @@ begin
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'name', new.email),
-    new.email = 'omarns059@gmail.com'
+    lower(new.email) = 'operator@example.com'
   )
   on conflict (user_id) do nothing;
   return new;

@@ -329,7 +329,7 @@ async function main() {
   resetTables();
   const svc = createMockSupabase();
   const userId = "retry-user";
-  tables.profiles.push({ user_id: userId, display_name: "Omar" });
+  tables.profiles.push({ user_id: userId, display_name: "Avery" });
   tables.memory_documents.push({
     user_id: userId,
     document_key: "user_profile",
