@@ -1,224 +1,154 @@
 # GTM Command Center
 
-A browser-based autonomous job-search agent. It discovers roles, scores them against your profile, researches decision-makers, drafts personalized cold emails, and queues everything for one-click approval. Built for a single user — not a product.
+**An autonomous job-search and GTM research console.**
 
-The app supports two personas that share the same infrastructure but run separate pipelines:
+It turns job posts, account signals, research, scoring, and outreach into one daily review queue. The agent does the prep work; the operator approves what gets sent.
 
-- **Job Seeker** — discovers inbound job postings, scores them, finds contacts, drafts outreach, and sends approved emails through Gmail.
-- **GTM** — tracks target accounts from TheirStack hiring signals and Exa company sweeps, scores them against an ICP rubric, and surfaces warm accounts for outreach.
+**Why it matters:** less tab-hopping, more qualified outreach, and no unsupervised email sends.
 
-GTM users can also run Video ICP reviews: paste owned YouTube videos, extract transcript/comments, and preview synthetic buyer reactions against the confirmed ICP rubric.
+**Built for:** one operator. This is a personal command center, not a multi-tenant SaaS product.
 
 ---
 
-## Job Seeker Pipeline
+## What It Does
 
-Runs automatically four times a day (4, 10, 16, 22 UTC) via Vercel Workflow.
+**For job search**
+
+- Finds roles from configured searches.
+- Scores each role against the user's profile.
+- Researches decision-makers.
+- Finds likely work emails.
+- Drafts personalized outreach.
+- Queues approve, skip, or watchlist decisions.
+- Sends only approved emails through Gmail.
+
+**For GTM**
+
+- Tracks accounts from hiring signals and company sweeps.
+- Scores fit against an ICP rubric.
+- Keeps qualified accounts visible in `/accounts`.
+- Reviews owned YouTube content against the ICP using transcript extraction.
+
+---
+
+## The Loop
+
+**Job seeker pipeline**
 
 ```text
-discover → score → research → enrich → draft → queued
-                                                  ↓
-                                    approve (send via Gmail)
-                                    skip
-                                    flag → watchlist
+discover -> score -> research -> enrich -> draft -> queued
+                                                   |
+                                                   +-> approve -> Gmail send
+                                                   +-> skip
+                                                   +-> flag -> watchlist
 ```
 
-| Stage    | What happens                                                               |
-| -------- | -------------------------------------------------------------------------- |
-| Discover | Pulls fresh job postings from JSearch across configured queries/locations  |
-| Score    | Claude scores each role 0–100 against your profile; low scores are dropped |
-| Research | Exa Websets finds the CEO or hiring manager at each company                |
-| Enrich   | Exa Websets discovers a work email (retries up to 3× across runs)          |
-| Draft    | Claude writes 2 personalized email variants in your outreach voice         |
-| Queue    | Everything lands in Today for one-click approve/skip/flag                  |
+Runs four times a day through Vercel Workflow. Gmail reply checks use metadata-only thread reads.
 
-Approved emails go out via Gmail API. Reply tracking runs every 30 minutes via metadata-only thread reads (no body access).
-
----
-
-## GTM Pipeline
-
-Two entry points feed the same accounts table:
-
-- **TheirStack webhook** (`/api/webhooks/theirstack`) — real-time `job.new` deliveries from a saved search. Scores the account inline so a hot match shows up in seconds.
-- **Dormant-discover cron** (Mondays, 12 UTC) — weekly Exa sweep across your ICP rubric to surface companies that haven't posted a job but match your buyer profile.
-
-Both score via `scoring-account.ts` against an `icpAccountAnalysisSchema`. Scored accounts appear in `/accounts` and are never auto-removed.
-
-Video ICP is a separate GTM workflow at `/video-icp`. It stores each YouTube review in `video_icp_reviews`, enqueues a `video-icp-review` background job, extracts a sanitized transcript plus raw top comments through the vendored yt-llm runtime, and asks Gemini 3 Flash for a transcript-only synthetic ICP review with Sonnet fallback. Comments are rendered raw for sanity-check and are not scored or included in the prompt.
-
----
-
-## Pages
-
-| Page                                     | Persona    | Purpose                                                                            |
-| ---------------------------------------- | ---------- | ---------------------------------------------------------------------------------- |
-| **Today** (`/`)                          | Job Seeker | Daily review queue — approve/skip/flag opportunities, send emails                  |
-| **Accounts** (`/accounts`)               | GTM        | Pipeline-promoted accounts sorted by ICP score                                     |
-| **ICP** (`/icp`)                         | GTM        | Edit your ICP rubric — buyer personas, trigger signals, company criteria           |
-| **Video ICP** (`/video-icp`)             | GTM        | YouTube transcript review against the confirmed ICP rubric, with raw comments      |
-| **Analytics** (`/analytics`)             | Both       | Pipeline funnel + content performance charts                                       |
-| **History** (`/history`)                 | Job Seeker | All past opportunities filtered by status, company, score range                    |
-| **Watchlist** (`/watchlist`)             | Job Seeker | Monitored companies with Exa alerts for funding, hires, press                      |
-| **Analysis** (`/analysis`)               | Both       | JD and company analyses — detail view + intake form                                |
-| **Research** (`/research`)               | Both       | Research reports per company                                                       |
-| **Calls** (`/calls`)                     | GTM        | Sales-call browse and inspection                                                   |
-| **Outreach** (`/outreach`)               | Both       | Standalone outreach draft composer                                                 |
-| **Trends** (`/trends`)                   | Job Seeker | JSearch trend dashboard                                                            |
-| **Coaching** (`/coaching`)               | Both       | Career-coach skill UI                                                              |
-| **Trail** (`/trail`)                     | Both       | Career-coach TRAIL.md viewer                                                       |
-| **Memory** (`/memory`)                   | Both       | Browse and edit memory documents                                                   |
-| **Settings** (`/settings`)               | Both       | Score threshold, search config, daily send cap, Gmail connection                   |
-| **Onboarding** (`/onboard`)              | Both       | AI interview → extraction → review → confirm flow (template-specific per persona)  |
-| **Activation** (`/activate`)             | Job Seeker | First-run JSearch activation (fast scoring pass, redirects to Today on completion) |
-| **Dev** (`/dev`)                         | Both       | Debug page — profiles, pipeline_config, onboarding interviews                      |
-| **Workspace Tools** (`/workspace-tools`) | Both       | Miscellaneous ops actions                                                          |
-
----
-
-## Onboarding
-
-New users complete a structured AI interview before the pipeline runs. The interview is template-specific per persona and follows a state machine:
+**GTM pipeline**
 
 ```text
-in_progress → extracting → review → (story_review) → confirmed
-                                         ↑↓
-                               back to in_progress at any point
-any state → abandoned
+TheirStack webhook
+Weekly Exa sweep
+        |
+        v
+score account -> show in /accounts -> review for outreach
 ```
 
-- `job_search` template: collects user profile, search config, and outreach style. No agentic mode.
-- `icp_definition` template: agentic mode. Opus pre-analyzes uploaded artifacts (pitch decks, LinkedIn exports, call notes) to infer ICP dimensions before the chat starts, so the interview only asks about what's still unknown.
+Accounts stay visible unless they are early-stage noise or explicitly skipped.
 
-After confirmation, the system writes memory documents, pipeline config, and a normalized scoring profile to the database.
+**Video ICP**
+
+Paste a YouTube URL in `/video-icp`. The app extracts transcript text, keeps raw comments visible for sanity-check, and generates a synthetic ICP review from the transcript.
+
+---
+
+## Main Screens
+
+| Page         | Purpose                                                |
+| ------------ | ------------------------------------------------------ |
+| `/`          | Daily job-seeker queue                                 |
+| `/accounts` | GTM account review                                     |
+| `/icp`       | ICP rubric editing and review                          |
+| `/video-icp` | YouTube transcript review against the ICP              |
+| `/analytics` | Funnel and performance charts                          |
+| `/history`   | Past opportunities                                     |
+| `/watchlist` | Monitored companies and Exa alerts                     |
+| `/settings`  | Search config, send cap, threshold, Gmail connection   |
+| `/onboard`   | AI interview, extraction, review, and confirmation     |
+| `/activate`  | First-run job scoring pass                             |
 
 ---
 
 ## Architecture
 
+**The app is a Next.js control plane over durable jobs, Supabase state, and external research/send APIs.**
+
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                          Vercel                             │
-│                                                             │
-│  ┌──────────────────┐  ┌──────────────┐  ┌───────────────┐ │
-│  │    Cron Jobs      │  │  App Router  │  │Server Actions │ │
-│  │                  │  │              │  │               │ │
-│  │ /pipeline 4x/day │  │ Today, ICP   │  │ approve/skip  │ │
-│  │ /replies 30 min  │  │ Accounts     │  │ flag, draft   │ │
-│  │ /watchlist daily │  │ Analytics    │  │ config upsert │ │
-│  │ /dormant Mon 12  │  │ Onboarding   │  │               │ │
-│  └────────┬─────────┘  └──────┬───────┘  └───────┬───────┘ │
-│           │                   │                  │          │
-│           └────────────┬──────┴──────────────────┘          │
-│                        │                                    │
-│              ┌─────────▼──────────┐                         │
-│              │  Vercel Workflow   │                         │
-│              │  (durable, /user)  │                         │
-│              │                   │                          │
-│              │ discover→score→   │                          │
-│              │ research→enrich   │                          │
-│              │ →draft→queue      │                          │
-│              └─────────┬─────────┘                          │
-└────────────────────────┼───────────────────────────────────┘
-                         │
-           ┌─────────────┼───────────────┐
-           │             │               │
-           v             v               v
-    ┌──────────┐  ┌──────────┐   ┌────────────┐
-    │ Supabase │  │   Exa    │   │  External  │
-    │          │  │          │   │   APIs     │
-    │ Postgres │  │ Websets  │   │            │
-    │ Auth/RLS │  │ People   │   │ JSearch    │
-    │          │  │ Email    │   │ TheirStack │
-    │          │  │ Monitors │   │ Claude API │
-    └──────────┘  └──────────┘   │ Gmail API  │
-                                 └────────────┘
+Next.js App Router
+  -> Server actions and route handlers
+  -> Vercel Workflow pipeline jobs
+  -> Supabase Postgres/Auth/RLS
+  -> JSearch, TheirStack, Exa, Gmail
+  -> Vercel AI Gateway for Claude and Gemini models
 ```
 
----
+**Key guardrails**
 
-## Tech Stack
+- Cron endpoints require `CRON_SECRET`.
+- Gmail sends require human approval.
+- `pipeline_config` is client-readable, not client-writable.
+- AI calls route through Vercel AI Gateway.
+- Prompt builders live in `src/lib/skills/prompts/`.
+- Schema changes live in `supabase/migrations/`.
 
-- **Framework**: Next.js 16 (App Router) + React 19
-- **Styling**: Tailwind CSS v4 (CSS-based config) + shadcn/ui
-- **Database**: Supabase (Postgres + Auth + RLS)
-- **AI**: Vercel AI Gateway (Claude and Gemini model tiers)
-- **Job Discovery**: JSearch API (job seeker), TheirStack webhook + Exa (GTM)
-- **Video Extraction**: Vendored yt-llm runtime backed by `ytdlp-nodejs`
-- **People/Email**: Exa Websets
-- **Email Send**: Gmail API (OAuth 2.0, PKCE, AES-256-GCM encrypted refresh tokens)
-- **Pipeline**: Vercel Workflow (durable, per-user)
-- **Deployment**: Vercel (Fluid Compute, 300s function timeout)
+Full implementation notes live in `docs/agent-reference.md`.
 
 ---
 
-## Cron Schedules
+## Stack
 
-| Endpoint                     | Schedule             | Purpose                                                   |
-| ---------------------------- | -------------------- | --------------------------------------------------------- |
-| `/api/cron/pipeline`         | `0 4,10,16,22 * * *` | job_seeker pipeline via Vercel Workflow (fire-and-forget) |
-| `/api/cron/replies`          | `*/30 * * * *`       | Check Gmail threads for replies                           |
-| `/api/cron/watchlist`        | `0 11 * * *`         | Ingest Exa Webset alerts                                  |
-| `/api/cron/dormant-discover` | `0 12 * * 1`         | GTM weekly Exa sweep over ICP rubric                      |
-
----
-
-## Database Tables
-
-| Table                   | Purpose                                                                               |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| `profiles`              | `user_type` (`job_seeker` \| `gtm`), display name, first-confirm timestamp            |
-| `pipeline_config`       | Search queries, locations, score threshold, daily send cap. GTM fields coexist.       |
-| `opportunities`         | Pipeline stage, score, drafts, Gmail IDs. Deduped by `(user_id, source, external_id)` |
-| `watchlist`             | Monitored companies + Exa Webset IDs                                                  |
-| `watchlist_alerts`      | Exa Webset items, deduped by `source_item_id`                                         |
-| `user_scoring_profiles` | Derived scoring fields + user-editable weights. `icp_rubric` JSONB for GTM.           |
-| `onboarding_interviews` | Interview state, messages, extracted data, template + version stamp                   |
-| `onboarding_artifacts`  | User-uploaded URLs/files/text normalized to markdown                                  |
-| `video_icp_reviews`     | GTM-only YouTube transcript/comment extraction + synthetic ICP review output          |
-| `memory_documents`      | User profile, positioning, outreach style, dealbreakers, insights                     |
-| `gmail_credentials`     | Encrypted refresh tokens (service-role only)                                          |
-| `ai_calls`              | Best-effort capture of every model call for replay/inspection                         |
-
-Schema changes live in `supabase/migrations/`. Generated Supabase TypeScript types live in `supabase/generated/database.types.ts`; app-level domain overlays live in `src/lib/supabase/types.ts`.
+| Layer     | Choice                                                |
+| --------- | ----------------------------------------------------- |
+| App       | Next.js 16 App Router, React 19                       |
+| UI        | Tailwind CSS v4, shadcn/ui, Geist                     |
+| Database  | Supabase Postgres, Auth, RLS                          |
+| AI        | Vercel AI SDK v6, Vercel AI Gateway                   |
+| Workflows | Vercel Workflow, Fluid Compute                        |
+| Data      | JSearch, TheirStack, Exa Websets                      |
+| Email     | Gmail API with OAuth 2.0 and encrypted refresh tokens |
+| Video     | Vendored yt-llm runtime with `ytdlp-nodejs`           |
 
 ---
 
-## Setup
+## Local Setup
 
 ```bash
 pnpm install
-cp .env.local.example .env.local
+cp .env.example .env.local
 pnpm dev
 ```
 
-### Required Environment Variables
+Start from `.env.example`. It separates required runtime keys, local development toggles, and script-only variables.
 
-| Variable                               | Used by                         |
-| -------------------------------------- | ------------------------------- |
-| `NEXT_PUBLIC_APP_URL`                  | OAuth redirects                 |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Auth + DB                       |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Auth (client)                   |
-| `SUPABASE_SERVICE_ROLE_KEY`            | Pipeline + server actions       |
-| `AI_GATEWAY_API_KEY`                   | AI Gateway model calls          |
-| `EXA_API_KEY`                          | Research, enrichment, watchlist |
-| `RAPIDAPI_KEY`                         | JSearch API via RapidAPI        |
-| `CRON_SECRET`                          | Bearer token for cron endpoints |
-| `GOOGLE_CLIENT_ID`                     | Gmail OAuth                     |
-| `GOOGLE_CLIENT_SECRET`                 | Gmail OAuth                     |
-| `TOKEN_ENCRYPTION_KEY`                 | 32-byte hex key for AES-256-GCM |
-| `THEIRSTACK_API_KEY`                   | GTM persona TheirStack calls    |
-| `FIRECRAWL_API_KEY`                    | Artifact URL ingestion          |
+---
 
-### Scripts
+## Useful Commands
 
 ```bash
-pnpm dev                # Start dev server
-pnpm build              # Production build
-pnpm test               # Run all test scripts in sequence
-pnpm test:video-icp-review-job  # Regression test for Video ICP job failure propagation
-pnpm test:video-icp-model-selection  # Regression test for Video ICP model fallback
-pnpm check:ai-gateway-video-icp-models # Verify Video ICP Gateway model availability/pricing
-pnpm onboard:reset      # Delete all onboarding data
-pnpm onboard:fixture    # Seed interview fixture (--state, --interview-state flags)
+pnpm dev                         # Start local dev
+pnpm build                       # Production build
+pnpm test                        # Full test suite
+pnpm test:correctness            # Pipeline guardrails
+pnpm test:approve-send           # Gmail send guardrails
+pnpm test:icp-agent-loop         # ICP revision guardrails
+pnpm onboard:reset               # Delete onboarding data
+pnpm onboard:fixture             # Seed onboarding fixture states
+pnpm db:check                    # DB types, migrations, and lint
 ```
+
+---
+
+## License
+
+MIT. See `LICENSE`.
