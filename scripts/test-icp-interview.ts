@@ -27,8 +27,12 @@ import {
 } from "../src/lib/onboarding/orchestrator/run";
 import { toIcpConfirmEdits } from "../src/lib/onboarding/orchestrator/to-confirm-edits";
 import { detectIcpDisagreements } from "../src/lib/onboarding/orchestrator/icp-disagreements";
-import { ICP_DEFINITION_TEMPLATE } from "../src/lib/onboarding/templates/icp-definition";
+import {
+  hasMeaningfulHypothesisValue,
+  ICP_DEFINITION_TEMPLATE,
+} from "../src/lib/onboarding/templates/icp-definition";
 import { getTemplate } from "../src/lib/onboarding/templates";
+import { parseUrlLike, parseUrlLikeBatch } from "../src/lib/onboarding/url-paste";
 import {
   emptyOrchestratorState,
   type OrchestratorState,
@@ -905,12 +909,6 @@ const ICP_FIXTURE_B: IcpEdits = {
 
 function unitTestUrlPasteParsing() {
   console.log("\n=== C8: URL paste parsing ===");
-  const {
-    parseUrlLike,
-    parseUrlLikeBatch,
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-  } =
-    require("../src/lib/onboarding/url-paste") as typeof import("../src/lib/onboarding/url-paste");
 
   const dashList = parseUrlLikeBatch(
     "- https://a.com\n- https://b.com\n- https://c.com",
@@ -1111,10 +1109,6 @@ function unitTestIcpPromptHasNoExampleSentences() {
 
 function unitTestHasMeaningfulHypothesisValue() {
   console.log("\n=== C11: hasMeaningfulHypothesisValue predicate ===");
-
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { hasMeaningfulHypothesisValue } =
-    require("../src/lib/onboarding/templates/icp-definition") as typeof import("../src/lib/onboarding/templates/icp-definition");
 
   // Product
   assert(

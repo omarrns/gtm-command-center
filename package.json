@@ -72,7 +72,6 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.156",
-    "@anthropic-ai/sdk": "^0.86.1",
     "@base-ui/react": "^1.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
@@ -105,7 +104,7 @@
     "react-hook-form": "^7.54.0",
     "react-jsx-parser": "^2.4.1",
     "recharts": "^3.8.0",
-    "shadcn": "^4.1.2",
+    "shadcn": "^4.7.0",
     "shiki": "^4.0.2",
     "sonner": "^2.0.7",
     "streamdown": "^2.5.0",
@@ -114,13 +113,18 @@
     "tw-animate-css": "^1.4.0",
     "unpdf": "^1.6.0",
     "use-stick-to-bottom": "^1.1.3",
-    "workflow": "^4.2.0",
+    "workflow": "^4.2.4",
     "ytdlp-nodejs": "3.4.4",
     "zod": "^3.23.8"
   },
   "pnpm": {
     "overrides": {
-      "postcss": "8.5.14"
+      "devalue": "5.8.0",
+      "fast-xml-builder": "1.1.7",
+      "fast-xml-parser": "5.7.3",
+      "postcss": "8.5.14",
+      "undici": "7.25.0",
+      "uuid": "11.1.1"
     },
     "onlyBuiltDependencies": [
       "@nestjs/core",

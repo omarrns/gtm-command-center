@@ -339,7 +339,7 @@ export function ArtifactInput({
   const pills: Array<{
     label: string;
     hint?: string;
-    action?: () => void;
+    action?: "file";
     kindOverride?: string;
   }> =
     templateId === "icp_definition"
@@ -361,14 +361,14 @@ export function ArtifactInput({
           },
           {
             label: "Upload deck",
-            action: () => fileRef.current?.click(),
+            action: "file",
             kindOverride: "company_context",
           },
         ]
       : [
           { label: "LinkedIn URL", hint: "https://linkedin.com/in/" },
           { label: "Paste resume", hint: "" },
-          { label: "Upload PDF", action: () => fileRef.current?.click() },
+          { label: "Upload PDF", action: "file" },
         ];
 
   return (
@@ -488,8 +488,8 @@ export function ArtifactInput({
               if (pill.kindOverride) {
                 setKindOverride(pill.kindOverride);
               }
-              if (pill.action) {
-                pill.action();
+              if (pill.action === "file") {
+                fileRef.current?.click();
                 return;
               }
               if (pill.hint !== undefined) {

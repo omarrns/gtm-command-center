@@ -41,6 +41,7 @@ export function applyIcpExemplarScarcityClamp(
   succeededArtifacts: ReadonlyArray<OnboardingArtifactRow>,
   _dimensions: ReadonlyArray<Dimension>,
 ): void {
+  void _dimensions;
   const count = countPositiveExemplars(succeededArtifacts);
   if (count === 0 || count >= 3) return;
 

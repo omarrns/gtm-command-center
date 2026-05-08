@@ -148,15 +148,15 @@ function AgenticInterview({
     });
   }
 
-  // Kickoff the first orchestrator-driven question when the user enters the
-  // chat phase on a brand-new interview. hasStored interviews resume from
-  // their persisted messages and skip this entirely.
+  // Start the first orchestrator question for brand-new chat interviews.
   useEffect(() => {
     if (phase !== "chat" || hasStored || kickoff.status !== "idle") return;
-    setKickoff({ status: "loading" });
     let cancelled = false;
 
-    (async () => {
+    queueMicrotask(async () => {
+      if (cancelled) return;
+      setKickoff({ status: "loading" });
+
       const result = await startAgenticInterviewAction(interview.id);
       if (cancelled) return;
       if (!result.ok) {
@@ -165,8 +165,7 @@ function AgenticInterview({
         return;
       }
       if ("ready" in result && result.ready) {
-        // Every dimension above threshold — server already set status='review'
-        // and hydrated extracted_*. Route directly to review.
+        // Server already moved the complete interview to review.
         setKickoff({ status: "alreadyComplete" });
         triggerReview();
         return;
@@ -174,7 +173,7 @@ function AgenticInterview({
       if ("message" in result) {
         setKickoff({ status: "ready", message: result.message });
       }
-    })();
+    });
 
     return () => {
       cancelled = true;

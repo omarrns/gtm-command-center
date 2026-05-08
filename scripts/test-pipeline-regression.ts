@@ -186,6 +186,7 @@ let exaReturnsEmpty = false;
 let theirStackCallCount = 0;
 
 globalThis.fetch = (async (input: any, init?: RequestInit) => {
+  void init;
   const url = typeof input === "string" ? input : input.toString();
 
   if (url.includes("jsearch.p.rapidapi.com")) {

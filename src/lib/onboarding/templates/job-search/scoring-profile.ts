@@ -122,6 +122,7 @@ export async function normalizeScoringProfile(
   // reads the in-flight interview row via context.interviewId.
   _context?: { interviewId?: string },
 ): Promise<void> {
+  void _context;
   const [memoryCtx, pipelineConfig] = await Promise.all([
     loadMemoryContext(userId, svc),
     loadPipelineConfig(svc, userId),

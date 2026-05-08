@@ -32,7 +32,7 @@ const supabase = createClient(url, key, {
 });
 
 async function main() {
-  const { userId, email } = await resolveSeedUserTarget(supabase);
+  const { userId } = await resolveSeedUserTarget(supabase);
 
   // Find the most recent job_search interview, any status.
   const { data: interview, error: fetchErr } = await supabase
@@ -72,7 +72,8 @@ async function main() {
 
   // Strip insights from the unified column without disturbing
   // profile/search/outreach.
-  const { insights: _insights, ...extractedWithoutInsights } = extracted;
+  const extractedWithoutInsights = { ...extracted };
+  delete extractedWithoutInsights.insights;
 
   const { error: updateErr } = await supabase
     .from("onboarding_interviews")

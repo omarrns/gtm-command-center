@@ -57,17 +57,10 @@ export function EditableProseSection(props: EditableProseSectionProps) {
   const [editing, setEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Text-kind draft lives here. List-kind state lives in InlineListEditor
-  // which manages its own per-item array and commits a cleaned string[]
-  // on exit.
+  // Text-kind draft is refreshed when editing starts. Display mode renders
+  // props.value directly, so streamed updates remain visible until the user
+  // starts editing. List-kind state lives in InlineListEditor.
   const [draft, setDraft] = useState(props.kind === "text" ? props.value : "");
-
-  // Keep draft in sync with incoming value when not actively editing
-  // (e.g. a stream is still updating the field).
-  useEffect(() => {
-    if (editing) return;
-    if (props.kind === "text") setDraft(props.value);
-  }, [props.kind, props.value, editing]);
 
   useEffect(() => {
     if (editing && props.kind === "text" && textareaRef.current) {

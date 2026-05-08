@@ -51,7 +51,6 @@ export function InlineListEditor({
       input.focus();
       input.setSelectionRange(input.value.length, input.value.length);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function commitAndExit() {

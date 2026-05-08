@@ -74,14 +74,14 @@ export function IcpChatPanel() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function createSession(cancelled = false) {
+  async function createSession(shouldCancel: () => boolean) {
     const res = await fetch("/api/icp/chat/sessions", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ purpose: "account_prep" }),
     });
     const data = (await res.json()) as { sessionId?: string; error?: string };
-    if (cancelled) return;
+    if (shouldCancel()) return;
     if (!res.ok || !data.sessionId) {
       setError(data.error ?? "Failed to start ICP chat");
       return;
@@ -93,8 +93,10 @@ export function IcpChatPanel() {
   useEffect(() => {
     let cancelled = false;
 
-    createSession(cancelled).catch(() => {
-      if (!cancelled) setError("Failed to start ICP chat");
+    queueMicrotask(() => {
+      createSession(() => cancelled).catch(() => {
+        if (!cancelled) setError("Failed to start ICP chat");
+      });
     });
 
     return () => {
@@ -122,7 +124,7 @@ export function IcpChatPanel() {
     <ActiveIcpChat
       key={sessionId}
       sessionId={sessionId}
-      onStartNew={() => void createSession()}
+      onStartNew={() => void createSession(() => false)}
     />
   );
 }

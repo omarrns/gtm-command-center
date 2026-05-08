@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { isOnboardingComplete } from "@/lib/pipeline/onboarding";

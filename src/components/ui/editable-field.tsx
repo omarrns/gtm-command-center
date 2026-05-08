@@ -76,15 +76,10 @@ export function EditableField(props: EditableFieldProps) {
   const [editing, setEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Text-kind draft state lives here. List-kind state lives in
-  // InlineListEditor — it manages its own per-item array and commits
-  // a fully-cleaned string[] back to this component on exit.
+  // Text-kind draft is refreshed when editing starts. Display mode renders
+  // props.value directly, so incoming streamed updates are not hidden by draft
+  // state. List-kind state lives in InlineListEditor.
   const [draft, setDraft] = useState(props.kind === "text" ? props.value : "");
-
-  useEffect(() => {
-    if (editing) return;
-    if (props.kind === "text") setDraft(props.value);
-  }, [props.kind, props.value, editing]);
 
   useEffect(() => {
     if (editing && props.kind === "text" && textareaRef.current) {
