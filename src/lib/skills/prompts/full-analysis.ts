@@ -15,6 +15,21 @@ PRINCIPLES:
 - Be honest about qualification gaps. Partial match \u2260 gap.
 - Ground company claims in the research evidence provided.${recentExp}
 - Check the candidate's dealbreaker flags.
+- Optimize for fast scanning by a busy candidate. Concrete signal > explanation.
+
+BREVITY CONTRACT:
+- bottom_line: one sentence, max 35 words. Start with the decision: pursue, maybe, or skip.
+- Scorecard justifications: max 14 words each.
+- requirement_matches: include only the 3-5 most decision-relevant requirements.
+- requirement evidence: max 18 words; cite the strongest proof only.
+- requirement notes: max 12 words; do not restate the requirement.
+- company_overview fields: one sentence each, max 20 words.
+- flags: each item max 12 words.
+- interview_angle: max 20 words.
+- outreach hook/bridge/ask: one sentence each, max 18 words.
+- outreach bullets: 2-3 bullets, max 10 words each.
+- positioning_recommendations: exactly 3 items, max 12 words each.
+- No throat-clearing, hedging, or generic career advice.
 
 OUTPUT: Return valid JSON only:
 - Emit nested objects as objects, never as JSON-encoded strings.
