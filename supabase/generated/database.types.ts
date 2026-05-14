@@ -906,6 +906,7 @@ export type Database = {
           job_city: string | null
           job_description: string | null
           job_employment_type: string | null
+          job_highlights: Json | null
           job_is_remote: boolean | null
           job_max_salary: number | null
           job_min_salary: number | null
@@ -913,6 +914,7 @@ export type Database = {
           job_required_skills: string[] | null
           job_salary_currency: string | null
           job_salary_period: string | null
+          job_source_payload: Json | null
           job_state: string | null
           job_url: string | null
           last_error: string | null
@@ -968,6 +970,7 @@ export type Database = {
           job_city?: string | null
           job_description?: string | null
           job_employment_type?: string | null
+          job_highlights?: Json | null
           job_is_remote?: boolean | null
           job_max_salary?: number | null
           job_min_salary?: number | null
@@ -975,6 +978,7 @@ export type Database = {
           job_required_skills?: string[] | null
           job_salary_currency?: string | null
           job_salary_period?: string | null
+          job_source_payload?: Json | null
           job_state?: string | null
           job_url?: string | null
           last_error?: string | null
@@ -1030,6 +1034,7 @@ export type Database = {
           job_city?: string | null
           job_description?: string | null
           job_employment_type?: string | null
+          job_highlights?: Json | null
           job_is_remote?: boolean | null
           job_max_salary?: number | null
           job_min_salary?: number | null
@@ -1037,6 +1042,7 @@ export type Database = {
           job_required_skills?: string[] | null
           job_salary_currency?: string | null
           job_salary_period?: string | null
+          job_source_payload?: Json | null
           job_state?: string | null
           job_url?: string | null
           last_error?: string | null
@@ -1365,6 +1371,104 @@ export type Database = {
           },
         ]
       }
+      salary_benchmark_observations: {
+        Row: {
+          benchmark_usable: boolean
+          company_name: string
+          company_stage: string
+          confidence: number
+          created_at: string
+          currency_source: string
+          id: string
+          is_remote: boolean | null
+          llm_salary_estimate: Json | null
+          location: string | null
+          max_years_experience: number | null
+          min_years_experience: number | null
+          model: string
+          model_rationale: string
+          opportunity_id: string
+          raw_classification: Json
+          role_family: string
+          role_title: string
+          salary_currency: string | null
+          salary_max: number | null
+          salary_midpoint: number | null
+          salary_min: number | null
+          salary_period: string | null
+          seniority: string
+          updated_at: string
+          user_id: string
+          years_experience_evidence: string | null
+        }
+        Insert: {
+          benchmark_usable?: boolean
+          company_name: string
+          company_stage: string
+          confidence: number
+          created_at?: string
+          currency_source: string
+          id?: string
+          is_remote?: boolean | null
+          llm_salary_estimate?: Json | null
+          location?: string | null
+          max_years_experience?: number | null
+          min_years_experience?: number | null
+          model: string
+          model_rationale: string
+          opportunity_id: string
+          raw_classification?: Json
+          role_family: string
+          role_title: string
+          salary_currency?: string | null
+          salary_max?: number | null
+          salary_midpoint?: number | null
+          salary_min?: number | null
+          salary_period?: string | null
+          seniority: string
+          updated_at?: string
+          user_id: string
+          years_experience_evidence?: string | null
+        }
+        Update: {
+          benchmark_usable?: boolean
+          company_name?: string
+          company_stage?: string
+          confidence?: number
+          created_at?: string
+          currency_source?: string
+          id?: string
+          is_remote?: boolean | null
+          llm_salary_estimate?: Json | null
+          location?: string | null
+          max_years_experience?: number | null
+          min_years_experience?: number | null
+          model?: string
+          model_rationale?: string
+          opportunity_id?: string
+          raw_classification?: Json
+          role_family?: string
+          role_title?: string
+          salary_currency?: string | null
+          salary_max?: number | null
+          salary_midpoint?: number | null
+          salary_min?: number | null
+          salary_period?: string | null
+          seniority?: string
+          updated_at?: string
+          user_id?: string
+          years_experience_evidence?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_benchmark_observations_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: true
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_scoring_profiles: {
         Row: {
           created_at: string
@@ -1634,6 +1738,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_activation_run: { Args: { p_user_id: string }; Returns: boolean }
       claim_next_job: {
         Args: { worker_types: string[] }
         Returns: {
@@ -1653,10 +1758,6 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
-      }
-      claim_activation_run: {
-        Args: { p_user_id: string }
-        Returns: boolean
       }
       claim_opportunity: {
         Args: { p_id: string; p_user_id: string }
