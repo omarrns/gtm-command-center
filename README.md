@@ -1,6 +1,6 @@
 # GTM Command Center
 
-**An autonomous job-search and GTM research console.**
+**An autonomous career, GTM, and research console.**
 
 It turns job posts, account signals, research, scoring, and outreach into one daily review queue. The agent does the prep work; the operator approves what gets sent.
 
@@ -26,8 +26,13 @@ It turns job posts, account signals, research, scoring, and outreach into one da
 
 - Tracks accounts from hiring signals and company sweeps.
 - Scores fit against an ICP rubric.
-- Keeps qualified accounts visible in `/accounts`.
+- Keeps qualified accounts visible in `/gtm/accounts`.
 - Reviews owned YouTube content against the ICP using transcript extraction.
+
+**For research**
+
+- Collects standalone analyst reports in `/research`.
+- Keeps the route boundary separate from career and GTM workflows.
 
 ---
 
@@ -52,31 +57,31 @@ TheirStack webhook
 Weekly Exa sweep
         |
         v
-score account -> show in /accounts -> review for outreach
+score account -> show in /gtm/accounts -> review for outreach
 ```
 
 Accounts stay visible unless they are early-stage noise or explicitly skipped.
 
 **Video ICP**
 
-Paste a YouTube URL in `/video-icp`. The app extracts transcript text, keeps raw comments visible for sanity-check, and generates a synthetic ICP review from the transcript.
+Paste a YouTube URL in `/gtm/video-icp`. The app extracts transcript text, keeps raw comments visible for sanity-check, and generates a synthetic ICP review from the transcript.
 
 ---
 
 ## Main Screens
 
-| Page         | Purpose                                                |
-| ------------ | ------------------------------------------------------ |
-| `/`          | Daily job-seeker queue                                 |
-| `/accounts` | GTM account review                                     |
-| `/icp`       | ICP rubric editing and review                          |
-| `/video-icp` | YouTube transcript review against the ICP              |
-| `/analytics` | Funnel and performance charts                          |
-| `/history`   | Past opportunities                                     |
-| `/watchlist` | Monitored companies and Exa alerts                     |
-| `/settings`  | Search config, send cap, threshold, Gmail connection   |
-| `/onboard`   | AI interview, extraction, review, and confirmation     |
-| `/activate`  | First-run job scoring pass                             |
+| Page             | Purpose                                               |
+| ---------------- | ----------------------------------------------------- |
+| `/`              | Redirects to the active mode landing page             |
+| `/career`        | Daily job-seeker queue                                |
+| `/career/*`      | Career activation, profile, history, watchlist, analytics, analysis detail routes, and compatibility placeholders for deferred career surfaces |
+| `/gtm/icp`       | ICP rubric editing, chat, narrative, and changes      |
+| `/gtm/accounts`  | GTM account review                                    |
+| `/gtm/video-icp` | YouTube transcript review against the ICP             |
+| `/gtm/*`         | GTM prospects, messaging, calls, trends, and account activation |
+| `/research`      | Standalone analyst workspace and saved reports        |
+| `/settings`      | Search config, send cap, threshold, Gmail connection  |
+| `/onboard`       | AI interview, extraction, review, and confirmation    |
 
 ---
 
@@ -100,6 +105,7 @@ Next.js App Router
 - `pipeline_config` is client-readable, not client-writable.
 - AI calls route through Vercel AI Gateway.
 - Prompt builders live in `src/lib/skills/prompts/`.
+- Product routes are grouped by visible mode URL: `/career`, `/gtm`, and `/research`.
 - Schema changes live in `supabase/migrations/`.
 
 Full implementation notes live in `docs/agent-reference.md`.

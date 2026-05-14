@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function NewOutreachPage() {
-  redirect("/");
+export default function NewOutreachRedirectPage() {
+  redirect("/career/outreach/new");
 }

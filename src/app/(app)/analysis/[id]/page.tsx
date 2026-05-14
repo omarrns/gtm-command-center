@@ -1,25 +1,10 @@
-import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/supabase/server";
-import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import type { AnalysisRow } from "@/lib/supabase/types";
-import { AnalysisDetail } from "./analysis-detail";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Analysis Detail · Searchcraft" };
-
-type Props = { params: Promise<{ id: string }> };
-
-export default async function AnalysisDetailPage({ params }: Props) {
-  const [{ id }, user] = await Promise.all([params, requireUser()]);
-  const svc = createSupabaseServiceClient();
-
-  const { data: analysis } = await svc
-    .from("analyses")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .single();
-
-  if (!analysis) notFound();
-
-  return <AnalysisDetail analysis={analysis as unknown as AnalysisRow} />;
+export default async function AnalysisDetailRedirectPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  redirect(`/career/analysis/${id}`);
 }

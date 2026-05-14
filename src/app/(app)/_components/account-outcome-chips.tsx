@@ -4,8 +4,8 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { recordAccountOutcomeAction } from "../accounts/actions";
-import type { AccountOutcome } from "../accounts/outcomes";
+import { recordAccountOutcomeAction } from "../gtm/accounts/actions";
+import type { AccountOutcome } from "../gtm/accounts/outcomes";
 
 const OUTCOME_OPTIONS: Array<{ outcome: AccountOutcome; label: string }> = [
   { outcome: "positive_reply", label: "Positive reply" },

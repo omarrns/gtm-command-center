@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   recordAccountOutcomeForUser,
   type AccountOutcome,
-} from "../src/app/(app)/accounts/outcomes";
+} from "../src/app/(app)/gtm/accounts/outcomes";
 import type { RecordOutreachEventInput } from "../src/lib/outreach/events";
 import type { OpportunityStage } from "../src/lib/supabase/types";
 

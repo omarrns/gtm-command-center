@@ -322,7 +322,7 @@ async function rankResults(
 
 // ---------------------------------------------------------------------------
 // Shared persistence helper — marks activation complete so the user is
-// never redirected back to /activate.
+// never redirected back to activation.
 //
 // Two callers use this with distinct semantics:
 //   - runActivationSearch: marks completion after a successful search run

@@ -194,7 +194,7 @@ export function ReviewJobSearch({
         return;
       }
       toast.success("Profile saved!");
-      router.push(isRefresh ? "/settings" : "/activate");
+      router.push(isRefresh ? "/settings" : "/career/activate");
     });
   }
 

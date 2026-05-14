@@ -55,8 +55,8 @@ export function ResearchDetail({
   return (
     <div className="max-w-4xl">
       <DetailHeader
-        backHref="/"
-        backLabel="Back to Today"
+        backHref="/research"
+        backLabel="Back to Research"
         title={`${initial.company_name} — ${initial.role_title}`}
         subtitle={
           <>

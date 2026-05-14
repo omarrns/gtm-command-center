@@ -1,5 +1,5 @@
-import { TrendsClient } from "./_components/trends-client";
+import { redirect } from "next/navigation";
 
-export default function TrendsPage() {
-  return <TrendsClient />;
+export default function TrendsRedirectPage() {
+  redirect("/gtm/trends");
 }

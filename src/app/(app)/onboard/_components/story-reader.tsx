@@ -68,7 +68,7 @@ export function StoryReader({
       throw new Error(result.error ?? "Save failed");
     }
     toast.success("Profile saved!");
-    router.push(isRefresh ? "/settings" : "/activate");
+    router.push(isRefresh ? "/settings" : "/career/activate");
   }
 
   async function handleBack() {

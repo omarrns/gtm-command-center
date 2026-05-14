@@ -12,7 +12,7 @@
  * - Tight result cap (15 candidates scored → top 5 returned) so the
  *   activation round-trip stays under ~30s on Sonnet.
  * - Scored results are persisted to opportunities (stage='scored') so
- *   /accounts is populated immediately without waiting for a cron run.
+ *   /gtm/accounts is populated immediately without waiting for a cron run.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -135,7 +135,7 @@ export async function runAccountActivationSearch(
       };
       scored.push(activationResult);
 
-      // Persist to opportunities so /accounts is populated immediately.
+      // Persist to opportunities so /gtm/accounts is populated immediately.
       // Non-critical: preview still works if this fails.
       try {
         await persistActivationResult(

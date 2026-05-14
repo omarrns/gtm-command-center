@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default async function IcpChatPage() {
-  redirect("/icp?view=chat");
+export default function IcpChatRedirectPage() {
+  redirect("/gtm/icp?view=chat");
 }

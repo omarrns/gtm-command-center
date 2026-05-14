@@ -46,7 +46,7 @@ export default async function OnboardPage(props: {
 
   // GTM users have their own route — send them there immediately.
   if (userType === "gtm") {
-    redirect("/icp");
+    redirect("/gtm/icp");
   }
 
   // Resolve which template to route the page to. URL param wins (explicit

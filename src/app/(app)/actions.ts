@@ -43,7 +43,7 @@ export async function triggerPipelineAction(): Promise<{
   }
 
   const data = await res.json();
-  revalidatePath("/");
+  revalidatePath("/career");
   return { ok: true, runId: data.runId };
 }
 
@@ -57,8 +57,8 @@ export async function approveOpportunityAction(
     opportunityId,
   });
   if (result.ok) {
-    revalidatePath("/");
-    revalidatePath("/accounts");
+    revalidatePath("/career");
+    revalidatePath("/gtm/accounts");
   }
   return result;
 }
@@ -107,8 +107,8 @@ export async function skipOpportunityAction(
   }
 
   log.info("skipped", { fromStage: currentStage });
-  revalidatePath("/");
-  revalidatePath("/accounts");
+  revalidatePath("/career");
+  revalidatePath("/gtm/accounts");
   return { ok: true };
 }
 
@@ -153,7 +153,7 @@ export async function editDraftAction(
     return { ok: false, error: updateError.message };
   }
 
-  revalidatePath("/");
+  revalidatePath("/career");
   return { ok: true };
 }
 
@@ -226,8 +226,8 @@ export async function flagCompanyAction(
     company: opp.company_name,
     fromStage: currentStage,
   });
-  revalidatePath("/");
-  revalidatePath("/accounts");
+  revalidatePath("/career");
+  revalidatePath("/gtm/accounts");
   return { ok: true };
 }
 
@@ -275,7 +275,7 @@ export async function applyManuallyAction(
   }
 
   log.info("marked sent (manual apply)");
-  revalidatePath("/");
+  revalidatePath("/career");
   return { ok: true };
 }
 
@@ -292,7 +292,7 @@ export async function manualInjectOpportunityAction(
     jobUrl,
   });
   if (result.ok) {
-    revalidatePath("/");
+    revalidatePath("/career");
   }
   return result;
 }

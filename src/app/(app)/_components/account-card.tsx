@@ -24,7 +24,7 @@ import type { OpportunityStage } from "@/lib/supabase/types";
 import { ContactPanel, type Contact } from "@/components/contact-panel";
 import { useJobPoll } from "@/lib/jobs/use-job-poll";
 import { skipOpportunityAction } from "../actions";
-import { findContactsForAccountAction } from "../accounts/actions";
+import { findContactsForAccountAction } from "../gtm/accounts/actions";
 import { AccountCardDraftSection } from "./account-card-draft-section";
 import { AccountOutcomeChips } from "./account-outcome-chips";
 import {

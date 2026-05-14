@@ -67,7 +67,7 @@ export function IcpNarrativeReader({
       throw new Error(result.error ?? "Save failed");
     }
     toast.success("Buyer arc saved!");
-    router.push(isRefresh ? "/settings" : "/icp");
+    router.push(isRefresh ? "/settings" : "/gtm/icp");
   }
 
   async function handleBack() {

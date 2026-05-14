@@ -3,7 +3,7 @@
  *
  * Usage: npx tsx scripts/seed-gtm-accounts.ts
  *
- * Uses source="theirstack" so /accounts surfaces the rows without a migration.
+ * Uses source="theirstack" so /gtm/accounts surfaces the rows without a migration.
  * Existing fixture drafts are cleared so repeated runs reset selected_draft_id.
  */
 

@@ -377,8 +377,8 @@ assert(
 );
 
 const loaderFiles = [
-  "src/app/(app)/_actions/update-icp-rubric.ts",
-  "src/app/(app)/_components/icp-dashboard.tsx",
+  "src/app/(app)/gtm/_actions/update-icp-rubric.ts",
+  "src/app/(app)/gtm/icp/_components/icp-dashboard.tsx",
   "src/app/api/activation/accounts/route.ts",
   "src/app/api/cron/dormant-discover/route.ts",
   "src/app/api/webhooks/theirstack/route.ts",

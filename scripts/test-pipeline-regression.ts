@@ -918,7 +918,7 @@ async function main() {
     "formstack.example NOT re-inserted (dedup against theirstack set)",
   );
 
-  // ── Phase 5a: /activate fast preview ──────────────────────────────────
+  // ── Phase 5a: activation fast preview ──────────────────────────────────
   //
   // runAccountActivationSearch runs TheirStack → inline score synchronously.
   // Exa/Anthropic are still 503 so scoring fails per-row. The contract:

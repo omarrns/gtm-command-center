@@ -51,7 +51,7 @@ export function SettingsClient({
     ? "Refresh your ICP rubric, exemplars, and product positioning. Discovery + outreach surfaces ship in a follow-up release."
     : "Update your profile, positioning, and outreach preferences. Changes take effect on the next pipeline run.";
   const profileHref = isGtm
-    ? "/icp?mode=refresh"
+    ? "/gtm/icp?mode=refresh"
     : "/onboard?mode=refresh";
   const profileLinkLabel = isGtm ? "Refresh ICP" : "Edit Profile";
 
@@ -81,7 +81,7 @@ export function SettingsClient({
           </Link>
           {!isGtm && (
             <Link
-              href="/profile"
+              href="/career/profile"
               className={buttonVariants({ variant: "outline" })}
             >
               <UserCircle size={13} />

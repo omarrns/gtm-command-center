@@ -115,8 +115,8 @@ async function main() {
   const expectedRoute = !onboarding.complete
     ? "/onboard"
     : activationCompletedAt
-      ? "/"
-      : "/activate";
+      ? "/career"
+      : "/career/activate";
 
   console.log(`Enabled: ${Boolean(profile.is_enabled)}`);
   console.log(`User type: ${userType ?? "null"}`);

@@ -116,7 +116,7 @@ export function computeAccountScore(
 // Narrower than OpportunityRow — the scorer only needs id + company
 // identity + the JSONB trigger/persona fields. OpportunityRow satisfies
 // this structurally, so the pipeline's score-accounts step still passes
-// its rows in unchanged. /activate's inline scoring builds the subject
+// its rows in unchanged. Activation's inline scoring builds the subject
 // straight from a TheirStackJob without having to forge a full
 // opportunity row.
 export interface ScoreAccountSubject {

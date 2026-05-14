@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { AppShell } from "@/components/app-shell";
+import { AppShell } from "@/components/app-shell/app-shell";
 import type { UserType } from "@/lib/supabase/types";
 
 export default async function AppLayout({

@@ -14,23 +14,38 @@ src/
 │   ├── (public)/login/         # Login form (unauth)
 │   └── (app)/
 │       ├── layout.tsx          # Auth gate → AppShell
-│       ├── page.tsx            # Today queue (job_seeker persona)
+│       ├── page.tsx            # Active-mode redirect: gtm → /gtm/icp, default → /career
 │       ├── actions.ts          # Today: trigger, approve, skip, flag, manual-apply
 │       ├── dev-actions.ts      # Dev-only helpers (persona toggle, etc.)
-│       ├── _actions/           # Cross-route server actions (e.g. update-icp-rubric)
-│       ├── _components/        # OpportunityCard, AccountCard, TodayClient, IcpDashboard
-│       ├── _loaders/           # Shared data loaders (today-queue, today-metrics). Per-route loaders live under `<route>/_loaders/` (e.g. `analytics/_loaders/analytics-data.ts`).
-│       ├── accounts/           # GTM persona: pipeline-promoted accounts
-│       ├── activate/           # First-run JSearch activation
-│       ├── analysis/           # JD/company analyses (detail + intake)
-│       ├── analytics/          # Pipeline + content analytics
-│       ├── calls/              # Sales-call browse/inspect
-│       ├── coaching/           # Career-coach skill UI
+│       ├── _redirects.ts       # Small helpers for legacy route redirect stubs
+│       ├── _components/        # Legacy shared account-card components used by GTM accounts + activation
+│       ├── accounts/, icp/, video-icp/, ... # Compatibility redirects to canonical mode URLs
+│       ├── career/
+│       │   ├── page.tsx        # Today queue (job_seeker persona)
+│       │   ├── _components/    # Career queue cards, filters, Today UI
+│       │   ├── _loaders/       # today-queue, today-metrics
+│       │   ├── activate/       # Shared activation UI used by the career route and GTM alias
+│       │   ├── analysis/       # Analysis detail route plus placeholder intake redirects
+│       │   ├── analytics/      # Pipeline + content analytics
+│       │   ├── coaching/       # Placeholder redirect for deferred career-coach UI
+│       │   ├── history/        # Sent/skipped opportunities
+│       │   ├── outreach/       # Placeholder redirect routes for deferred standalone outreach
+│       │   ├── profile/        # Saved job-search profile surface
+│       │   ├── trail/          # Placeholder redirect for deferred TRAIL viewer
+│       │   └── watchlist/      # Monitored companies and Exa alerts
 │       ├── dev/                # Dev/admin debug page (profiles, pipeline_config, onboarding_interviews)
-│       ├── history/            # Sent/skipped opportunities
-│       ├── icp/                # ICP rubric editor, chat, and revision history (GTM persona)
+│       ├── gtm/
+│       │   ├── _actions/       # GTM server actions shared by GTM routes
+│       │   ├── _components/    # GTM route-shared UI such as narrative generation
+│       │   ├── accounts/       # GTM persona: pipeline-promoted accounts
+│       │   ├── activate/       # GTM activation alias over the shared activation UI
+│       │   ├── calls/          # Sales-call browse/inspect
+│       │   ├── icp/            # ICP rubric editor, chat, and revision history
+│       │   ├── messaging/      # GTM messaging system and draft composer
+│       │   ├── prospects/      # GTM commenter prospects from video ICP reviews
+│       │   ├── trends/         # JSearch trend dashboard
+│       │   └── video-icp/      # YouTube transcript review against ICP rubric
 │       ├── memory/             # memory_documents browse/edit
-│       ├── messaging/          # GTM messaging system and draft composer
 │       ├── onboard/
 │       │   ├── page.tsx
 │       │   ├── actions.ts                  # Manual wizard step actions
@@ -41,15 +56,8 @@ src/
 │       │   ├── switch-persona.ts           # Abandon prior + create new + reassign artifacts
 │       │   ├── confirm-logic.ts            # performConfirm(svc, userId, …) — testable seam
 │       │   └── _components/                # onboard-router, interview-client, review-client, story-client, artifact-input, persona-picker
-│       ├── outreach/           # Standalone outreach drafts
-│       ├── profile/            # Saved profile / ICP read surface
-│       ├── prospects/          # GTM commenter prospects from video ICP reviews
-│       ├── research/           # Research reports (detail + new)
+│       ├── research/           # Standalone analyst workspace and research reports
 │       ├── settings/
-│       ├── trail/              # Career-coach TRAIL.md viewer
-│       ├── trends/             # JSearch trend dashboard
-│       ├── video-icp/          # GTM persona: YouTube transcript review against ICP rubric
-│       ├── watchlist/
 │       └── workspace-tools/    # Misc dev/ops actions
 │   └── api/
 │       ├── auth/gmail/                 # OAuth start + callback
@@ -66,12 +74,10 @@ src/
 │       ├── webhooks/theirstack/        # Real-time GTM job inflow (HMAC-verified)
 │       └── worker/claim/               # Background-job claim endpoint
 ├── components/
-│   ├── app-shell.tsx
-│   ├── sidebar-nav.tsx         # Desktop aside + mobile Sheet (intentionally custom)
-│   ├── top-bar.tsx
-│   ├── command-palette.tsx, lazy-command-palette.tsx  # Intentionally custom (⌘K motion)
+│   ├── app-shell/              # AppShell, sidebar-nav, top-bar, command-palette, dev persona toggle
 │   ├── page-header.tsx, empty-state.tsx, detail-header.tsx
-│   ├── dev-persona-toggle.tsx, tag-input.tsx, theme-provider.tsx
+│   ├── shared/                 # Reusable app-specific UI such as queue-filter-bar
+│   ├── tag-input.tsx, theme-provider.tsx
 │   ├── ai-elements/            # VENDORED from Vercel AI Elements (prompt-input.tsx, message.tsx, conversation.tsx, loader.tsx). Don't hand-refactor; re-vendor from upstream.
 │   └── ui/                     # shadcn/ui (owned source)
 └── lib/
@@ -82,6 +88,8 @@ src/
     ├── icp-agent/              # GTM ICP chat sessions, patch/revision events, and consolidation jobs
     ├── integrations/           # gmail.ts, crypto.ts (AES-256-GCM token storage), theirstack.ts
     ├── outreach/               # Outreach events, reply metadata/classification, performance memory
+    ├── platform/
+    │   └── modes/registry.ts   # AppMode, default routes, nav items, command items, route titles
     ├── pipeline/
     │   ├── workflow.ts                 # LIVE job_seeker orchestrator (Vercel Workflow durable).
     │   ├── types.ts                    # Shared pipeline result types (PipelineRunResult). Imported by gtm-runner.ts.
@@ -133,9 +141,9 @@ discovered → scored → researched → enriched → drafted → queued → sen
 - Enrichment retries increment `enrichment_attempts` up to `max_enrichment_attempts`; terminal failure routes to `needs_contact`.
 - Scoring auto-adds companies to watchlist when normalized score >= 80.
 
-### Dual-Persona Routing
+### Mode Routing
 
-`profiles.user_type` (`job_seeker` | `gtm`) splits the app into two pipelines that share the same `opportunities` table and most infrastructure but diverge on entry, scoring, and surface UI. There is no central dispatcher — routing happens at the API/page boundary.
+`profiles.user_type` (`job_seeker` | `gtm`) still drives the default mode. The canonical app URLs are visible mode segments: `/career`, `/gtm`, and `/research`. `src/lib/platform/modes/registry.ts` owns mode IDs, default landing pages, shell nav, command palette items, and route titles. Root legacy paths such as `/accounts`, `/icp`, `/video-icp`, `/activate`, `/history`, and `/profile` are compatibility redirects only.
 
 | Concern             | job_seeker                                 | gtm                                                                                                 |
 | ------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
@@ -145,11 +153,11 @@ discovered → scored → researched → enriched → drafted → queued → sen
 | Opportunity source  | `jsearch`                                  | `theirstack`, `exa-dormant`, `yt_comments`                                                          |
 | Onboarding template | `job_search`                               | `icp_definition` (agentic; uses orchestrator + artifacts)                                           |
 | Pipeline_config     | search_queries, locations, score_threshold | + `company_domain`, `trigger_signals`, `buyer_personas`, `icp_rubric`                               |
-| Surface UI          | Today (`/`), History, Watchlist            | `/accounts` (never-auto-remove rule), `/icp` (rubric editor/chat/changes), `/messaging`, `/prospects`, `/video-icp` |
+| Surface UI          | `/career`, `/career/history`, `/career/watchlist`, `/career/profile` | `/gtm/accounts` (never-auto-remove rule), `/gtm/icp` (rubric editor/chat/changes), `/gtm/messaging`, `/gtm/prospects`, `/gtm/video-icp` |
 
 `gtm-runner.ts` is the GTM batch lane's entry point. `pipelineWorkflow` short-circuits `gtm` profiles as a safety net — the GTM persona's recurring/realtime entry points are the dormant-discover cron and the TheirStack webhook, not `/api/cron/pipeline`.
 
-GTM account retention rule: `/accounts` shows every pipeline-promoted account except `discovered`, `filtered`, and explicit user dismissals (`skipped`). Downstream stages such as `researched`, `needs_contact`, `enriched`, `queued`, `sent`, and `replied` must not auto-remove an account from `/accounts`; only user actions like skip/flag remove it.
+GTM account retention rule: `/gtm/accounts` shows every pipeline-promoted account except `discovered`, `filtered`, and explicit user dismissals (`skipped`). Downstream stages such as `researched`, `needs_contact`, `enriched`, `queued`, `sent`, and `replied` must not auto-remove an account from `/gtm/accounts`; only user actions like skip/flag remove it.
 
 ### Onboarding Interview State Machine
 
@@ -238,7 +246,7 @@ Migrations in `supabase/migrations/` define the schema. The linked-project TypeS
 | `/api/cron/watchlist`        | `0 11 * * *`         | Ingest Exa Webset alerts                                                                           |
 | `/api/cron/dormant-discover` | `0 12 * * 1`         | GTM weekly Exa sweep over the user's ICP rubric (no hiring signal); scores via `runScoreAccounts`. |
 
-Real-time (not cron): `POST /api/webhooks/theirstack?user=<uuid>` — HMAC-SHA256 signed `job.new` deliveries from a TheirStack saved search. Runs `scoreOneAccount` inline so a hot match shows up in `/accounts` within seconds.
+Real-time (not cron): `POST /api/webhooks/theirstack?user=<uuid>` — HMAC-SHA256 signed `job.new` deliveries from a TheirStack saved search. Runs `scoreOneAccount` inline so a hot match shows up in `/gtm/accounts` within seconds.
 
 `maxDuration` is set per route based on whether the route does the work itself or dispatches it:
 
@@ -266,7 +274,7 @@ Real-time (not cron): `POST /api/webhooks/theirstack?user=<uuid>` — HMAC-SHA25
 - Extraction uses the template's `extractionModel` / `extractionSchema` / `extractionSystemPrompt` via `generateObject`.
 - Confirm iterates `template.outputs` and dispatches per output type (`memory_doc` / `pipeline_config` / `scoring_profile_normalize`), then marks interview `confirmed`. Every output is an idempotent upsert.
 - `topics_covered` controls which extracted values overwrite existing settings on refresh.
-- Post-confirm routes to `/activate` (first-time) or `/settings` (refresh).
+- Post-confirm routes to `/career/activate` for job-search first run, `/gtm/icp` for ICP confirmation, or `/settings` for refresh.
 
 ### Interview Template Abstraction
 
@@ -275,7 +283,7 @@ Real-time (not cron): `POST /api/webhooks/theirstack?user=<uuid>` — HMAC-SHA25
 - `onboarding_interviews.template_id` + `template_version` stamp every row. `getOrCreateInterviewAction` scopes its active-interview SELECT by `(user_id, template_id)` so future templates can have concurrent active interviews.
 - **Client boundary:** raw `InterviewTemplate` is not serializable (zod schemas, tool definitions, function fields). RSC pages pass `ClientInterviewTemplate` — a plain-data projection of `{ id, topics, topicLabels, openingMessage, refreshOpeningMessage }` — to `InterviewClient` / `ReviewClient`. Use `toClientTemplate()` to produce it.
 - **Confirm seam:** `src/app/(app)/onboard/confirm-logic.ts` exports `performConfirm(svc, userId, interviewId, edits)` for testability. `confirmInterviewAction` is a thin server-action wrapper around it. Test via `scripts/test-onboarding-confirm.ts`.
-- **Adding a template:** one file in `templates/` + one entry in `REGISTRY` + widen the `InterviewTemplateId` union + route (e.g. `/onboard/icp` or `/onboard?template=icp`). No other files should need to change in the streaming / extract / confirm code paths.
+- **Adding a template:** one file in `templates/` + one entry in `REGISTRY` + widen the `InterviewTemplateId` union + an onboarding entry point if needed. No other files should need to change in the streaming / extract / confirm code paths.
 - **Generalization status (job_search + icp_definition both shipping):**
   - `isOnboardingComplete()` — template-aware dispatcher. `src/lib/pipeline/onboarding.ts:31`.
   - `normalizeScoringProfile()` — template-aware dispatcher → `template.normalizeScoringProfile`. `src/lib/pipeline/scoring-profile.ts`.
@@ -295,8 +303,9 @@ The streaming chat route still serves both modes — agentic templates get a `sy
 
 ### Activation Flow
 
-- `/activate` runs JSearch + fast scoring (`anthropic/claude-sonnet-4.6`) to show first results.
-- Redirects to `/` once `activation_completed_at` is set. All exit paths call `dismissActivationAction()` first.
+- `/career/activate` runs JSearch + fast scoring (`anthropic/claude-sonnet-4.6`) to show first job-search results.
+- `/gtm/activate` uses the same activation UI for GTM account activation.
+- Redirects to the mode dashboard once `activation_completed_at` is set. All exit paths call `dismissActivationAction()` first.
 
 ### Sender Identity + Prompts
 
@@ -321,7 +330,7 @@ The streaming chat route still serves both modes — agentic templates get a `sy
 - **UI primitives live in `src/components/ui/`.** Use `<Button>`, `<Input>`, `<Textarea>`, `<Badge>`, `<Alert>` — never `className="btn-primary"`, `className="input"`, `className="badge"`, or hand-rolled banners. For anchors and `next/link` that need button styling, use `buttonVariants()` from `@/components/ui/button`.
 - **Icons use Phosphor in app-owned UI.** Import icon components from `@phosphor-icons/react/ssr`, keep 14-16px sizes, use regular weight by default, and reserve fill weight for selected/high-emphasis states. `src/components/ai-elements/**` remains vendored and may still import Lucide until re-vendored.
 - **Surfaces use `<Card>` from `src/components/ui/card.tsx`.** The `surface` / `surface-muted` utilities in `globals.css` are deprecated — do not add new call sites. For a muted variant, use `<Card className="bg-muted ...">`.
-- `QueueFilterBar` (`src/app/(app)/_components/queue-filter-bar.tsx`) owns Min/Max Score + Company search. Pass a `leftSlot` for stage / window / tier controls. Optional `onApply` switches to server-roundtrip mode (form submit + Apply button); omit it for live client-side filtering.
+- `QueueFilterBar` (`src/components/shared/queue-filter-bar.tsx`) owns Min/Max Score + Company search. Pass a `leftSlot` for stage / window / tier controls. Optional `onApply` switches to server-roundtrip mode (form submit + Apply button); omit it for live client-side filtering.
 - `PageHeader` on every list page. `DetailHeader` on every detail page. `EmptyState` for zero items. `<Alert>` (with optional `<RefreshCw className="animate-spin">` for running states) for status banners.
 - `command-palette.tsx` and `sidebar-nav.tsx` are **intentionally custom** — they own spring motion, LayoutGroup active-pill, and ⌘K / ⌘B shortcuts. Do not swap them for shadcn `command` / `sidebar` without an explicit ask.
 - Background jobs: server action enqueues → client polls via `useJobPoll(jobId)` → `router.refresh()` on completion. `video-icp-review` follows this path.

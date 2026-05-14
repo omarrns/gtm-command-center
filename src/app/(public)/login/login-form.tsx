@@ -23,7 +23,7 @@ export function LoginForm({ next, error }: { next?: string; error?: string }) {
         setErrorMessage(result.error);
         return;
       }
-      router.replace(result.next ?? "/analysis");
+      router.replace(result.next ?? "/");
       router.refresh();
     });
   }

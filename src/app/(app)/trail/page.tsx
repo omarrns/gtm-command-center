@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function TrailPage() {
-  redirect("/");
+export default function TrailRedirectPage() {
+  redirect("/career/trail");
 }

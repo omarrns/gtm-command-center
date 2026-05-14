@@ -8,7 +8,7 @@ import {
   parseBullets,
   parseMarkdownBlocks,
   type ArcBeats,
-} from "../src/app/(app)/messaging/_components/messaging-hub-helpers";
+} from "../src/app/(app)/gtm/messaging/_components/messaging-hub-helpers";
 
 const arcMarkdown = [
   "## Trigger",

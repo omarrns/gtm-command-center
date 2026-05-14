@@ -1,5 +1,5 @@
-import { CallsClient } from "./_components/calls-client";
+import { redirect } from "next/navigation";
 
-export default function CallsPage() {
-  return <CallsClient />;
+export default function CallsRedirectPage() {
+  redirect("/gtm/calls");
 }

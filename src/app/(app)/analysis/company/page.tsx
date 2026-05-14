@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function CompanyAnalysisPage() {
-  redirect("/");
+export default function CompanyAnalysisRedirectPage() {
+  redirect("/career/analysis/company");
 }

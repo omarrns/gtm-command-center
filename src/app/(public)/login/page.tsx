@@ -16,7 +16,7 @@ export default async function LoginPage({
   searchParams: SearchParams;
 }) {
   const user = await getCurrentUser();
-  if (user) redirect("/analysis");
+  if (user) redirect("/");
 
   const { next, error } = await searchParams;
 

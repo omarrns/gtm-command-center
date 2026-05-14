@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A browser-based autonomous job-search agent. It discovers roles, scores them, researches contacts, enriches emails, drafts outreach, queues opportunities for approval, sends approved emails through Gmail, and tracks replies. Single-user tool, not a product for others.
+A browser-based autonomous career, GTM, and research console. It discovers roles, scores them, researches contacts, enriches emails, drafts outreach, tracks GTM account signals, reviews ICP fit, and collects standalone research reports. Individual-user tool, not a multi-tenant SaaS product.
 
 ## Tech Stack
 
@@ -30,14 +30,26 @@ Read `docs/agent-reference.md` before changing pipeline, onboarding, scoring, se
 
 - `src/lib/pipeline/workflow.ts` is the live job_seeker orchestrator. Do not add a parallel synchronous pipeline runner.
 - GTM recurring/realtime entry points are `/api/cron/dormant-discover` and `/api/webhooks/theirstack`, not `/api/cron/pipeline`.
-- GTM account retention: `/accounts` must keep every pipeline-promoted account except `discovered`, `filtered`, and explicit user dismissals (`skipped`). Do not auto-remove accounts just because they move to `researched`, `needs_contact`, `enriched`, `queued`, `sent`, or `replied`.
+- Canonical product routes are visible mode segments: `/career/*`, `/gtm/*`, and `/research/*`. Root legacy routes such as `/accounts`, `/icp`, `/video-icp`, `/activate`, `/history`, and `/profile` are compatibility redirects only.
+- GTM account retention: `/gtm/accounts` must keep every pipeline-promoted account except `discovered`, `filtered`, and explicit user dismissals (`skipped`). Do not auto-remove accounts just because they move to `researched`, `needs_contact`, `enriched`, `queued`, `sent`, or `replied`.
 - Send Flow is safety-critical (`src/lib/outreach/approve-send.ts`): after Gmail returns IDs, never revert `sending` back to `queued`. Return a reconciliation error instead of risking duplicate sends.
 - All cron endpoints are `GET`, require bearer `CRON_SECRET`, and fail closed if missing or mismatched.
 - `pipeline_config` is client-readable but not client-writable. Mutations go through server actions or service-role code.
+- ICP chat cannot directly mutate the saved rubric. Rubric recommendations must go through the job handoff chain: `icp-session-distill` -> `icp-evidence-route` -> `icp-revision-evaluate`, with trace rows in `icp_agent_events`.
+- ICP revision agents suggest structured patches only. Server code validates and applies them; models do not write `user_scoring_profiles.icp_rubric` directly.
+- Current ICP auto-apply policy is narrow: append allowed rubric arrays such as `/firmographics/stages`, remove only matching `/disqualifiers/stage_disqualifiers`, and keep broader scalar changes as rejected/manual-review candidates unless policy is explicitly expanded.
+- ICP distillation must tolerate rubric-level conversations without a named account; `account: null` is valid model output and should not block the review pipeline.
 - AI calls use Vercel AI Gateway via `gateway(modelId)` from `ai`. Do not import `@ai-sdk/anthropic` or wrap models with `anthropic(...)`.
 - Model slugs use Gateway provider/model format with dotted versions, e.g. `anthropic/claude-opus-4.6` and `anthropic/claude-sonnet-4.6`.
 - `components/ai-elements/` is vendored from Vercel AI Elements. Do not hand-refactor; re-vendor from upstream.
-- `command-palette.tsx` and `sidebar-nav.tsx` are intentionally custom. Do not replace them with shadcn `command` or `sidebar` without an explicit ask.
+- `src/components/app-shell/command-palette.tsx` and `src/components/app-shell/sidebar-nav.tsx` are intentionally custom. Do not replace them with shadcn `command` or `sidebar` without an explicit ask.
+
+## Ownership Boundaries
+
+- Next.js routes use visible product folders under `src/app/(app)`: `career/`, `gtm/`, and `research/`. Do not add new product-owned pages at the root unless they are temporary redirects.
+- Shared app shell code lives in `src/components/app-shell/`; shadcn primitives live in `src/components/ui/`; vendored AI Elements stay in `src/components/ai-elements/`.
+- Mode routing, default landing pages, nav items, command items, and route titles live in `src/lib/platform/modes/registry.ts`.
+- Route-private UI should live in that route's `_components/` folder. Mode-wide reusable UI can move into a mode folder, but do not move grandfathered oversized files just to rename them.
 
 ## Scripts
 
