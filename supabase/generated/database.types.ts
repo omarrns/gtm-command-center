@@ -1150,6 +1150,7 @@ export type Database = {
       pipeline_config: {
         Row: {
           activation_completed_at: string | null
+          activation_started_at: string | null
           created_at: string
           daily_send_cap: number
           gmail_send_address: string | null
@@ -1162,6 +1163,7 @@ export type Database = {
         }
         Insert: {
           activation_completed_at?: string | null
+          activation_started_at?: string | null
           created_at?: string
           daily_send_cap?: number
           gmail_send_address?: string | null
@@ -1174,6 +1176,7 @@ export type Database = {
         }
         Update: {
           activation_completed_at?: string | null
+          activation_started_at?: string | null
           created_at?: string
           daily_send_cap?: number
           gmail_send_address?: string | null
@@ -1650,6 +1653,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      claim_activation_run: {
+        Args: { p_user_id: string }
+        Returns: boolean
       }
       claim_opportunity: {
         Args: { p_id: string; p_user_id: string }

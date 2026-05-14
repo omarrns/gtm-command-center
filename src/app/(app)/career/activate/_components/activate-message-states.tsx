@@ -6,7 +6,123 @@ import {
 } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { SearchProgress } from "@/components/ui/search-progress";
+import { ResultCardSkeleton } from "@/components/ui/result-card-skeleton";
 import type { UserType } from "@/lib/supabase/types";
+
+interface ActivationSearchingStateProps {
+  userType: UserType;
+  message: string;
+  totalMessages: number;
+  messageIndex: number;
+  longRunning: boolean;
+  onCancel: () => void;
+}
+
+export function ActivationSearchingState({
+  userType,
+  message,
+  totalMessages,
+  messageIndex,
+  longRunning,
+  onCancel,
+}: ActivationSearchingStateProps) {
+  const searchingNoun = userType === "gtm" ? "accounts" : "roles";
+
+  return (
+    <div className="mx-auto max-w-2xl py-6 space-y-8">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight">
+          Finding your top {searchingNoun}…
+        </h1>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1">
+          This usually takes about a minute.
+        </p>
+      </div>
+
+      <SearchProgress
+        step={messageIndex}
+        total={totalMessages}
+        message={message}
+        className="py-2"
+      />
+
+      {longRunning ? (
+        <Card className="gap-3 p-4">
+          <p className="text-sm font-medium">
+            This is taking longer than usual.
+          </p>
+          <p className="text-sm text-[var(--color-text-muted)]">
+            The scoring sweep runs each candidate sequentially against your
+            rubric. If you&apos;d rather not wait, cancel and retry — or come
+            back in a minute.
+          </p>
+          <div>
+            <Button variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      <div className="space-y-2">
+        {[0, 1, 2].map((i) => (
+          <ResultCardSkeleton key={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface ActivationRetryStateProps {
+  isPending: boolean;
+  onRetry: () => void;
+  onGoToDashboard: () => void;
+}
+
+interface ActivationErrorStateProps extends ActivationRetryStateProps {
+  error: string | null;
+}
+
+export function ActivationErrorState({
+  error,
+  isPending,
+  onRetry,
+  onGoToDashboard,
+}: ActivationErrorStateProps) {
+  return (
+    <div className="mx-auto max-w-lg py-16 text-center space-y-4">
+      <h2 className="text-lg font-semibold">Something went wrong</h2>
+      <p className="text-sm text-[var(--color-text-muted)]">{error}</p>
+      <ActivationRetryActions
+        isPending={isPending}
+        onRetry={onRetry}
+        onGoToDashboard={onGoToDashboard}
+      />
+    </div>
+  );
+}
+
+export function ActivationInProgressState({
+  isPending,
+  onRetry,
+  onGoToDashboard,
+}: ActivationRetryStateProps) {
+  return (
+    <div className="mx-auto max-w-lg py-16 text-center space-y-4">
+      <h2 className="text-lg font-semibold">Activation is already running</h2>
+      <p className="text-sm text-[var(--color-text-muted)]">
+        Another tab or retry is already scoring your preview. Check that tab,
+        retry in a minute, or go to your dashboard.
+      </p>
+      <ActivationRetryActions
+        isPending={isPending}
+        onRetry={onRetry}
+        onGoToDashboard={onGoToDashboard}
+      />
+    </div>
+  );
+}
 
 interface ActivationEmptyStateProps {
   userType: UserType;
@@ -99,14 +215,11 @@ export function ActivationEmptyState({
   );
 }
 
-interface ActivationScoringFailedStateProps {
+interface ActivationScoringFailedStateProps extends ActivationRetryStateProps {
   discovered: number;
   errors: number;
   // Pre-cleaned by `mapAiError` upstream — never the raw SDK error string.
   firstError: string | null;
-  isPending: boolean;
-  onRetry: () => void;
-  onGoToDashboard: () => void;
 }
 
 // Distinct from the network/HTTP "error" phase: the activation request
@@ -137,14 +250,28 @@ export function ActivationScoringFailedState({
           {firstError}
         </p>
       ) : null}
-      <div className="flex items-center justify-center gap-3">
-        <Button onClick={onRetry} disabled={isPending}>
-          Try Again
-        </Button>
-        <Button variant="ghost" onClick={onGoToDashboard} disabled={isPending}>
-          Go to Dashboard
-        </Button>
-      </div>
+      <ActivationRetryActions
+        isPending={isPending}
+        onRetry={onRetry}
+        onGoToDashboard={onGoToDashboard}
+      />
+    </div>
+  );
+}
+
+function ActivationRetryActions({
+  isPending,
+  onRetry,
+  onGoToDashboard,
+}: ActivationRetryStateProps) {
+  return (
+    <div className="flex items-center justify-center gap-3">
+      <Button onClick={onRetry} disabled={isPending}>
+        Try Again
+      </Button>
+      <Button variant="ghost" onClick={onGoToDashboard} disabled={isPending}>
+        Go to Dashboard
+      </Button>
     </div>
   );
 }

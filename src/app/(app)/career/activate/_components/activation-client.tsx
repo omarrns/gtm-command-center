@@ -11,8 +11,6 @@ import {
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { SearchProgress } from "@/components/ui/search-progress";
-import { ResultCardSkeleton } from "@/components/ui/result-card-skeleton";
 import { triggerPipelineAction } from "../../../actions";
 import { dismissActivationAction } from "../actions";
 import type {
@@ -28,7 +26,10 @@ import { OpportunityCard } from "../../_components/opportunity-card";
 import { AccountResultCard } from "./account-result-card";
 import {
   ActivationEmptyState,
+  ActivationErrorState,
+  ActivationInProgressState,
   ActivationScoringFailedState,
+  ActivationSearchingState,
 } from "./activate-message-states";
 
 const REASSURANCE_MESSAGES = ["Searching job boards...", "Found some matches, scoring against your profile...", "Running full analysis on each role — this takes a minute or two...", "Still scoring — each role gets a detailed fit analysis...", "Almost done — comparing your best matches..."];
@@ -36,7 +37,13 @@ const REASSURANCE_INTERVALS = [0, 8_000, 25_000, 60_000, 90_000];
 const LONG_RUNNING_BANNER_MS = 180_000;
 const FETCH_TIMEOUT_MS = 240_000;
 
-type Phase = "searching" | "results" | "empty" | "error" | "scoring-failed";
+type Phase =
+  | "searching"
+  | "results"
+  | "empty"
+  | "error"
+  | "scoring-failed"
+  | "in-progress";
 
 interface ActivationClientProps {
   gmailConnected: boolean;
@@ -115,6 +122,13 @@ export function ActivationClient({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
+        if (
+          res.status === 409 &&
+          (body as Record<string, string>).status === "in_progress"
+        ) {
+          setPhase("in-progress");
+          return;
+        }
         throw new Error(
           (body as Record<string, string>).error ??
             `Search failed (${res.status})`,
@@ -203,70 +217,36 @@ export function ActivationClient({
   }
 
   if (phase === "searching") {
-    const searchingNoun = userType === "gtm" ? "accounts" : "roles";
     return (
-      <div className="mx-auto max-w-2xl py-6 space-y-8">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">
-            Finding your top {searchingNoun}…
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            This usually takes about a minute.
-          </p>
-        </div>
-
-        <SearchProgress
-          step={messageIndex}
-          total={REASSURANCE_MESSAGES.length}
-          message={REASSURANCE_MESSAGES[messageIndex]}
-          className="py-2"
-        />
-
-        {longRunning ? (
-          <Card className="gap-3 p-4">
-            <p className="text-sm font-medium">
-              This is taking longer than usual.
-            </p>
-            <p className="text-sm text-[var(--color-text-muted)]">
-              The scoring sweep runs each candidate sequentially against your
-              rubric. If you&apos;d rather not wait, cancel and retry — or come
-              back in a minute.
-            </p>
-            <div>
-              <Button variant="outline" onClick={handleCancel}>
-                Cancel
-              </Button>
-            </div>
-          </Card>
-        ) : null}
-
-        <div className="space-y-2">
-          {[0, 1, 2].map((i) => (
-            <ResultCardSkeleton key={i} />
-          ))}
-        </div>
-      </div>
+      <ActivationSearchingState
+        userType={userType}
+        message={REASSURANCE_MESSAGES[messageIndex]}
+        totalMessages={REASSURANCE_MESSAGES.length}
+        messageIndex={messageIndex}
+        longRunning={longRunning}
+        onCancel={handleCancel}
+      />
     );
   }
 
   if (phase === "error") {
     return (
-      <div className="mx-auto max-w-lg py-16 text-center space-y-4">
-        <h2 className="text-lg font-semibold">Something went wrong</h2>
-        <p className="text-sm text-[var(--color-text-muted)]">{error}</p>
-        <div className="flex items-center justify-center gap-3">
-          <Button onClick={handleRetry} disabled={isPending}>
-            Try Again
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={handleGoToDashboard}
-            disabled={isPending}
-          >
-            Go to Dashboard
-          </Button>
-        </div>
-      </div>
+      <ActivationErrorState
+        error={error}
+        isPending={isPending}
+        onRetry={handleRetry}
+        onGoToDashboard={handleGoToDashboard}
+      />
+    );
+  }
+
+  if (phase === "in-progress") {
+    return (
+      <ActivationInProgressState
+        isPending={isPending}
+        onRetry={handleRetry}
+        onGoToDashboard={handleGoToDashboard}
+      />
     );
   }
 

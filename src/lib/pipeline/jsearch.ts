@@ -131,6 +131,11 @@ interface SearchJobsOptions {
   datePosted?: string;
 }
 
+interface SearchJobsPreviewOptions extends SearchJobsOptions {
+  limit: number;
+  keep: (job: JSearchResult) => boolean;
+}
+
 /**
  * Search for jobs across multiple queries and locations. Deduplicates by job_id.
  */
@@ -163,4 +168,42 @@ export async function searchJobs(
     seen.add(job.job_id);
     return true;
   });
+}
+
+/**
+ * Search for just enough matching jobs for a first-run preview. This keeps
+ * activation from burning every query×location request before it can score.
+ */
+export async function searchJobsPreview(
+  queries: string[],
+  locations: string[],
+  options: SearchJobsPreviewOptions,
+): Promise<JSearchResult[]> {
+  const preview: JSearchResult[] = [];
+  const seen = new Set<string>();
+  let isFirstRequest = true;
+
+  for (const query of queries) {
+    for (const location of locations) {
+      if (!isFirstRequest) await sleep(THROTTLE_MS);
+      isFirstRequest = false;
+
+      const results = await fetchJSearch(`${query} in ${location}`, {
+        numPages: options.numPages ?? 3,
+        datePosted: options.datePosted ?? "month",
+        employmentTypes: "FULLTIME",
+        country: "us",
+      });
+
+      for (const job of results) {
+        if (seen.has(job.job_id)) continue;
+        seen.add(job.job_id);
+        if (!options.keep(job)) continue;
+        preview.push(job);
+        if (preview.length >= options.limit) return preview;
+      }
+    }
+  }
+
+  return preview;
 }

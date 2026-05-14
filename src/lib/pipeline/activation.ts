@@ -14,8 +14,12 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PipelineConfigRow, OpportunityRow } from "@/lib/supabase/types";
-import { searchJobs } from "@/lib/pipeline/jsearch";
-import { createOpportunity } from "@/lib/pipeline/opportunities";
+import { searchJobsPreview } from "@/lib/pipeline/jsearch";
+import {
+  claimOpportunity,
+  createOpportunity,
+  releaseOpportunity,
+} from "@/lib/pipeline/opportunities";
 import { scoreOneOpportunity } from "@/lib/pipeline/steps/score";
 import { createLogger, type Logger } from "@/lib/logger";
 import { MODELS } from "@/lib/ai/anthropic";
@@ -53,7 +57,7 @@ export interface ActivationSearchResult {
 // Constants
 // ---------------------------------------------------------------------------
 
-const MAX_ACTIVATION_DISCOVERIES = 10;
+const MAX_ACTIVATION_DISCOVERIES = 5;
 const RECENCY_DAYS = 10;
 const MAX_RESULTS = 5;
 const ACTIVATION_MODEL = MODELS.jobSeekerScoring;
@@ -78,29 +82,27 @@ export async function runActivationSearch(
     errors: 0,
   };
 
-  // 1. Discover — use month window from JSearch, post-filter to 10 days
-  let rawJobs = await searchJobs(
-    config.search_queries,
-    config.search_locations,
-    { numPages: 1, datePosted: "month" },
-  );
-
-  // 2. Post-filter: keep only jobs with a known posted date within 10 days.
-  //    Exclude undated jobs — activation promises "last 10 days only."
   const cutoff = new Date(
     Date.now() - RECENCY_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  rawJobs = rawJobs.filter(
-    (job) =>
-      job.job_posted_at_datetime_utc &&
-      job.job_posted_at_datetime_utc >= cutoff,
+  const rawJobs = await searchJobsPreview(
+    config.search_queries,
+    config.search_locations,
+    {
+      numPages: 1,
+      datePosted: "month",
+      limit: MAX_ACTIVATION_DISCOVERIES,
+      keep: (job) =>
+        Boolean(
+          job.job_posted_at_datetime_utc &&
+            job.job_posted_at_datetime_utc >= cutoff,
+        ),
+    },
   );
-
-  rawJobs = rawJobs.slice(0, MAX_ACTIVATION_DISCOVERIES);
   stats.discovered = rawJobs.length;
 
-  // 3. Insert as opportunities + score each one.
+  // Insert as opportunities + score each one.
   //    On dedup hit, check if the existing row is still at 'discovered'
   //    (unscored from a prior interrupted run) and score it.
   for (let i = 0; i < rawJobs.length; i++) {
@@ -169,6 +171,9 @@ export async function runActivationSearch(
     log.error("failed to set activation_completed_at", undefined, {
       error: completion.error,
     });
+    throw new Error(
+      `Failed to mark activation complete: ${completion.error ?? "unknown"}`,
+    );
   }
 
   log.info("complete", {
@@ -198,7 +203,19 @@ async function scoreAndAdvance(
   stats: ActivationStats,
   log: Logger,
 ): Promise<void> {
+  let claimed = false;
+
   try {
+    claimed = await claimOpportunity(svc, opp.id, userId);
+    if (!claimed) {
+      log.info("score skipped — opportunity already claimed", {
+        opportunityId: opp.id,
+        company: opp.company_name,
+        role: opp.role_title,
+      });
+      return;
+    }
+
     const { newStage } = await scoreOneOpportunity(svc, userId, opp, config, {
       source: "activation",
       model: ACTIVATION_MODEL,
@@ -223,6 +240,17 @@ async function scoreAndAdvance(
       company: opp.company_name,
       role: opp.role_title,
     });
+  } finally {
+    if (claimed) {
+      try {
+        await releaseOpportunity(svc, opp.id, userId);
+      } catch (releaseErr) {
+        log.error("activation claim release failed", releaseErr, {
+          opportunityId: opp.id,
+          company: opp.company_name,
+        });
+      }
+    }
   }
 }
 
@@ -336,7 +364,10 @@ export async function markActivationComplete(
 ): Promise<{ ok: boolean; error?: string }> {
   const { data, error } = await svc
     .from("pipeline_config")
-    .update({ activation_completed_at: new Date().toISOString() })
+    .update({
+      activation_completed_at: new Date().toISOString(),
+      activation_started_at: null,
+    })
     .eq("user_id", userId)
     .select("id")
     .maybeSingle();

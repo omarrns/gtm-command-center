@@ -185,6 +185,7 @@ export interface PipelineConfigRow {
   daily_send_cap: number;
   gmail_send_address: string | null;
   activation_completed_at: string | null;
+  activation_started_at: string | null;
   created_at: string;
   updated_at: string;
 }
