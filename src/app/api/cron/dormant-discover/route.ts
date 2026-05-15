@@ -56,7 +56,8 @@ export async function GET(request: Request) {
   const { data: profiles, error: profilesErr } = await svc
     .from("profiles")
     .select("user_id")
-    .eq("user_type", "gtm");
+    .eq("user_type", "gtm")
+    .eq("is_enabled", true);
 
   if (profilesErr) {
     log.error("failed to load gtm profiles", profilesErr);

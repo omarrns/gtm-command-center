@@ -71,7 +71,7 @@ export async function GET(request: Request) {
   const configUserIds = configs.map(({ user_id }) => user_id);
   const { data: profiles, error: profileError } = await svc
     .from("profiles")
-    .select("user_id,user_type")
+    .select("user_id,user_type,is_enabled")
     .in("user_id", configUserIds);
 
   if (profileError) {
@@ -82,19 +82,30 @@ export async function GET(request: Request) {
     );
   }
 
-  const userTypeById = new Map<string, UserType | null>(
+  const profileById = new Map<
+    string,
+    { userType: UserType | null; isEnabled: boolean }
+  >(
     (profiles ?? []).map((profile) => [
       profile.user_id,
-      (profile.user_type ?? null) as UserType | null,
+      {
+        userType: (profile.user_type ?? null) as UserType | null,
+        isEnabled: profile.is_enabled === true,
+      },
     ]),
   );
-  const dispatchConfigs = configs.filter(
-    ({ user_id }) => userTypeById.get(user_id) !== "gtm",
+  const enabledConfigs = configs.filter(
+    ({ user_id }) => profileById.get(user_id)?.isEnabled === true,
   );
-  const skippedGtm = configs.length - dispatchConfigs.length;
+  const dispatchConfigs = enabledConfigs.filter(
+    ({ user_id }) => profileById.get(user_id)?.userType !== "gtm",
+  );
+  const skippedDisabled = configs.length - enabledConfigs.length;
+  const skippedGtm = enabledConfigs.length - dispatchConfigs.length;
 
   log.info("dispatch filter", {
     dispatched: dispatchConfigs.length,
+    skippedDisabled,
     skippedGtm,
   });
   log.info("dispatching workflows", { users: dispatchConfigs.length });
@@ -126,6 +137,7 @@ export async function GET(request: Request) {
   return Response.json({
     ok: true,
     processed: dispatchConfigs.length,
+    skippedDisabled,
     skippedGtm,
     runs,
   });

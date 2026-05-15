@@ -201,6 +201,25 @@ export async function POST(request: Request) {
 
   const svc = createSupabaseServiceClient();
 
+  const { data: profile, error: profileErr } = await svc
+    .from("profiles")
+    .select("is_enabled")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (profileErr) {
+    userLog.error("failed to load profile", profileErr);
+    return NextResponse.json(
+      { ok: false, error: profileErr.message },
+      { status: 500 },
+    );
+  }
+
+  if (profile?.is_enabled !== true) {
+    userLog.info("user disabled or missing profile — skipping");
+    return NextResponse.json({ ok: true, skipped: "user disabled" });
+  }
+
   const [scoringRes, configRes] = await Promise.all([
     svc
       .from("user_scoring_profiles")
@@ -224,7 +243,7 @@ export async function POST(request: Request) {
     );
   }
 
-    const rubric = safeParseIcpRubric(rawRubric);
+  const rubric = safeParseIcpRubric(rawRubric);
   if (!rubric.success) {
     userLog.error("icp_rubric failed schema validation", rubric.error);
     return NextResponse.json(

@@ -48,9 +48,36 @@ export async function GET(request: Request) {
     return Response.json({ ok: true, runId, checked: 0, replied: 0 });
   }
 
+  const sentUserIds = [...new Set(sentOpps.map((opp) => opp.user_id))];
+  const { data: enabledProfiles, error: profileError } = await svc
+    .from("profiles")
+    .select("user_id")
+    .in("user_id", sentUserIds)
+    .eq("is_enabled", true);
+
+  if (profileError) {
+    log.error("failed to load enabled profiles", profileError);
+    return Response.json(
+      { ok: false, error: profileError.message },
+      { status: 500 },
+    );
+  }
+
+  const enabledUserIds = new Set(
+    (enabledProfiles ?? []).map((profile) => profile.user_id as string),
+  );
+  const enabledOpps = sentOpps.filter((opp) => enabledUserIds.has(opp.user_id));
+
+  if (enabledOpps.length === 0) {
+    log.info("no sent opportunities for enabled users", {
+      skippedDisabled: sentOpps.length,
+    });
+    return Response.json({ ok: true, runId, checked: 0, replied: 0 });
+  }
+
   // Group by user_id so we create one Gmail client per user
-  const byUser = new Map<string, typeof sentOpps>();
-  for (const opp of sentOpps) {
+  const byUser = new Map<string, typeof enabledOpps>();
+  for (const opp of enabledOpps) {
     const list = byUser.get(opp.user_id) ?? [];
     list.push(opp);
     byUser.set(opp.user_id, list);
@@ -58,7 +85,8 @@ export async function GET(request: Request) {
 
   log.info("checking replies", {
     users: byUser.size,
-    threads: sentOpps.length,
+    threads: enabledOpps.length,
+    skippedDisabled: sentOpps.length - enabledOpps.length,
   });
 
   let totalChecked = 0;

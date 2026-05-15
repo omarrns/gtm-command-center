@@ -28,7 +28,7 @@
     "onboard:reset": "tsx scripts/onboard-reset.ts",
     "onboard:fixture": "tsx scripts/onboard-fixture.ts",
     "onboard:to-review": "tsx scripts/onboard-to-review.ts",
-    "test": "pnpm test:account-scoring-schema && pnpm test:artifact-kind-per-template && pnpm test:onboarding-artifact-analysis-job && pnpm test:onboarding-boundary-validation && pnpm test:video-icp-review-job && pnpm test:video-icp-model-selection && pnpm test:youtube-prospects && pnpm test:artifact-persistence && pnpm test:confirm-adapter && pnpm test:correctness && pnpm test:approve-send && pnpm test:extraction && pnpm test:icp-agent-loop && pnpm test:icp-dimensions && pnpm test:icp-confirm && pnpm test:icp-confirm-low-exemplar && pnpm test:icp-interview && pnpm test:icp-narrative-formatter && pnpm test:icp-account-outreach && pnpm test:messaging-hub-helpers && pnpm test:job-scoring-retry && pnpm test:activation-preview && pnpm test:onboarding-complete-per-template && pnpm test:onboarding-confirm && pnpm test:persona-switch-artifact-retention && pnpm test:pipeline-regression && pnpm test:pipeline-workflow-persona && pnpm test:pipeline-dispatch-persona && pnpm test:pursuit-removed && pnpm test:scoring-normalize-per-template && pnpm test:sender-identity && pnpm test:theirstack-webhook",
+    "test": "pnpm test:account-scoring-schema && pnpm test:artifact-kind-per-template && pnpm test:onboarding-artifact-analysis-job && pnpm test:onboarding-boundary-validation && pnpm test:video-icp-review-job && pnpm test:video-icp-model-selection && pnpm test:youtube-prospects && pnpm test:artifact-persistence && pnpm test:confirm-adapter && pnpm test:correctness && pnpm test:approve-send && pnpm test:extraction && pnpm test:icp-agent-loop && pnpm test:icp-dimensions && pnpm test:icp-confirm && pnpm test:icp-confirm-low-exemplar && pnpm test:icp-interview && pnpm test:icp-narrative-formatter && pnpm test:icp-account-outreach && pnpm test:messaging-hub-helpers && pnpm test:job-scoring-retry && pnpm test:activation-preview && pnpm test:onboarding-complete-per-template && pnpm test:onboarding-confirm && pnpm test:persona-switch-artifact-retention && pnpm test:pipeline-regression && pnpm test:pipeline-workflow-persona && pnpm test:pipeline-dispatch-persona && pnpm test:enabled-background-gates && pnpm test:pursuit-removed && pnpm test:scoring-normalize-per-template && pnpm test:sender-identity && pnpm test:theirstack-webhook",
     "test:account-scoring-schema": "tsx scripts/test-account-scoring-schema.ts",
     "test:account-manual-outcomes": "tsx scripts/test-account-manual-outcomes.ts",
     "test:sender-identity": "tsx scripts/test-sender-identity.ts",
@@ -57,6 +57,7 @@
     "test:pipeline-regression": "tsx scripts/test-pipeline-regression.ts",
     "test:pipeline-workflow-persona": "tsx scripts/test-pipeline-workflow-persona.ts",
     "test:pipeline-dispatch-persona": "tsx scripts/test-pipeline-dispatch-persona.ts",
+    "test:enabled-background-gates": "tsx scripts/test-enabled-background-gates.ts",
     "test:pursuit-removed": "tsx scripts/test-pursuit-removed.ts",
     "test:artifact-kind-per-template": "tsx scripts/test-artifact-kind-per-template.ts",
     "test:theirstack-webhook": "tsx scripts/test-theirstack-webhook.ts",
@@ -120,10 +121,19 @@
   },
   "pnpm": {
     "overrides": {
-      "devalue": "5.8.0",
+      "@tootallnate/once": "3.0.1",
+      "ajv@>=7.0.0-alpha.0 <8.18.0": "8.20.0",
+      "basic-ftp": "5.3.1",
+      "devalue": "5.8.1",
       "fast-xml-builder": "1.1.7",
       "fast-xml-parser": "5.7.3",
+      "mermaid": "11.15.0",
+      "minimatch@>=10.0.0 <10.2.5": "10.2.5",
+      "path-to-regexp@>=8.0.0 <8.4.0": "8.4.2",
       "postcss": "8.5.14",
+      "smol-toml": "1.6.1",
+      "srvx": "0.11.13",
+      "tar": "7.5.13",
       "undici": "7.25.0",
       "uuid": "11.1.1"
     },
@@ -151,6 +161,6 @@
     "tailwindcss": "^4",
     "tsx": "^4.19.2",
     "typescript": "^5",
-    "vercel": "^50.42.0"
+    "vercel": "54.1.0"
   }
 }

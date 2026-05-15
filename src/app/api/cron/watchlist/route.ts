@@ -42,9 +42,9 @@ export async function GET(request: Request) {
   }
 
   // Deduplicate user IDs
-  const userIds = [...new Set((entries ?? []).map((e) => e.user_id))];
+  const monitoredUserIds = [...new Set((entries ?? []).map((e) => e.user_id))];
 
-  if (!userIds.length) {
+  if (!monitoredUserIds.length) {
     log.info("no users with active monitors");
     return Response.json({
       ok: true,
@@ -52,6 +52,34 @@ export async function GET(request: Request) {
       users: 0,
       newAlerts: 0,
       message: "No users with active monitors",
+    });
+  }
+
+  const { data: enabledProfiles, error: profileError } = await svc
+    .from("profiles")
+    .select("user_id")
+    .in("user_id", monitoredUserIds)
+    .eq("is_enabled", true);
+
+  if (profileError) {
+    log.error("failed to load enabled profiles", profileError);
+    return Response.json(
+      { ok: false, error: profileError.message },
+      { status: 500 },
+    );
+  }
+
+  const userIds = (enabledProfiles ?? []).map((profile) => profile.user_id);
+  const skippedDisabled = monitoredUserIds.length - userIds.length;
+
+  if (!userIds.length) {
+    log.info("no enabled users with active monitors", { skippedDisabled });
+    return Response.json({
+      ok: true,
+      runId,
+      users: 0,
+      newAlerts: 0,
+      message: "No enabled users with active monitors",
     });
   }
 
@@ -76,6 +104,7 @@ export async function GET(request: Request) {
 
   log.info("cron complete", {
     users: userIds.length,
+    skippedDisabled,
     newAlerts: totalAlerts,
     errors: errors.length,
   });

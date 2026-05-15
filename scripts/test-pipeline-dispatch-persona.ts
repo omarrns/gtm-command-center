@@ -116,9 +116,10 @@ async function main() {
   const svc = createMockSupabase();
   __setSupabaseServiceClientForTests(() => svc);
 
-  seedUser("dispatch-job-seeker", "job_seeker");
-  seedUser("dispatch-gtm", "gtm");
-  seedUser("dispatch-null", null);
+  seedUser("dispatch-job-seeker", "job_seeker", true);
+  seedUser("dispatch-gtm", "gtm", true);
+  seedUser("dispatch-null", null, true);
+  seedUser("dispatch-disabled", "job_seeker", false);
 
   const cronRoute = await import("../src/app/api/cron/pipeline/route");
   const pipelineRunRoute = await import("../src/app/api/pipeline/run/route");
@@ -151,6 +152,10 @@ async function main() {
   assert(
     cronBody.skippedGtm === 1,
     `cron skippedGtm === 1 (got ${cronBody.skippedGtm})`,
+  );
+  assert(
+    cronBody.skippedDisabled === 1,
+    `cron skippedDisabled === 1 (got ${cronBody.skippedDisabled})`,
   );
 
   let manualStarted = false;
@@ -220,7 +225,11 @@ async function main() {
   console.log("\nAll assertions passed.");
 }
 
-function seedUser(userId: string, userType: "job_seeker" | "gtm" | null) {
+function seedUser(
+  userId: string,
+  userType: "job_seeker" | "gtm" | null,
+  isEnabled: boolean,
+) {
   tables.pipeline_config.push({
     id: nextId(),
     user_id: userId,
@@ -229,6 +238,7 @@ function seedUser(userId: string, userType: "job_seeker" | "gtm" | null) {
     id: nextId(),
     user_id: userId,
     user_type: userType,
+    is_enabled: isEnabled,
   });
 }
 
