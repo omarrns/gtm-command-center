@@ -35,7 +35,7 @@ Read `docs/agent-reference.md` before changing pipeline, onboarding, scoring, se
 - Send Flow is safety-critical (`src/lib/outreach/approve-send.ts`): after Gmail returns IDs, never revert `sending` back to `queued`. Return a reconciliation error instead of risking duplicate sends.
 - All cron endpoints are `GET`, require bearer `CRON_SECRET`, and fail closed if missing or mismatched.
 - `pipeline_config` is client-readable but not client-writable. Mutations go through server actions or service-role code.
-- ICP chat cannot directly mutate the saved rubric. Rubric recommendations must go through the job handoff chain: `icp-session-distill` → `icp-evidence-route` → `icp-revision-evaluate`, with trace rows in `icp_agent_events`.
+- ICP chat cannot directly mutate the saved rubric. Rubric recommendations must go through the job handoff chain: `icp-session-distill` -> `icp-evidence-route` -> `icp-revision-evaluate`, with trace rows in `icp_agent_events`.
 - ICP revision agents suggest structured patches only. Server code validates and applies them; models do not write `user_scoring_profiles.icp_rubric` directly.
 - Current ICP auto-apply policy is narrow: append allowed rubric arrays such as `/firmographics/stages`, remove only matching `/disqualifiers/stage_disqualifiers`, and keep broader scalar changes as rejected/manual-review candidates unless policy is explicitly expanded.
 - ICP distillation must tolerate rubric-level conversations without a named account; `account: null` is valid model output and should not block the review pipeline.
@@ -43,7 +43,6 @@ Read `docs/agent-reference.md` before changing pipeline, onboarding, scoring, se
 - Model slugs use Gateway provider/model format with dotted versions, e.g. `anthropic/claude-opus-4.6` and `anthropic/claude-sonnet-4.6`.
 - `components/ai-elements/` is vendored from Vercel AI Elements. Do not hand-refactor; re-vendor from upstream.
 - `src/components/app-shell/command-palette.tsx` and `src/components/app-shell/sidebar-nav.tsx` are intentionally custom. Do not replace them with shadcn `command` or `sidebar` without an explicit ask.
-- Combined/integration branches are for visual QA only unless the user explicitly chooses to merge them. Prefer clean topic branches for review. If an integration branch includes Supabase migrations, apply or verify those migrations before browser QA; a page can fail from remote schema cache drift even when the TypeScript branch is correct.
 
 ## Ownership Boundaries
 
@@ -64,7 +63,6 @@ pnpm test                 # Umbrella test suite
 pnpm test:correctness     # Pipeline correctness guardrails
 pnpm test:approve-send    # Send-flow reconciliation guardrails
 pnpm test:extraction      # Opus extraction fixture
-pnpm test:icp-agent-loop  # ICP chat/revision guardrails
 pnpm test:onboarding-confirm
 pnpm test:sender-identity
 ```
@@ -198,7 +196,6 @@ These are constraints. Violating any rule is a bug.
 
 - Never modify existing production columns. Add new columns instead.
 - Every schema change gets its own migration file in `supabase/migrations/`.
-- After switching to a branch with new migrations, run a dry migration check before visual QA. If the app points at hosted Supabase via `.env.local`, local Docker/Supabase status is not enough; use `supabase db push --dry-run` or an equivalent schema query against the configured project.
 - Generated DB types live in `supabase/generated/database.types.ts` and are a committed snapshot, not a dynamic runtime interface. After any Supabase migration is applied or pulled, run `pnpm db:types`; before merging DB-touching work, run `pnpm db:check`; if hosted DB drift is suspected, run `pnpm db:types:check`. App-facing domain overlays live in `src/lib/supabase/types.ts`.
 - No raw SQL in pipeline files. Named query functions live in dedicated query files.
 
